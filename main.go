@@ -11,11 +11,11 @@ import (
 )
 
 func main() {
+	login := os.Getenv("NALOGRU_LOGIN")
+	password := os.Getenv("NALOGRU_PASS")
+	const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 	http.HandleFunc("/api/receipt/as-query", func(writer http.ResponseWriter, request *http.Request) {
-		login := os.Getenv("NALOGRU_LOGIN")
-		password := os.Getenv("NALOGRU_PASS")
-		const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 		if request.Method != http.MethodPost {
 			writer.WriteHeader(http.StatusNotFound)
@@ -28,19 +28,7 @@ func main() {
 		receiptParams := ParseReceipt(&request.Form)
 		fmt.Println(receiptParams)
 
-		odfsUrl := BuildOfdsUrl(baseAddress, receiptParams)
-		fmt.Println(odfsUrl)
-		kktUrl := BuildKktsUrl(baseAddress, receiptParams)
-		fmt.Println(kktUrl)
-
-		client := &http.Client{}
-		sendOdfsRequest(odfsUrl, client, login, password)
-
-		bytes, err := sendKktsRequest(kktUrl, client, login, password)
-		if err != nil {
-			panic(err)
-		}
-		receipt := parseReceipt(bytes)
+		receipt := GetReceipt(baseAddress, receiptParams, login, password)
 
 		fmt.Println(receipt.DateTime)
 		fmt.Println(receipt.Items)
@@ -48,8 +36,30 @@ func main() {
 		fmt.Println(receipt.TotalSum)
 		fmt.Println(receipt.UserInn)
 	})
-	fmt.Println(http.ListenAndServe("0.0.0.0:8888", nil))
+	address := ":8888"
+	fmt.Printf("Starting http server at: \"%s\"...", address)
+	fmt.Println(http.ListenAndServe(address, nil))
 
+}
+
+func GetReceipt(baseAddress string, receiptParams ParseResult, login string, password string) Receipt {
+	bytes, err := GetRawReceipt(baseAddress, receiptParams, login, password)
+	if err != nil {
+		panic(err)
+	}
+	receipt := parseReceipt(bytes)
+	return receipt
+}
+
+func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
+	odfsUrl := BuildOfdsUrl(baseAddress, receiptParams)
+	fmt.Println(odfsUrl)
+	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
+	fmt.Println(kktUrl)
+	client := &http.Client{}
+	sendOdfsRequest(odfsUrl, client, login, password)
+	bytes, err := sendKktsRequest(kktUrl, client, login, password)
+	return bytes, err
 }
 
 func ParseReceipt(form *url.Values) ParseResult {
