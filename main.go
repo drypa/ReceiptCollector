@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/adjust/redismq"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,11 +11,12 @@ import (
 	"time"
 )
 
-const dumpDirectory = "./dump/"
+//const dumpDirectory = "./dump/"
 
 func main() {
 	login := os.Getenv("NALOGRU_LOGIN")
 	password := os.Getenv("NALOGRU_PASS")
+	rawReceiptQueue := redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
 	const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 	http.HandleFunc("/api/receipt/as-query", func(writer http.ResponseWriter, request *http.Request) {
@@ -31,8 +32,11 @@ func main() {
 		receiptParams := ParseReceipt(&request.Form)
 		fmt.Println(receiptParams)
 
-		receipt := GetReceipt(baseAddress, receiptParams, login, password)
+		rawReceipt, err := GetRawReceipt(baseAddress, receiptParams, login, password)
+		check(err)
+		saveResponse(rawReceiptQueue, rawReceipt)
 
+		receipt := parseReceipt(rawReceipt)
 		fmt.Println(receipt.DateTime)
 		fmt.Println(receipt.Items)
 		fmt.Println(receipt.RetailPlaceAddress)
@@ -45,14 +49,18 @@ func main() {
 
 }
 
-func GetReceipt(baseAddress string, receiptParams ParseResult, login string, password string) Receipt {
-	bytes, err := GetRawReceipt(baseAddress, receiptParams, login, password)
+func saveResponse(queue *redismq.Queue, response []byte) {
+	err := queue.Put(string(response))
 	check(err)
-	dumpToFile(bytes)
-
-	receipt := parseReceipt(bytes)
-	return receipt
 }
+
+//func GetReceipt(baseAddress string, receiptParams ParseResult, login string, password string) Receipt {
+//	bytes, err := GetRawReceipt(baseAddress, receiptParams, login, password)
+//	check(err)
+//	dumpToFile(bytes)
+//	receipt := parseReceipt(bytes)
+//	return receipt
+//}
 
 func check(err error) {
 	if err != nil {
@@ -60,11 +68,11 @@ func check(err error) {
 	}
 }
 
-func dumpToFile(rawReceipt []byte) {
-	uuid, _ := uuid.NewUUID()
-	err := ioutil.WriteFile(dumpDirectory+uuid.String()+".json", rawReceipt, os.ModeType)
-	check(err)
-}
+//func dumpToFile(rawReceipt []byte) {
+//	uuid, _ := uuid.NewUUID()
+//	err := ioutil.WriteFile(dumpDirectory+uuid.String()+".json", rawReceipt, os.ModeType)
+//	check(err)
+//}
 
 func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
 	odfsUrl := BuildOfdsUrl(baseAddress, receiptParams)
