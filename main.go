@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 )
+
+const dumpDirectory = "./dump/"
 
 func main() {
 	login := os.Getenv("NALOGRU_LOGIN")
@@ -44,11 +47,23 @@ func main() {
 
 func GetReceipt(baseAddress string, receiptParams ParseResult, login string, password string) Receipt {
 	bytes, err := GetRawReceipt(baseAddress, receiptParams, login, password)
+	check(err)
+	dumpToFile(bytes)
+
+	receipt := parseReceipt(bytes)
+	return receipt
+}
+
+func check(err error) {
 	if err != nil {
 		panic(err)
 	}
-	receipt := parseReceipt(bytes)
-	return receipt
+}
+
+func dumpToFile(rawReceipt []byte) {
+	uuid, _ := uuid.NewUUID()
+	err := ioutil.WriteFile(dumpDirectory+uuid.String()+".json", rawReceipt, os.ModeType)
+	check(err)
 }
 
 func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
@@ -80,9 +95,8 @@ func ParseReceipt(form *url.Values) ParseResult {
 func parseReceipt(bytes []byte) Receipt {
 	var receipt map[string]map[string]Receipt
 	err := json.Unmarshal(bytes, &receipt)
-	if err != nil {
-		panic(err)
-	}
+	check(err)
+
 	res := receipt["document"]["receipt"]
 
 	return res
@@ -90,20 +104,24 @@ func parseReceipt(bytes []byte) Receipt {
 
 func sendOdfsRequest(url string, client *http.Client, login string, password string) {
 	response, err := sendRequest(url, client, login, password)
-	if err != nil {
-		panic(err)
-	}
+	check(err)
+
 	fmt.Println(response.StatusCode)
 }
 
 func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
-
+	retry := 0
 	for {
 		response, err := sendRequest(url, client, login, password)
 		if err == nil && response.StatusCode == 200 {
 			return ioutil.ReadAll(response.Body)
 		}
-		time.Sleep(1000)
+		retry++
+		if retry >= 10 {
+			panic("Retry limit reached")
+		}
+		time.Sleep(time.Duration(1000 * retry))
+
 	}
 }
 
