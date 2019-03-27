@@ -19,6 +19,8 @@ func main() {
 	rawReceiptQueue := redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
 	const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
+	go consumeRawReceipts(rawReceiptQueue)
+
 	http.HandleFunc("/api/receipt/as-query", func(writer http.ResponseWriter, request *http.Request) {
 
 		if request.Method != http.MethodPost {
@@ -29,19 +31,13 @@ func main() {
 		if err != nil {
 			writer.WriteHeader(http.StatusBadRequest)
 		}
-		receiptParams := ParseReceipt(&request.Form)
+		receiptParams := ParseQuery(&request.Form)
 		fmt.Println(receiptParams)
 
 		rawReceipt, err := GetRawReceipt(baseAddress, receiptParams, login, password)
 		check(err)
 		saveResponse(rawReceiptQueue, rawReceipt)
 
-		receipt := parseReceipt(rawReceipt)
-		fmt.Println(receipt.DateTime)
-		fmt.Println(receipt.Items)
-		fmt.Println(receipt.RetailPlaceAddress)
-		fmt.Println(receipt.TotalSum)
-		fmt.Println(receipt.UserInn)
 	})
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
@@ -85,7 +81,7 @@ func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, 
 	return bytes, err
 }
 
-func ParseReceipt(form *url.Values) ParseResult {
+func ParseQuery(form *url.Values) ParseResult {
 	timeString := form.Get("t")
 
 	timeParsed := parseAsTime(timeString)
@@ -145,4 +141,22 @@ func addHeaders(request *http.Request, login string, password string) {
 	request.Header.Add("Version", "2")
 	request.Header.Add("ClientVersion", "1.4.4.4")
 	request.Header.Add("Device-Id", "123456")
+}
+
+func consumeRawReceipts(rawQueue *redismq.Queue) {
+	consumer, err := rawQueue.AddConsumer("receipt-parser")
+	check(err)
+
+	for {
+		message, err := consumer.Get()
+		check(err)
+
+		receipt := parseReceipt([]byte(message.Payload))
+
+		fmt.Println(receipt.DateTime)
+		fmt.Println(receipt.Items)
+		fmt.Println(receipt.RetailPlaceAddress)
+		fmt.Println(receipt.TotalSum)
+		fmt.Println(receipt.UserInn)
+	}
 }
