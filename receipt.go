@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Purchase struct {
 	Price    int32
 	Sum      int32
@@ -13,4 +15,12 @@ type Receipt struct {
 	RetailPlaceAddress string
 	UserInn            string
 	Items              []Purchase
+}
+
+func (purchase *Purchase) String() string {
+	return fmt.Sprintf("Purchase: Name=%s; Price=%d; Quantity=%f; Sum=%d", purchase.Name, purchase.Price, purchase.Quantity, purchase.Sum)
+}
+
+func (receipt *Receipt) String() string {
+	return fmt.Sprintf("Receipt: Date=%s; RetailAddress=%s; Inn=%s; ItemsCount=%d", receipt.DateTime, receipt.RetailPlaceAddress, receipt.UserInn, len(receipt.Items))
 }
