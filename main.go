@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -75,12 +76,12 @@ func ParseQuery(form *url.Values) ParseResult {
 	timeParsed := parseAsTime(timeString)
 
 	return ParseResult{
-		N:          form.Get("n"),
-		FiscalSign: form.Get("fp"),
-		Sum:        form.Get("s"),
-		Fd:         form.Get("fn"),
+		N:          template.HTMLEscapeString(form.Get("n")),
+		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
+		Sum:        template.HTMLEscapeString(form.Get("s")),
+		Fd:         template.HTMLEscapeString(form.Get("fn")),
 		Time:       timeParsed,
-		Fp:         form.Get("i"),
+		Fp:         template.HTMLEscapeString(form.Get("i")),
 	}
 }
 
