@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,37 +12,39 @@ import (
 	"time"
 )
 
-//const dumpDirectory = "./dump/"
+var login = os.Getenv("NALOGRU_LOGIN")
+var password = os.Getenv("NALOGRU_PASS")
+var rawReceiptQueue = redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
+
+const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 func main() {
-	login := os.Getenv("NALOGRU_LOGIN")
-	password := os.Getenv("NALOGRU_PASS")
-	rawReceiptQueue := redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
-	const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 	go consumeRawReceipts(rawReceiptQueue)
 
-	http.HandleFunc("/api/receipt/as-query", func(writer http.ResponseWriter, request *http.Request) {
-
-		if request.Method != http.MethodPost {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
-		err := request.ParseForm()
-		if err != nil {
-			writer.WriteHeader(http.StatusBadRequest)
-		}
-		receiptParams := ParseQuery(&request.Form)
-		fmt.Println(receiptParams)
-
-		rawReceipt, err := GetRawReceipt(baseAddress, receiptParams, login, password)
-		check(err)
-		saveResponse(rawReceiptQueue, rawReceipt)
-
-	})
+	http.HandleFunc("/api/receipt/as-query", processRequest)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
+
+}
+
+func processRequest(writer http.ResponseWriter, request *http.Request) {
+
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+	err := request.ParseForm()
+	if err != nil {
+		writer.WriteHeader(http.StatusBadRequest)
+	}
+	receiptParams := ParseQuery(&request.Form)
+	fmt.Println(receiptParams)
+
+	rawReceipt, err := getRawReceipt(baseAddress, receiptParams, login, password)
+	check(err)
+	saveResponse(rawReceiptQueue, rawReceipt)
 
 }
 
@@ -50,27 +53,13 @@ func saveResponse(queue *redismq.Queue, response []byte) {
 	check(err)
 }
 
-//func GetReceipt(baseAddress string, receiptParams ParseResult, login string, password string) Receipt {
-//	bytes, err := GetRawReceipt(baseAddress, receiptParams, login, password)
-//	check(err)
-//	dumpToFile(bytes)
-//	receipt := parseReceipt(bytes)
-//	return receipt
-//}
-
 func check(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
-//func dumpToFile(rawReceipt []byte) {
-//	uuid, _ := uuid.NewUUID()
-//	err := ioutil.WriteFile(dumpDirectory+uuid.String()+".json", rawReceipt, os.ModeType)
-//	check(err)
-//}
-
-func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
+func getRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
 	odfsUrl := BuildOfdsUrl(baseAddress, receiptParams)
 	fmt.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
@@ -87,12 +76,12 @@ func ParseQuery(form *url.Values) ParseResult {
 	timeParsed := parseAsTime(timeString)
 
 	return ParseResult{
-		N:          form.Get("n"),
-		FiscalSign: form.Get("fp"),
-		Sum:        form.Get("s"),
-		Fd:         form.Get("fn"),
+		N:          template.HTMLEscapeString(form.Get("n")),
+		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
+		Sum:        template.HTMLEscapeString(form.Get("s")),
+		Fd:         template.HTMLEscapeString(form.Get("fn")),
 		Time:       timeParsed,
-		Fp:         form.Get("i"),
+		Fp:         template.HTMLEscapeString(form.Get("i")),
 	}
 }
 
@@ -153,10 +142,9 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 
 		receipt := parseReceipt([]byte(message.Payload))
 
-		fmt.Println(receipt.DateTime)
-		fmt.Println(receipt.Items)
-		fmt.Println(receipt.RetailPlaceAddress)
-		fmt.Println(receipt.TotalSum)
-		fmt.Println(receipt.UserInn)
+		fmt.Println(receipt.String())
+		for i := 0; i < len(receipt.Items); i++ {
+			fmt.Println(receipt.Items[i].String())
+		}
 	}
 }
