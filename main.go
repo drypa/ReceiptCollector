@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
+	"github.com/google/uuid"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,7 @@ var login = os.Getenv("NALOGRU_LOGIN")
 var password = os.Getenv("NALOGRU_PASS")
 var rawReceiptQueue = redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
 
+const dumpDirectory = "./stub/dump/"
 const baseAddress = "https://proverkacheka.nalog.ru:9999"
 
 func main() {
@@ -44,8 +46,15 @@ func processRequest(writer http.ResponseWriter, request *http.Request) {
 
 	rawReceipt, err := getRawReceipt(baseAddress, receiptParams, login, password)
 	check(err)
+	dumpToFile(rawReceipt)
 	saveResponse(rawReceiptQueue, rawReceipt)
 
+}
+
+func dumpToFile(rawReceipt []byte) {
+	unique, _ := uuid.NewUUID()
+	err := ioutil.WriteFile(dumpDirectory+unique.String()+".json", rawReceipt, 0644)
+	check(err)
 }
 
 func saveResponse(queue *redismq.Queue, response []byte) {
