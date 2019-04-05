@@ -1,6 +1,6 @@
-FROM golang:1.12.1
+FROM alpine:3.9
 
-ADD receipt_collector /app/receipt_collector
+COPY receipt_collector /app/receipt_collector
 
 EXPOSE 8888
 
