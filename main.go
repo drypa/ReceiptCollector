@@ -15,7 +15,7 @@ import (
 
 var login = os.Getenv("NALOGRU_LOGIN")
 var password = os.Getenv("NALOGRU_PASS")
-var rawReceiptQueue = redismq.CreateQueue("localhost", "3679", "", 6, "raw-receipts")
+var rawReceiptQueue = redismq.CreateQueue("localhost", "6379", "", 6, "raw-receipts")
 
 const dumpDirectory = "./stub/dump/"
 const baseAddress = "https://proverkacheka.nalog.ru:9999"
@@ -107,7 +107,7 @@ func parseReceipt(bytes []byte) Receipt {
 func sendOdfsRequest(url string, client *http.Client, login string, password string) {
 	response, err := sendRequest(url, client, login, password)
 	check(err)
-
+	//406
 	fmt.Println(response.StatusCode)
 }
 
@@ -118,11 +118,16 @@ func sendKktsRequest(url string, client *http.Client, login string, password str
 		if err == nil && response.StatusCode == 200 {
 			return ioutil.ReadAll(response.Body)
 		}
+		fmt.Println(err)
+		if response != nil {
+			fmt.Println(response.StatusCode)
+		}
 		retry++
 		if retry >= 10 {
+
 			panic("Retry limit reached")
 		}
-		time.Sleep(time.Duration(1000 * retry))
+		time.Sleep(time.Duration(int(time.Second) * retry))
 
 	}
 }
@@ -145,15 +150,28 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 	consumer, err := rawQueue.AddConsumer("receipt-parser")
 	check(err)
 
+	if consumer.HasUnacked() {
+		unacked, err := consumer.GetUnacked()
+		check(err)
+		processReceipt(unacked)
+		err = unacked.Ack()
+		check(err)
+	}
+
 	for {
 		message, err := consumer.Get()
 		check(err)
 
-		receipt := parseReceipt([]byte(message.Payload))
+		processReceipt(message)
+		err = message.Ack()
+		check(err)
+	}
+}
 
-		fmt.Println(receipt.String())
-		for i := 0; i < len(receipt.Items); i++ {
-			fmt.Println(receipt.Items[i].String())
-		}
+func processReceipt(message *redismq.Package) {
+	receipt := parseReceipt([]byte(message.Payload))
+	fmt.Println(receipt.String())
+	for i := 0; i < len(receipt.Items); i++ {
+		fmt.Println(receipt.Items[i].String())
 	}
 }
