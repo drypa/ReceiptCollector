@@ -15,6 +15,14 @@ type Receipt struct {
 	RetailPlaceAddress string
 	UserInn            string
 	Items              []Purchase
+	RawData            string
+	Operator           string
+	Nds18              int32
+	nds10              int32
+	User               string
+	CashTotalSum       int32
+	EcashTotalSum      int32
+	FiscalSign         int64
 }
 
 func (purchase *Purchase) String() string {
