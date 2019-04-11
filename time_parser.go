@@ -7,11 +7,11 @@ import (
 
 //Парсит строку формата yyyyMMddThhmm
 func parseAsTime(timeString string) time.Time {
-	year, _ := strconv.ParseInt(timeString[0:4], 0, 64)
-	month, _ := strconv.ParseInt(timeString[4:6], 0, 64)
-	day, _ := strconv.ParseInt(timeString[6:8], 0, 64)
-	hour, _ := strconv.ParseInt(timeString[9:11], 0, 64)
-	minutes, _ := strconv.ParseInt(timeString[11:], 0, 64)
+	year, _ := strconv.Atoi(timeString[0:4])
+	month, _ := strconv.Atoi(timeString[4:6])
+	day, _ := strconv.Atoi(timeString[6:8])
+	hour, _ := strconv.Atoi(timeString[9:11])
+	minutes, _ := strconv.Atoi(timeString[11:])
 
 	result := time.Date(int(year), time.Month(int(month)), int(day), int(hour), int(minutes), 0, 0, time.Local)
 
