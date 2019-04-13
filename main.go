@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
+	"github.com/globalsign/mgo"
 	"github.com/google/uuid"
 	"html/template"
 	"io/ioutil"
@@ -108,7 +109,7 @@ func sendOdfsRequest(url string, client *http.Client, login string, password str
 	response, err := sendRequest(url, client, login, password)
 	check(err)
 	//406
-	fmt.Println(response.StatusCode)
+	fmt.Printf("ODFS request status: %d", response.StatusCode)
 }
 
 func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
@@ -127,7 +128,7 @@ func sendKktsRequest(url string, client *http.Client, login string, password str
 
 			panic("Retry limit reached")
 		}
-		time.Sleep(time.Duration(int(time.Second) * retry))
+		time.Sleep(time.Duration(int(time.Second) * 2 * retry))
 
 	}
 }
@@ -150,10 +151,17 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 	consumer, err := rawQueue.AddConsumer("receipt-parser")
 	check(err)
 
+	session, err := mgo.Dial(mongoUrl)
+	check(err)
+
+	err = session.Login(&mgo.Credential{Password: "secret", Username: "mongoadmin"})
+	check(err)
+	collection := session.DB("receipt_collection").C("receipts")
+
 	if consumer.HasUnacked() {
 		unacked, err := consumer.GetUnacked()
 		check(err)
-		processReceipt(unacked)
+		processReceipt(unacked, collection)
 		err = unacked.Ack()
 		check(err)
 	}
@@ -162,16 +170,19 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 		message, err := consumer.Get()
 		check(err)
 
-		processReceipt(message)
+		processReceipt(message, collection)
 		err = message.Ack()
 		check(err)
 	}
 }
 
-func processReceipt(message *redismq.Package) {
+func processReceipt(message *redismq.Package, collection *mgo.Collection) {
 	receipt := parseReceipt([]byte(message.Payload))
 	fmt.Println(receipt.String())
 	for i := 0; i < len(receipt.Items); i++ {
 		fmt.Println(receipt.Items[i].String())
 	}
+	err := collection.Insert(receipt)
+	check(err)
+
 }

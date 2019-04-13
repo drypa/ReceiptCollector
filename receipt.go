@@ -10,6 +10,7 @@ type Purchase struct {
 }
 
 type Receipt struct {
+	Id                 string `bson:"_id,omitempty""`
 	DateTime           string
 	TotalSum           int32
 	RetailPlaceAddress string

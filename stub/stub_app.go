@@ -12,6 +12,7 @@ func main() {
 	baseDir := "./dump/"
 	files := getFiles(baseDir)
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		fmt.Println(request.URL.String())
 		if request.Method != http.MethodGet {
 			writer.WriteHeader(http.StatusNotFound)
 			return
