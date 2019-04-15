@@ -29,11 +29,9 @@ func main() {
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
-
 }
 
 func processRequest(writer http.ResponseWriter, request *http.Request) {
-
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusNotFound)
 		return
@@ -49,7 +47,6 @@ func processRequest(writer http.ResponseWriter, request *http.Request) {
 	check(err)
 	dumpToFile(rawReceipt)
 	saveResponse(rawReceiptQueue, rawReceipt)
-
 }
 
 func dumpToFile(rawReceipt []byte) {
@@ -153,7 +150,7 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 
 	session, err := mgo.Dial(mongoUrl)
 	check(err)
-
+	defer session.Clone()
 	err = session.Login(&mgo.Credential{Password: "secret", Username: "mongoadmin"})
 	check(err)
 	collection := session.DB("receipt_collection").C("receipts")

@@ -10,20 +10,21 @@ type Purchase struct {
 }
 
 type Receipt struct {
-	Id                 string `bson:"_id,omitempty""`
-	DateTime           string
-	TotalSum           int32
-	RetailPlaceAddress string
-	UserInn            string
-	Items              []Purchase
-	RawData            string
-	Operator           string
-	Nds18              int32
-	nds10              int32
-	User               string
-	CashTotalSum       int32
-	EcashTotalSum      int32
-	FiscalSign         int64
+	Id                   string `bson:"_id,omitempty""`
+	DateTime             string
+	TotalSum             int32
+	RetailPlaceAddress   string
+	UserInn              string
+	Items                []Purchase
+	RawData              string
+	Operator             string
+	Nds18                int32
+	Nds10                int32
+	User                 string
+	CashTotalSum         int32
+	EcashTotalSum        int32
+	FiscalSign           int64
+	FiscalDocumentNumber int64
 }
 
 func (purchase *Purchase) String() string {
