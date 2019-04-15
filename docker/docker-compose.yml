@@ -1,0 +1,11 @@
+version: '2'
+services:
+  redis:
+    image: redis:5.0.4
+  mongo:
+    image: mongo:4.1
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongoadmin
+      - MONGO_INITDB_ROOT_USERNAME=secret
+    volumes:
+      - "./data:/data/db"

@@ -20,9 +20,9 @@ var rawReceiptQueue = redismq.CreateQueue("localhost", "6379", "", 6, "raw-recei
 
 const dumpDirectory = "./stub/dump/"
 const baseAddress = "https://proverkacheka.nalog.ru:9999"
+const mongoUrl = "mongodb://localhost:27017"
 
 func main() {
-
 	go consumeRawReceipts(rawReceiptQueue)
 
 	http.HandleFunc("/api/receipt/as-query", processRequest)

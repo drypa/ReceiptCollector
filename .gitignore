@@ -13,3 +13,5 @@
 
 #Jetbrains GoLand
 .idea
+
+.env
