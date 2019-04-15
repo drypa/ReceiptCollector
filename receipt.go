@@ -3,10 +3,11 @@ package main
 import "fmt"
 
 type Purchase struct {
-	Price    int32
-	Sum      int32
-	Quantity float32
-	Name     string
+	Price      int32
+	Sum        int32
+	Quantity   float32
+	Name       string
+	Categories []Category
 }
 
 type Receipt struct {
@@ -34,3 +35,15 @@ func (purchase *Purchase) String() string {
 func (receipt *Receipt) String() string {
 	return fmt.Sprintf("Receipt: Date=%s; RetailAddress=%s; Inn=%s; ItemsCount=%d", receipt.DateTime, receipt.RetailPlaceAddress, receipt.UserInn, len(receipt.Items))
 }
+
+type Category string
+
+const (
+	Food          Category = "food"
+	Alcohol       Category = "alcohol"
+	Clothes       Category = "clothes"
+	Shoes         Category = "shoes"
+	Medicine      Category = "medicine"
+	HomeAppliance Category = "home_appliance"
+	Entertainment Category = "entertainment"
+)
