@@ -22,20 +22,46 @@ const dumpDirectory = "./stub/dump/"
 const baseAddress = "https://proverkacheka.nalog.ru:9999"
 const mongoUrl = "mongodb://localhost:27017"
 
+var mongoUser = os.Getenv("MONGO_ADMIN")
+var mongoSecret = os.Getenv("MONGO_SECRET")
+
 func main() {
 	go consumeRawReceipts(rawReceiptQueue)
 
-	http.HandleFunc("/api/receipt/as-query", processRequest)
+	http.HandleFunc("/api/receipt", getReceiptHandler)
+	http.HandleFunc("/api/receipt/as-query", addReceiptHandler)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
 }
 
-func processRequest(writer http.ResponseWriter, request *http.Request) {
+func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+	defer request.Body.Close()
+
+	session, err := mgo.Dial(mongoUrl)
+	check(err)
+	defer session.Close()
+	err = session.Login(&mgo.Credential{Password: mongoSecret, Username: mongoUser})
+	check(err)
+	collection := session.DB("receipt_collection").C("receipts")
+	var receipts []Receipt
+	collection.Find(nil).All(&receipts)
+	resp, err := json.Marshal(receipts)
+	check(err)
+	writer.Write(resp)
+
+}
+
+func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
+	defer request.Body.Close()
 	err := request.ParseForm()
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -150,8 +176,8 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 
 	session, err := mgo.Dial(mongoUrl)
 	check(err)
-	defer session.Clone()
-	err = session.Login(&mgo.Credential{Password: "secret", Username: "mongoadmin"})
+	defer session.Close()
+	err = session.Login(&mgo.Credential{Password: mongoSecret, Username: mongoUser})
 	check(err)
 	collection := session.DB("receipt_collection").C("receipts")
 

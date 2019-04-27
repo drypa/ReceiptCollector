@@ -3,29 +3,29 @@ package main
 import "fmt"
 
 type Purchase struct {
-	Price      int32
-	Sum        int32
-	Quantity   float32
-	Name       string
-	Categories []Category
+	Price      int32      `json:"price"`
+	Sum        int32      `json:"sum"`
+	Quantity   float32    `json:"quantity"`
+	Name       string     `json:"name"`
+	Categories []Category `json:"categories"`
 }
 
 type Receipt struct {
-	Id                   string `bson:"_id,omitempty""`
-	DateTime             string
-	TotalSum             int32
-	RetailPlaceAddress   string
-	UserInn              string
-	Items                []Purchase
-	RawData              string
-	Operator             string
-	Nds18                int32
-	Nds10                int32
-	User                 string
-	CashTotalSum         int32
-	EcashTotalSum        int32
-	FiscalSign           int64
-	FiscalDocumentNumber int64
+	Id                   string     `bson:"_id,omitempty" json:"id"`
+	DateTime             string     `json:"date_time"`
+	TotalSum             int32      `json:"total_sum"`
+	RetailPlaceAddress   string     `json:"retail_place_address"`
+	UserInn              string     `json:"user_inn"`
+	Items                []Purchase `json:"items"`
+	RawData              string     `json:"raw_data"`
+	Operator             string     `json:"operator"`
+	Nds18                int32      `json:"nds_18"`
+	Nds10                int32      `json:"nds_10"`
+	User                 string     `json:"user"`
+	CashTotalSum         int32      `json:"cash_total_sum"`
+	EcashTotalSum        int32      `json:"ecash_total_sum"`
+	FiscalSign           int64      `json:"fiscal_sign"`
+	FiscalDocumentNumber int64      `json:"fiscal_document_number"`
 }
 
 func (purchase *Purchase) String() string {
