@@ -67,7 +67,7 @@ func check(err error) {
 }
 
 func getRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
-	odfsUrl := BuildOfdsUrl(baseAddress, receiptParams)
+	odfsUrl := buildOfdsUrl(baseAddress, receiptParams)
 	fmt.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
 	fmt.Println(kktUrl)
