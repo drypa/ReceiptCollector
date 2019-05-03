@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type Purchase struct {
 	Price      int32      `json:"price"`
@@ -11,21 +14,21 @@ type Purchase struct {
 }
 
 type Receipt struct {
-	Id                   string     `bson:"_id,omitempty" json:"id"`
-	DateTime             string     `json:"date_time"`
-	TotalSum             int32      `json:"total_sum"`
-	RetailPlaceAddress   string     `json:"retail_place_address"`
-	UserInn              string     `json:"user_inn"`
-	Items                []Purchase `json:"items"`
-	RawData              string     `json:"raw_data"`
-	Operator             string     `json:"operator"`
-	Nds18                int32      `json:"nds_18"`
-	Nds10                int32      `json:"nds_10"`
-	User                 string     `json:"user"`
-	CashTotalSum         int32      `json:"cash_total_sum"`
-	EcashTotalSum        int32      `json:"ecash_total_sum"`
-	FiscalSign           int64      `json:"fiscal_sign"`
-	FiscalDocumentNumber int64      `json:"fiscal_document_number"`
+	Id                   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	DateTime             string             `json:"date_time"`
+	TotalSum             int32              `json:"total_sum"`
+	RetailPlaceAddress   string             `json:"retail_place_address"`
+	UserInn              string             `json:"user_inn"`
+	Items                []Purchase         `json:"items"`
+	RawData              string             `json:"raw_data" bson:"rawdata"`
+	Operator             string             `json:"operator"`
+	Nds18                int32              `json:"nds_18"`
+	Nds10                int32              `json:"nds_10"`
+	User                 string             `json:"user"`
+	CashTotalSum         int32              `json:"cash_total_sum"`
+	EcashTotalSum        int32              `json:"ecash_total_sum"`
+	FiscalSign           int64              `json:"fiscal_sign"`
+	FiscalDocumentNumber int64              `json:"fiscal_document_number"`
 }
 
 func (purchase *Purchase) String() string {
