@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
-	"github.com/globalsign/mgo"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -19,7 +22,7 @@ var password = os.Getenv("NALOGRU_PASS")
 var rawReceiptQueue = redismq.CreateQueue("localhost", "6379", "", 6, "raw-receipts")
 
 const dumpDirectory = "./stub/dump/"
-const baseAddress = "https://proverkacheka.nalog.ru:9999"
+const baseAddress = "http://localhost:9999"
 const mongoUrl = "mongodb://localhost:27017"
 
 var mongoUser = os.Getenv("MONGO_ADMIN")
@@ -35,25 +38,39 @@ func main() {
 	fmt.Println(http.ListenAndServe(address, nil))
 }
 
+func getMongoClient() *mongo.Client {
+	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUrl).SetAuth(options.Credential{Username: mongoUser, Password: mongoSecret}))
+	check(err)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = client.Connect(ctx)
+	check(err)
+	return client
+}
+
 func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	defer request.Body.Close()
-
-	session, err := mgo.Dial(mongoUrl)
+	client := getMongoClient()
+	defer client.Disconnect(ctx)
+	collection := client.Database("receipt_collection").Collection("receipts")
+	cursor, err := collection.Find(ctx, bson.D{})
 	check(err)
-	defer session.Close()
-	err = session.Login(&mgo.Credential{Password: mongoSecret, Username: mongoUser})
-	check(err)
-	collection := session.DB("receipt_collection").C("receipts")
-	var receipts []Receipt
-	collection.Find(nil).All(&receipts)
+	defer cursor.Close(ctx)
+	var receipts = make([]Receipt, 0, 0)
+	for cursor.Next(ctx) {
+		var receipt Receipt
+		err := cursor.Decode(&receipt)
+		check(err)
+		receipts = append(receipts, receipt)
+	}
 	resp, err := json.Marshal(receipts)
 	check(err)
-	writer.Write(resp)
-
+	_, err := writer.Write(resp)
+	check(err)
 }
 
 func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
@@ -173,13 +190,11 @@ func addHeaders(request *http.Request, login string, password string) {
 func consumeRawReceipts(rawQueue *redismq.Queue) {
 	consumer, err := rawQueue.AddConsumer("receipt-parser")
 	check(err)
-
-	session, err := mgo.Dial(mongoUrl)
-	check(err)
-	defer session.Close()
-	err = session.Login(&mgo.Credential{Password: mongoSecret, Username: mongoUser})
-	check(err)
-	collection := session.DB("receipt_collection").C("receipts")
+	defer consumer.Quit()
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client := getMongoClient()
+	defer client.Disconnect(ctx)
+	collection := client.Database("receipt_collection").Collection("receipts")
 
 	if consumer.HasUnacked() {
 		unacked, err := consumer.GetUnacked()
@@ -199,13 +214,14 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 	}
 }
 
-func processReceipt(message *redismq.Package, collection *mgo.Collection) {
+func processReceipt(message *redismq.Package, collection *mongo.Collection) {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	receipt := parseReceipt([]byte(message.Payload))
 	fmt.Println(receipt.String())
 	for i := 0; i < len(receipt.Items); i++ {
 		fmt.Println(receipt.Items[i].String())
 	}
-	err := collection.Insert(receipt)
+	_, err := collection.InsertOne(ctx, receipt)
 	check(err)
 
 }
