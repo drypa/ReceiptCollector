@@ -60,17 +60,22 @@ func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	cursor, err := collection.Find(ctx, bson.D{})
 	check(err)
 	defer cursor.Close(ctx)
+	var receipts = readReceipts(cursor, ctx)
+	resp, err := json.Marshal(receipts)
+	check(err)
+	_, err = writer.Write(resp)
+	check(err)
+}
+
+func readReceipts(cursor *mongo.Cursor, context context.Context) []Receipt {
 	var receipts = make([]Receipt, 0, 0)
-	for cursor.Next(ctx) {
+	for cursor.Next(context) {
 		var receipt Receipt
 		err := cursor.Decode(&receipt)
 		check(err)
 		receipts = append(receipts, receipt)
 	}
-	resp, err := json.Marshal(receipts)
-	check(err)
-	_, err := writer.Write(resp)
-	check(err)
+	return receipts
 }
 
 func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
