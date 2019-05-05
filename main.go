@@ -8,12 +8,13 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"receipt_collector/markets"
+	mongo_client "receipt_collector/mongo_client"
 	"time"
 )
 
@@ -33,18 +34,10 @@ func main() {
 
 	http.HandleFunc("/api/receipt", getReceiptHandler)
 	http.HandleFunc("/api/receipt/as-query", addReceiptHandler)
+	http.HandleFunc("/api/market", markets.GetMarketsHandler)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
-}
-
-func getMongoClient() *mongo.Client {
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUrl).SetAuth(options.Credential{Username: mongoUser, Password: mongoSecret}))
-	check(err)
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	err = client.Connect(ctx)
-	check(err)
-	return client
 }
 
 func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
@@ -54,7 +47,7 @@ func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	defer request.Body.Close()
-	client := getMongoClient()
+	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	defer client.Disconnect(ctx)
 	collection := client.Database("receipt_collection").Collection("receipts")
 	cursor, err := collection.Find(ctx, bson.D{})
@@ -197,7 +190,7 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 	check(err)
 	defer consumer.Quit()
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client := getMongoClient()
+	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	defer client.Disconnect(ctx)
 	collection := client.Database("receipt_collection").Collection("receipts")
 
