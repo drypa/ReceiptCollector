@@ -64,21 +64,9 @@ func insertNewMarket(market Market) error {
 }
 
 func getMargetFromQuery(request *http.Request) Market {
-	//name := request.Form.Get("name")
 	var market = Market{}
 	json.NewDecoder(request.Body).Decode(&market)
 	return market
-	//marketType := request.Form.Get("type")
-	//innValues := request.PostFormValue("inns")
-	//var inns = make([]string, len(innValues))
-	//for i := range innValues {
-	//	inns[i] = string(innValues[i])
-	//}
-	//return Market{
-	//	Inns: inns,
-	//	Name: name,
-	//	Type: MarketType(marketType),
-	//}
 }
 
 func getMarkets() []Market {
