@@ -34,7 +34,7 @@ func main() {
 
 	http.HandleFunc("/api/receipt", getReceiptHandler)
 	http.HandleFunc("/api/receipt/as-query", addReceiptHandler)
-	http.HandleFunc("/api/market", markets.GetMarketsHandler)
+	http.HandleFunc("/api/market", markets.MarketsBaseHandler)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))

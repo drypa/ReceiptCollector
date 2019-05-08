@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
-	mongo_client "receipt_collector/mongo_client"
+	"receipt_collector/mongo_client"
 	"time"
 )
 
@@ -21,8 +21,8 @@ type Market struct {
 type MarketType string
 
 const (
-	Supermarket = "super_market"
-	Fuel        = "fuel"
+	Supermarket MarketType = "super_market"
+	Fuel        MarketType = "fuel"
 )
 
 const mongoUrl = "mongodb://localhost:27017"
@@ -30,18 +30,55 @@ const mongoUrl = "mongodb://localhost:27017"
 var mongoUser = os.Getenv("MONGO_ADMIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
 
-func GetMarketsHandler(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodGet {
-		writer.WriteHeader(http.StatusNotFound)
-		return
+func MarketsBaseHandler(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == http.MethodGet {
+		getMarketsHandler(writer, request)
 	}
+	if request.Method == http.MethodPost {
+		addMarketHandler(writer, request)
+	}
+}
 
+func getMarketsHandler(writer http.ResponseWriter, request *http.Request) {
 	defer request.Body.Close()
+
 	markets := getMarkets()
 	resp, err := json.Marshal(markets)
 	check(err)
 	_, err = writer.Write(resp)
 	check(err)
+}
+
+func addMarketHandler(writer http.ResponseWriter, request *http.Request) {
+	defer request.Body.Close()
+	market := getMargetFromQuery(request)
+	insertNewMarket(market)
+}
+func insertNewMarket(market Market) error {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	defer client.Disconnect(ctx)
+	collection := client.Database("receipt_collection").Collection("markets")
+	_, err := collection.InsertOne(ctx, market)
+	return err
+}
+
+func getMargetFromQuery(request *http.Request) Market {
+	//name := request.Form.Get("name")
+	var market = Market{}
+	json.NewDecoder(request.Body).Decode(&market)
+	return market
+	//marketType := request.Form.Get("type")
+	//innValues := request.PostFormValue("inns")
+	//var inns = make([]string, len(innValues))
+	//for i := range innValues {
+	//	inns[i] = string(innValues[i])
+	//}
+	//return Market{
+	//	Inns: inns,
+	//	Name: name,
+	//	Type: MarketType(marketType),
+	//}
 }
 
 func getMarkets() []Market {
