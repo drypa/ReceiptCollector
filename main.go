@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/adjust/redismq"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"html/template"
@@ -14,7 +15,7 @@ import (
 	"net/url"
 	"os"
 	"receipt_collector/markets"
-	mongo_client "receipt_collector/mongo_client"
+	"receipt_collector/mongo_client"
 	"time"
 )
 
@@ -31,10 +32,12 @@ var mongoSecret = os.Getenv("MONGO_SECRET")
 
 func main() {
 	go consumeRawReceipts(rawReceiptQueue)
-
-	http.HandleFunc("/api/receipt", getReceiptHandler)
-	http.HandleFunc("/api/receipt/as-query", addReceiptHandler)
-	http.HandleFunc("/api/market", markets.MarketsBaseHandler)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/market", markets.MarketsBaseHandler)
+	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", markets.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
+	router.HandleFunc("/api/receipt", getReceiptHandler)
+	router.HandleFunc("/api/receipt/as-query", addReceiptHandler)
+	http.Handle("/", router)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))

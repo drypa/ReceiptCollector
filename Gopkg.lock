@@ -26,6 +26,12 @@
   version = "v1.1.1"
 
 [[projects]]
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "c5c6c98bc25355028a63748a498942a6398ccd22"
+  version = "v1.7.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/xdg/scram"
   packages = ["."]
@@ -76,6 +82,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2fdaf8d6436a39220b8e7c14a2bc3669e95b3c3716c79558ca6d7b58b51bca58"
+  inputs-digest = "8539f93c5c41dc3f5091fdb4e4d85cc5f8527d06a8450c7673a8699670c8e264"
   solver-name = "gps-cdcl"
   solver-version = 1
