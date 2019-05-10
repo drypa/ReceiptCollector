@@ -16,6 +16,7 @@ import (
 	"os"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
+	"receipt_collector/nalogru_client"
 	"time"
 )
 
@@ -54,13 +55,22 @@ func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	defer client.Disconnect(ctx)
 	collection := client.Database("receipt_collection").Collection("receipts")
 	cursor, err := collection.Find(ctx, bson.D{})
-	check(err)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	defer cursor.Close(ctx)
 	var receipts = readReceipts(cursor, ctx)
 	resp, err := json.Marshal(receipts)
-	check(err)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	_, err = writer.Write(resp)
-	check(err)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func readReceipts(cursor *mongo.Cursor, context context.Context) []Receipt {
@@ -87,7 +97,7 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	receiptParams := ParseQuery(&request.Form)
 	fmt.Println(receiptParams)
 
-	rawReceipt, err := getRawReceipt(baseAddress, receiptParams, login, password)
+	rawReceipt, err := nalogru_client.GetRawReceipt(baseAddress, receiptParams, login, password)
 	check(err)
 	dumpToFile(rawReceipt)
 	saveResponse(rawReceiptQueue, rawReceipt)
@@ -110,23 +120,12 @@ func check(err error) {
 	}
 }
 
-func getRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
-	odfsUrl := buildOfdsUrl(baseAddress, receiptParams)
-	fmt.Println(odfsUrl)
-	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
-	fmt.Println(kktUrl)
-	client := &http.Client{}
-	sendOdfsRequest(odfsUrl, client, login, password)
-	bytes, err := sendKktsRequest(kktUrl, client, login, password)
-	return bytes, err
-}
-
-func ParseQuery(form *url.Values) ParseResult {
+func ParseQuery(form *url.Values) nalogru_client.ParseResult {
 	timeString := form.Get("t")
 
 	timeParsed := parseAsTime(timeString)
 
-	return ParseResult{
+	return nalogru_client.ParseResult{
 		N:          template.HTMLEscapeString(form.Get("n")),
 		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
 		Sum:        template.HTMLEscapeString(form.Get("s")),
@@ -146,55 +145,16 @@ func parseReceipt(bytes []byte) Receipt {
 	return res
 }
 
-func sendOdfsRequest(url string, client *http.Client, login string, password string) {
-	response, err := sendRequest(url, client, login, password)
-	check(err)
-	//406
-	fmt.Printf("ODFS request status: %d", response.StatusCode)
-}
-
-func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
-	retry := 0
-	for {
-		response, err := sendRequest(url, client, login, password)
-		if err == nil && response.StatusCode == 200 {
-			return ioutil.ReadAll(response.Body)
-		}
-		fmt.Println(err)
-		if response != nil {
-			fmt.Println(response.StatusCode)
-		}
-		retry++
-		if retry >= 10 {
-
-			panic("Retry limit reached")
-		}
-		time.Sleep(time.Duration(int(time.Second) * 2 * retry))
-
-	}
-}
-
-func sendRequest(url string, client *http.Client, login string, password string) (*http.Response, error) {
-	request, _ := http.NewRequest("GET", url, nil)
-	addHeaders(request, login, password)
-	return client.Do(request)
-}
-
-func addHeaders(request *http.Request, login string, password string) {
-	request.SetBasicAuth(login, password)
-	request.Header.Add("Device-OS", "Android 5.1")
-	request.Header.Add("Version", "2")
-	request.Header.Add("ClientVersion", "1.4.4.4")
-	request.Header.Add("Device-Id", "123456")
-}
-
 func consumeRawReceipts(rawQueue *redismq.Queue) {
 	consumer, err := rawQueue.AddConsumer("receipt-parser")
 	check(err)
 	defer consumer.Quit()
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
-	defer client.Disconnect(ctx)
+	defer func() {
+		err := client.Disconnect(ctx)
+		fmt.Printf("error while disconnect %s", err)
+	}()
 	collection := client.Database("receipt_collection").Collection("receipts")
 
 	if consumer.HasUnacked() {

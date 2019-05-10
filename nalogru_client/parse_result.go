@@ -1,4 +1,4 @@
-package main
+package nalogru_client
 
 import (
 	"time"
