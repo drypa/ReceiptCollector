@@ -94,7 +94,7 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 	}
-	receiptParams := ParseQuery(&request.Form)
+	receiptParams := parseQuery(&request.Form)
 	fmt.Println(receiptParams)
 
 	rawReceipt, err := nalogru_client.GetRawReceipt(baseAddress, receiptParams, login, password)
@@ -120,7 +120,7 @@ func check(err error) {
 	}
 }
 
-func ParseQuery(form *url.Values) nalogru_client.ParseResult {
+func parseQuery(form *url.Values) nalogru_client.ParseResult {
 	timeString := form.Get("t")
 
 	timeParsed := parseAsTime(timeString)
