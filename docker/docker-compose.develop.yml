@@ -7,8 +7,8 @@ services:
   mongo:
     image: mongo:4.1
     environment:
-      - "MONGO_INITDB_ROOT_USERNAME=mongoadmin"
-      - "MONGO_INITDB_ROOT_PASSWORD=secret"
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
     volumes:
       - "./data:/data/db"
     ports:

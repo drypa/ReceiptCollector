@@ -1,30 +1,34 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type Purchase struct {
-	Price    int32
-	Sum      int32
-	Quantity float32
-	Name     string
+	Price      int32      `json:"price"`
+	Sum        int32      `json:"sum"`
+	Quantity   float32    `json:"quantity"`
+	Name       string     `json:"name"`
+	Categories []Category `json:"categories"`
 }
 
 type Receipt struct {
-	Id                   string `bson:"_id,omitempty""`
-	DateTime             string
-	TotalSum             int32
-	RetailPlaceAddress   string
-	UserInn              string
-	Items                []Purchase
-	RawData              string
-	Operator             string
-	Nds18                int32
-	Nds10                int32
-	User                 string
-	CashTotalSum         int32
-	EcashTotalSum        int32
-	FiscalSign           int64
-	FiscalDocumentNumber int64
+	Id                   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	DateTime             string             `json:"dateTime"`
+	TotalSum             int32              `json:"totalSum"`
+	RetailPlaceAddress   string             `json:"retailPlaceAddress"`
+	UserInn              string             `json:"userInn"`
+	Items                []Purchase         `json:"items"`
+	RawData              string             `json:"rawData"`
+	Operator             string             `json:"operator"`
+	Nds18                int32              `json:"nds18"`
+	Nds10                int32              `json:"nds10"`
+	User                 string             `json:"user"`
+	CashTotalSum         int32              `json:"cashTotalSum"`
+	EcashTotalSum        int32              `json:"ecashTotalSum"`
+	FiscalSign           int64              `json:"fiscalSign"`
+	FiscalDocumentNumber int64              `json:"fiscalDocumentNumber"`
 }
 
 func (purchase *Purchase) String() string {
@@ -34,3 +38,15 @@ func (purchase *Purchase) String() string {
 func (receipt *Receipt) String() string {
 	return fmt.Sprintf("Receipt: Date=%s; RetailAddress=%s; Inn=%s; ItemsCount=%d", receipt.DateTime, receipt.RetailPlaceAddress, receipt.UserInn, len(receipt.Items))
 }
+
+type Category string
+
+const (
+	Food          Category = "food"
+	Alcohol       Category = "alcohol"
+	Clothes       Category = "clothes"
+	Shoes         Category = "shoes"
+	Medicine      Category = "medicine"
+	HomeAppliance Category = "home_appliance"
+	Entertainment Category = "entertainment"
+)
