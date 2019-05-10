@@ -50,16 +50,31 @@ func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	defer request.Body.Close()
+	defer func() {
+		err := request.Body.Close()
+		if err != nil {
+			fmt.Printf("error while request body close %s", err)
+		}
+	}()
 	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
-	defer client.Disconnect(ctx)
+	defer func() {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			fmt.Printf("error while mongo disconnect %s", err)
+		}
+	}()
 	collection := client.Database("receipt_collection").Collection("receipts")
 	cursor, err := collection.Find(ctx, bson.D{})
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		err := cursor.Close(ctx)
+		if err != nil {
+			fmt.Printf("error while cursor close %s", err)
+		}
+	}()
 	var receipts = readReceipts(cursor, ctx)
 	resp, err := json.Marshal(receipts)
 	if err != nil {
@@ -89,7 +104,12 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
-	defer request.Body.Close()
+	defer func() {
+		err := request.Body.Close()
+		if err != nil {
+			fmt.Printf("error while request body close %s", err)
+		}
+	}()
 	err := request.ParseForm()
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -98,7 +118,10 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	fmt.Println(receiptParams)
 
 	rawReceipt, err := nalogru_client.GetRawReceipt(baseAddress, receiptParams, login, password)
-	check(err)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	dumpToFile(rawReceipt)
 	saveResponse(rawReceiptQueue, rawReceipt)
 }
