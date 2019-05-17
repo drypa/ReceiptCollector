@@ -21,8 +21,10 @@ func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, 
 func sendOdfsRequest(url string, client *http.Client, login string, password string) {
 	response, err := sendRequest(url, client, login, password)
 	check(err)
+	bytes, err := ioutil.ReadAll(response.Body)
+	check(err)
 	//406
-	fmt.Printf("ODFS request status: %d", response.StatusCode)
+	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
 }
 
 func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
@@ -38,7 +40,6 @@ func sendKktsRequest(url string, client *http.Client, login string, password str
 		}
 		retry++
 		if retry >= 10 {
-
 			panic("Retry limit reached")
 		}
 		time.Sleep(time.Duration(int(time.Second) * 2 * retry))

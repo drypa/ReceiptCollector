@@ -128,7 +128,9 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 
 func dumpToFile(rawReceipt []byte) {
 	unique, _ := uuid.NewUUID()
-	err := ioutil.WriteFile(dumpDirectory+unique.String()+".json", rawReceipt, 0644)
+	fileName := dumpDirectory + unique.String() + ".json"
+	err := ioutil.WriteFile(fileName, rawReceipt, 0644)
+	fmt.Println(fileName)
 	check(err)
 }
 
