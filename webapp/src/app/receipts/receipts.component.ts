@@ -1,4 +1,8 @@
-import {Component, OnInit} from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { Observable } from 'rxjs';
+import { Receipt } from "../receipt";
+import { ReceiptService } from "../receipt.service";
+import { tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-receipts',
@@ -7,10 +11,17 @@ import {Component, OnInit} from '@angular/core';
 })
 export class ReceiptsComponent implements OnInit {
 
-  constructor() {
+  constructor(private receiptService: ReceiptService) {
   }
 
+  receiptList: Receipt[];
+
   ngOnInit() {
+    this.receiptService.getReceipts()
+      .pipe(tap(
+        receipts => this.receiptList = receipts
+      ));
   }
+
 
 }
