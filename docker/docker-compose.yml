@@ -2,6 +2,9 @@ version: '2'
 services:
   redis:
     image: redis:5.0.4
+    networks:
+      - collector-net
+
   mongo:
     image: mongo:4.1
     environment:
@@ -9,3 +12,22 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_SECRET}
     volumes:
       - "./data:/data/db"
+    networks:
+      - collector-net
+
+  collector:
+    image: receipt_collector:latest
+    depends_on:
+      - redis
+      - mongo
+    networks:
+      - collector-net
+
+  gateway:
+    image: receipt-collector-gateway:latest
+    ports:
+      - "443:443"
+    volumes:
+      - "./ssl:/etc/nginx/ssl"
+    networks:
+      - collector-net
