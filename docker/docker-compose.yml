@@ -1,9 +1,8 @@
 version: '2'
+
 services:
   redis:
     image: redis:5.0.4
-    networks:
-      - collector-net
 
   mongo:
     image: mongo:4.1
@@ -16,7 +15,7 @@ services:
       - collector-net
 
   collector:
-    image: receipt_collector:latest
+    build: .
     depends_on:
       - redis
       - mongo
@@ -24,10 +23,12 @@ services:
       - collector-net
 
   gateway:
-    image: receipt-collector-gateway:latest
+    build: ./gateway
     ports:
       - "443:443"
     volumes:
       - "./ssl:/etc/nginx/ssl"
     networks:
       - collector-net
+networks:
+  collector-net:
