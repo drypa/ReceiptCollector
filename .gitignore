@@ -14,4 +14,8 @@
 #Jetbrains GoLand
 .idea
 
+
+#my
 .env
+vendor
+receipt_collector
