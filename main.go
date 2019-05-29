@@ -22,14 +22,19 @@ import (
 
 var login = os.Getenv("NALOGRU_LOGIN")
 var password = os.Getenv("NALOGRU_PASS")
-var rawReceiptQueue = redismq.CreateQueue("localhost", "6379", "", 6, "raw-receipts")
+var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
 
 const dumpDirectory = "./stub/dump/"
-const baseAddress = "http://localhost:9999"
-const mongoUrl = "mongodb://localhost:27017"
 
-var mongoUser = os.Getenv("MONGO_ADMIN")
+var mongoUrl = os.Getenv("MONGO_URL")
+
+var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
+
+var redisHost = os.Getenv("REDIS_HOST")
+var redisPort = os.Getenv("REDIS_PORT")
+
+var rawReceiptQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "raw-receipts")
 
 func main() {
 	go consumeRawReceipts(rawReceiptQueue)

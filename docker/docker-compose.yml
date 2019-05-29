@@ -3,6 +3,10 @@ version: '2'
 services:
   redis:
     image: redis:5.0.4
+    volumes:
+      - redis-vol:/data
+    networks:
+      - collector-net
 
   mongo:
     image: mongo:4.1
@@ -10,7 +14,7 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_SECRET}
     volumes:
-      - "./data:/data/db"
+      - mongo-vol:/data/db
     networks:
       - collector-net
 
@@ -19,6 +23,14 @@ services:
     depends_on:
       - redis
       - mongo
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_LOGIN=${MONGO_LOGIN}
+      - MONGO_SECRET=${MONGO_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NALOGRU_LOGIN=${NALOGRU_LOGIN}
+      - NALOGRU_PASS=${NALOGRU_PASS}
     networks:
       - collector-net
 
@@ -32,3 +44,6 @@ services:
       - collector-net
 networks:
   collector-net:
+volumes:
+  redis-vol:
+  mongo-vol:
