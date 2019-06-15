@@ -1,4 +1,4 @@
 #!/bin/sh
 
-
-docker build . -t receipt-collector-gateway:latest
+docker build $(dirname $0) -t receipt-collector-gateway:latest
+rm -rf ./dist
