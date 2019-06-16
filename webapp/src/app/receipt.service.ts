@@ -12,6 +12,6 @@ export class ReceiptService {
 
 
   getReceipts(): Observable<Receipt[]> {
-    return this.http.get<Receipt[]>('/api/receipt/as-query');
+    return this.http.get<Receipt[]>('/api/receipt');
   }
 }

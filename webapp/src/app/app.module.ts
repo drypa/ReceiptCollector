@@ -5,7 +5,8 @@ import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
 import {ReceiptsComponent} from './receipts/receipts.component';
 import {MarketsComponent} from './markets/markets.component';
-import { AddReceiptComponent } from './add-receipt/add-receipt.component';
+import {AddReceiptComponent} from './add-receipt/add-receipt.component';
+import {HttpClientModule} from '@angular/common/http';
 
 @NgModule({
   declarations: [
@@ -16,7 +17,9 @@ import { AddReceiptComponent } from './add-receipt/add-receipt.component';
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule
+    AppRoutingModule,
+    HttpClientModule
+
   ],
   providers: [],
   bootstrap: [AppComponent]

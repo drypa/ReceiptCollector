@@ -1,15 +1,16 @@
-import { Component, OnInit } from '@angular/core';
-import { Observable } from 'rxjs';
-import { Receipt } from "../receipt";
-import { ReceiptService } from "../receipt.service";
-import { tap } from 'rxjs/operators';
+import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Receipt} from "../receipt";
+import {ReceiptService} from "../receipt.service";
+import {first, takeUntil, tap} from 'rxjs/operators';
+import {Subject} from "rxjs";
 
 @Component({
   selector: 'app-receipts',
   templateUrl: './receipts.component.html',
   styleUrls: ['./receipts.component.scss']
 })
-export class ReceiptsComponent implements OnInit {
+export class ReceiptsComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<boolean>();
 
   constructor(private receiptService: ReceiptService) {
   }
@@ -18,9 +19,16 @@ export class ReceiptsComponent implements OnInit {
 
   ngOnInit() {
     this.receiptService.getReceipts()
-      .pipe(tap(
-        receipts => this.receiptList = receipts
-      ));
+      .pipe(
+        first(),
+        tap(receipts => this.receiptList = receipts),
+        takeUntil(this.destroy$)
+      ).subscribe();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next(true);
+    this.destroy$.complete();
   }
 
 
