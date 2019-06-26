@@ -4,7 +4,7 @@ services:
   redis:
     image: redis:5.0.4
     volumes:
-      - redis-vol:/data
+      - ${REDIS_DATA}:/data
     networks:
       - collector-net
 
@@ -14,7 +14,7 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
     volumes:
-      - mongo-vol:/data/db
+      - ${MONGO_DATA}:/data/db
     networks:
       - collector-net
 
@@ -44,6 +44,3 @@ services:
       - collector-net
 networks:
   collector-net:
-volumes:
-  redis-vol:
-  mongo-vol:
