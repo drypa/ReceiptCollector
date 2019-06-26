@@ -12,7 +12,7 @@ services:
     image: mongo:4.1
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_SECRET}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
     volumes:
       - mongo-vol:/data/db
     networks:
