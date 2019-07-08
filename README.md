@@ -21,3 +21,14 @@ sudo chmod +x ./up.sh
 sudo chmod +x ./down.sh 
 ./down.sh
 ```
+
+### how to debug
+run angular app
+```bash
+cd ./webapp
+npm run start
+```
+and build and run third-party components 
+```bash
+./up.dev.sh
+```
