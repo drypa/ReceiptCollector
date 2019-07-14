@@ -30,5 +30,8 @@ npm run start
 ```
 and build and run third-party components 
 ```bash
+cd ./docker/nginx
+./build.sh
+cd ../..
 ./up.dev.sh
 ```
