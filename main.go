@@ -35,6 +35,7 @@ var redisHost = os.Getenv("REDIS_HOST")
 var redisPort = os.Getenv("REDIS_PORT")
 
 var rawReceiptQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "raw-receipts")
+var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
 
 func main() {
 	go consumeRawReceipts(rawReceiptQueue)
@@ -42,7 +43,7 @@ func main() {
 	router.HandleFunc("/api/market", markets.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", markets.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", getReceiptHandler)
-	router.HandleFunc("/api/receipt/as-query", addReceiptHandler)
+	router.HandleFunc("/api/receipt/from-bar-code", addReceiptHandler)
 	http.Handle("/", router)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
@@ -115,20 +116,14 @@ func addReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 			fmt.Printf("error while request body close %s", err)
 		}
 	}()
-	err := request.ParseForm()
-	if err != nil {
-		writer.WriteHeader(http.StatusBadRequest)
-	}
-	receiptParams := parseQuery(&request.Form)
-	fmt.Println(receiptParams)
 
-	rawReceipt, err := nalogru_client.GetRawReceipt(baseAddress, receiptParams, login, password)
+	queryString := request.URL.RawQuery
+	err := queueRequest(requestsQueue, queryString)
 	if err != nil {
+		fmt.Printf("error while queue request(%s). %s", queryString, err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	dumpToFile(rawReceipt)
-	saveResponse(rawReceiptQueue, rawReceipt)
 }
 
 func dumpToFile(rawReceipt []byte) {
@@ -173,6 +168,9 @@ func parseReceipt(bytes []byte) Receipt {
 	res := receipt["document"]["receipt"]
 
 	return res
+}
+func queueRequest(requestQueue *redismq.Queue, parsedBarCode string) error {
+	return requestQueue.Put(parsedBarCode)
 }
 
 func consumeRawReceipts(rawQueue *redismq.Queue) {
