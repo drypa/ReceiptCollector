@@ -14,4 +14,8 @@ export class ReceiptService {
   getReceipts(): Observable<Receipt[]> {
     return this.http.get<Receipt[]>('/api/receipt');
   }
+
+  addReceiptByBarCode(parsedBarCode: string): Observable<void> {
+    return this.http.post<void>('/api/receipt/from-bar-code?' + parsedBarCode, null);
+  }
 }

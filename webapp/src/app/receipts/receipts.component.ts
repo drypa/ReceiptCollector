@@ -1,8 +1,8 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {Receipt} from "../receipt";
-import {ReceiptService} from "../receipt.service";
+import {Receipt} from '../receipt';
+import {ReceiptService} from '../receipt.service';
 import {first, takeUntil, tap} from 'rxjs/operators';
-import {Subject} from "rxjs";
+import {Subject} from 'rxjs';
 
 @Component({
   selector: 'app-receipts',
