@@ -13,3 +13,7 @@ services:
       - "./data:/data/db"
     ports:
       - "27017:27017"
+  nginx:
+    image: nginx-gateway:dev
+    ports:
+      - "80:80"

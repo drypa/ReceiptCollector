@@ -1,0 +1,9 @@
+FROM nginx:1.15
+
+# Remove default nginx website
+RUN rm -rf /usr/share/nginx/html
+
+## Copy nginx configuration
+COPY nginx.dev.conf /etc/nginx/nginx.conf
+
+EXPOSE 80

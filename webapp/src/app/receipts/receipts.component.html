@@ -1,0 +1,32 @@
+<div class="container-fluid">
+  <div class="row">
+    <nav class="col-md-2 sidebar bg-light">
+      <div class="sidebar-sticky">
+        <ul class="nav flex-column">
+          <li class="nav-item"><a href=# class="nav-link">Add new</a></li>
+          <li class="nav-item"><a href=# class="nav-link">Report</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Date and time</th>
+            <th>Total sum</th>
+            <th>Market Inn</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let receipt of receiptList">
+            <td>{{receipt.dateTime}}</td>
+            <td>{{receipt.totalSum}}</td>
+            <td>{{receipt.userInn}}</td>
+          </tr>
+        </tbody>
+      </table>
+    
+    </main>
+    
+  </div>
+</div>
