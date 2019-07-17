@@ -17,6 +17,7 @@ import (
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru_client"
+	"receipt_collector/users"
 	"time"
 )
 
@@ -44,6 +45,7 @@ func main() {
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", markets.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", getReceiptHandler)
 	router.HandleFunc("/api/receipt/from-bar-code", addReceiptHandler)
+	router.HandleFunc("/api/user/register", users.UserRegistrationHandler)
 	http.Handle("/", router)
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
