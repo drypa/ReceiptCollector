@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"receipt_collector/auth"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru_client"
@@ -45,11 +46,15 @@ func main() {
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", markets.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", getReceiptHandler)
 	router.HandleFunc("/api/receipt/from-bar-code", addReceiptHandler)
-	router.HandleFunc("/api/user/register", users.UserRegistrationHandler)
-	http.Handle("/", router)
+	registerUnauthenticatedRoutes(router)
+	http.Handle("/", auth.RequireBasicAuth(router))
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
+}
+func registerUnauthenticatedRoutes(router *mux.Router) {
+	router.HandleFunc("/api/user/register", users.UserRegistrationHandler)
+	http.Handle("/api/user/register", router)
 }
 
 func getReceiptHandler(writer http.ResponseWriter, request *http.Request) {

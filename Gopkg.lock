@@ -14,6 +14,12 @@
   version = "v1.8.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/goji/httpauth"
+  packages = ["."]
+  revision = "2da839ab0f4df05a6db5eb277995589dadbd4fb9"
+
+[[projects]]
   name = "github.com/golang/snappy"
   packages = ["."]
   revision = "2a8bb927dd31d8daada140a5d09578521ce5c36a"
@@ -82,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8539f93c5c41dc3f5091fdb4e4d85cc5f8527d06a8450c7673a8699670c8e264"
+  inputs-digest = "428b5c886040ef71d8cd90e47e0bfcc7b436e5246638a79429d494dcb7745bd2"
   solver-name = "gps-cdcl"
   solver-version = 1
