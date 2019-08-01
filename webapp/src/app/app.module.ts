@@ -14,6 +14,8 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {MatButtonModule, MatFormFieldModule, MatInputModule, MatAutocompleteModule} from '@angular/material';
 import {MatCardModule} from '@angular/material/card';
 import {ReactiveFormsModule} from '@angular/forms';
+import {LoginComponent} from './login/login.component';
+import {AuthorizedComponent} from './authorized/authorized.component';
 
 @NgModule({
   declarations: [
@@ -23,7 +25,9 @@ import {ReactiveFormsModule} from '@angular/forms';
     NewReceiptComponent,
     ReceiptDetailsComponent,
     NewMarketComponent,
-    MarketDetailsComponent
+    MarketDetailsComponent,
+    LoginComponent,
+    AuthorizedComponent
   ],
   imports: [
     BrowserModule,
