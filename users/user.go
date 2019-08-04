@@ -8,7 +8,7 @@ type User struct {
 	PasswordHash string             `json:"-" bson:"password_hash"`
 }
 
-type RegistrationRequest struct {
-	Name     string `json:"name"`
+type UserRequest struct {
+	Login    string `json:"login"`
 	Password string `json:"password"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
@@ -21,7 +22,7 @@ func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) 
 	defer request.Body.Close()
 	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
 	if request.Method == http.MethodPost {
-		registrationRequest, err := getUserRegistrationRequestFromQuery(request)
+		registrationRequest, err := getUserRequestFromQuery(request)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
@@ -33,12 +34,28 @@ func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) 
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
-		return
 	}
 }
-func mapToUser(registrationRequest RegistrationRequest) (User, error) {
+
+func LoginHandler(writer http.ResponseWriter, request *http.Request) {
+	//Do nothing
+}
+
+func auth(ctx context.Context, loginRequest UserRequest) bool {
+	client, collection := getCollection()
+	defer client.Disconnect(ctx)
+	var user User
+	err := collection.FindOne(ctx, bson.D{{"name", loginRequest.Login}}).Decode(&user)
+	if err != nil {
+		return false
+	}
+
+	return passwords.ComparePasswordWithHash(user.PasswordHash, loginRequest.Password)
+}
+
+func mapToUser(registrationRequest UserRequest) (User, error) {
 	hash, err := passwords.HashPassword(registrationRequest.Password)
-	return User{Name: registrationRequest.Name, PasswordHash: hash}, err
+	return User{Name: registrationRequest.Login, PasswordHash: hash}, err
 }
 
 func insertNewUser(ctx context.Context, user User) error {
@@ -54,18 +71,18 @@ func getCollection() (client *mongo.Client, collection *mongo.Collection) {
 	return
 }
 
-func validateRequest(registrationRequest *RegistrationRequest) error {
+func validateRequest(registrationRequest *UserRequest) error {
 	if registrationRequest.Password == "" {
 		return errors.New("no password found")
 	}
-	if registrationRequest.Name == "" {
+	if registrationRequest.Login == "" {
 		return errors.New("name is not specified")
 	}
 	return nil
 }
 
-func getUserRegistrationRequestFromQuery(request *http.Request) (RegistrationRequest, error) {
-	var registrationRequest = RegistrationRequest{}
+func getUserRequestFromQuery(request *http.Request) (UserRequest, error) {
+	var registrationRequest = UserRequest{}
 	err := json.NewDecoder(request.Body).Decode(&registrationRequest)
 	if err != nil {
 		return registrationRequest, err
