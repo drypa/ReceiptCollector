@@ -49,7 +49,8 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
-	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
+	requestContext := request.Context()
+	ctx, _ := context.WithTimeout(requestContext, 10*time.Second)
 	defer func() {
 		err := request.Body.Close()
 		if err != nil {
@@ -64,7 +65,8 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		}
 	}()
 	collection := client.Database("receipt_collection").Collection("receipts")
-	cursor, err := collection.Find(ctx, bson.D{})
+	userId := requestContext.Value("userId")
+	cursor, err := collection.Find(ctx, bson.D{{"owner", userId}})
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return

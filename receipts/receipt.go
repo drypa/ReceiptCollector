@@ -29,6 +29,7 @@ type Receipt struct {
 	EcashTotalSum        int32              `json:"ecashTotalSum"`
 	FiscalSign           int64              `json:"fiscalSign"`
 	FiscalDocumentNumber int64              `json:"fiscalDocumentNumber"`
+	Owner                primitive.ObjectID `json:"owner" bson:"owner"`
 }
 
 func (purchase *Purchase) String() string {
