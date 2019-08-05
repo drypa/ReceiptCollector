@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"github.com/goji/httpauth"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +32,12 @@ func authFunc(login string, password string, request *http.Request) bool {
 		return false
 	}
 
-	return passwords.ComparePasswordWithHash(user.PasswordHash, password)
+	isPasswordValid := passwords.ComparePasswordWithHash(user.PasswordHash, password)
+	if isPasswordValid {
+		newContext := context.WithValue(ctx, "userId", user.Id)
+		request.WithContext(newContext)
+	}
+	return isPasswordValid
 }
 
 func RequireBasicAuth(router http.Handler) http.Handler {
