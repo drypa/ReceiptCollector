@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
@@ -39,18 +38,6 @@ func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) 
 
 func LoginHandler(writer http.ResponseWriter, request *http.Request) {
 	//Do nothing
-}
-
-func auth(ctx context.Context, loginRequest UserRequest) bool {
-	client, collection := getCollection()
-	defer client.Disconnect(ctx)
-	var user User
-	err := collection.FindOne(ctx, bson.D{{"name", loginRequest.Login}}).Decode(&user)
-	if err != nil {
-		return false
-	}
-
-	return passwords.ComparePasswordWithHash(user.PasswordHash, loginRequest.Password)
 }
 
 func mapToUser(registrationRequest UserRequest) (User, error) {
