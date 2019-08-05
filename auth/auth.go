@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"github.com/goji/httpauth"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,10 +25,19 @@ var authOpts = httpauth.AuthOptions{
 func authFunc(login string, password string, request *http.Request) bool {
 	ctx := request.Context()
 	client, collection := getCollection()
-	client.Connect(ctx)
-	defer client.Disconnect(ctx)
+	err := client.Connect(ctx)
+	if err != nil {
+		return false
+	}
+
+	defer func() {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			fmt.Printf("error while mongo connection close %s", err)
+		}
+	}()
 	var user users.User
-	err := collection.FindOne(ctx, bson.D{{"name", login}}).Decode(&user)
+	err = collection.FindOne(ctx, bson.D{{"name", login}}).Decode(&user)
 	if err != nil {
 		return false
 	}
