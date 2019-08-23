@@ -3,6 +3,7 @@ package receipts
 import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
 )
 
 type Purchase struct {
@@ -14,22 +15,34 @@ type Purchase struct {
 }
 
 type Receipt struct {
-	Id                   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	DateTime             string             `json:"dateTime"`
-	TotalSum             int32              `json:"totalSum"`
-	RetailPlaceAddress   string             `json:"retailPlaceAddress"`
-	UserInn              string             `json:"userInn"`
-	Items                []Purchase         `json:"items"`
-	RawData              string             `json:"rawData"`
-	Operator             string             `json:"operator"`
-	Nds18                int32              `json:"nds18"`
-	Nds10                int32              `json:"nds10"`
-	User                 string             `json:"user"`
-	CashTotalSum         int32              `json:"cashTotalSum"`
-	EcashTotalSum        int32              `json:"ecashTotalSum"`
-	FiscalSign           int64              `json:"fiscalSign"`
-	FiscalDocumentNumber int64              `json:"fiscalDocumentNumber"`
-	Owner                primitive.ObjectID `json:"owner" bson:"owner"`
+	DateTime             string     `json:"dateTime"`
+	TotalSum             int32      `json:"totalSum"`
+	RetailPlaceAddress   string     `json:"retailPlaceAddress"`
+	UserInn              string     `json:"userInn"`
+	Items                []Purchase `json:"items"`
+	RawData              string     `json:"rawData"`
+	Operator             string     `json:"operator"`
+	Nds18                int32      `json:"nds18"`
+	Nds10                int32      `json:"nds10"`
+	User                 string     `json:"user"`
+	CashTotalSum         int32      `json:"cashTotalSum"`
+	EcashTotalSum        int32      `json:"ecashTotalSum"`
+	FiscalSign           int64      `json:"fiscalSign"`
+	FiscalDocumentNumber int64      `json:"fiscalDocumentNumber"`
+}
+
+type UsersReceipt struct {
+	Receipt
+	Id              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Owner           primitive.ObjectID `json:"owner" bson:"owner"`
+	OdfsRequestTime time.Time          `json:"odfs_request_time" bson:"odfs_request_time"`
+	KktRequestTime  time.Time          `json:"kkt_request_time" bson:"kkt_request_time"`
+}
+
+type ReceiptRequest struct {
+	Id    primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Owner primitive.ObjectID `json:"owner" bson:"owner"`
+	Raw   string             `bson:"raw" json:"raw"`
 }
 
 func (purchase *Purchase) String() string {

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"github.com/adjust/redismq"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
 	"receipt_collector/mongo_client"
+	"receipt_collector/utils"
 	"time"
 )
 
@@ -36,12 +38,42 @@ func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	}()
 
 	queryString := request.URL.RawQuery
-	err := queueRequest(requestsQueue, queryString)
+	err := saveRequest(request)
 	if err != nil {
-		fmt.Printf("error while queue request(%s). %s", queryString, err)
+		fmt.Printf("error while save user request. %s", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	err = queueRequest(requestsQueue, queryString)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func saveRequest(request *http.Request) error {
+	queryString := request.URL.RawQuery
+	requestContext := request.Context()
+	ctx, _ := context.WithTimeout(requestContext, 10*time.Second)
+	defer utils.Dispose(request.Body.Close, "error while request body close")
+
+	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	defer utils.Dispose(func() error {
+		return client.Disconnect(ctx)
+	}, "error while mongo disconnect")
+
+	collection := client.Database("receipt_collection").Collection("receipt_requests")
+	userId := requestContext.Value("userId")
+	id, err := primitive.ObjectIDFromHex(userId.(string))
+	if err != nil {
+		return err
+	}
+	receiptRequest := ReceiptRequest{
+		Owner: id,
+		Raw:   queryString,
+	}
+	_, err = collection.InsertOne(ctx, receiptRequest)
+	return err
 }
 
 func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
@@ -51,19 +83,13 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	requestContext := request.Context()
 	ctx, _ := context.WithTimeout(requestContext, 10*time.Second)
-	defer func() {
-		err := request.Body.Close()
-		if err != nil {
-			fmt.Printf("error while request body close %s", err)
-		}
-	}()
+	defer utils.Dispose(request.Body.Close, "error while request body close")
+
 	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
-	defer func() {
-		err := client.Disconnect(ctx)
-		if err != nil {
-			fmt.Printf("error while mongo disconnect %s", err)
-		}
-	}()
+	defer utils.Dispose(func() error {
+		return client.Disconnect(ctx)
+	}, "error while mongo disconnect")
+
 	collection := client.Database("receipt_collection").Collection("receipts")
 	userId := requestContext.Value("userId")
 	cursor, err := collection.Find(ctx, bson.D{{"owner", userId}})
@@ -71,12 +97,9 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer func() {
-		err := cursor.Close(ctx)
-		if err != nil {
-			fmt.Printf("error while cursor close %s", err)
-		}
-	}()
+	defer utils.Dispose(func() error {
+		return cursor.Close(ctx)
+	}, "error while mongo cursor close")
 	var receipts = readReceipts(cursor, ctx)
 	resp, err := json.Marshal(receipts)
 	if err != nil {
