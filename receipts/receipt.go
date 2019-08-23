@@ -40,9 +40,9 @@ type UsersReceipt struct {
 }
 
 type ReceiptRequest struct {
-	Id    primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Owner primitive.ObjectID `json:"owner" bson:"owner"`
-	Raw   string             `bson:"raw" json:"raw"`
+	Id          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Owner       primitive.ObjectID `json:"owner" bson:"owner"`
+	QueryString string             `bson:"query_string" json:"query_string"`
 }
 
 func (purchase *Purchase) String() string {

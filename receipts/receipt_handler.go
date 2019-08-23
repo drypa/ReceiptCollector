@@ -69,8 +69,8 @@ func saveRequest(request *http.Request) error {
 		return err
 	}
 	receiptRequest := ReceiptRequest{
-		Owner: id,
-		Raw:   queryString,
+		Owner:       id,
+		QueryString: queryString,
 	}
 	_, err = collection.InsertOne(ctx, receiptRequest)
 	return err
