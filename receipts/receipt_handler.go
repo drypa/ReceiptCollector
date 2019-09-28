@@ -37,15 +37,9 @@ func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		}
 	}()
 
-	queryString := request.URL.RawQuery
 	err := saveRequest(request)
 	if err != nil {
 		fmt.Printf("error while save user request. %s", err)
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = queueRequest(requestsQueue, queryString)
-	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -128,8 +122,4 @@ func check(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func queueRequest(requestQueue *redismq.Queue, parsedBarCode string) error {
-	return requestQueue.Put(parsedBarCode)
 }

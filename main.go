@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/adjust/redismq"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"html/template"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"receipt_collector/nalogru_client"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
+	"receipt_collector/utils"
 	"time"
 )
 
@@ -38,6 +40,8 @@ var rawReceiptQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "raw-rece
 var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
 
 func main() {
+	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
+	go sendOdfsRequest(nalogruClient)
 	go consumeRawReceipts(rawReceiptQueue)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", markets.MarketsBaseHandler)
@@ -51,6 +55,28 @@ func main() {
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
+}
+
+func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
+	ctx := context.Background()
+	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	defer utils.Dispose(func() error {
+		return client.Disconnect(ctx)
+	}, "error while mongo disconnect")
+
+	collection := client.Database("receipt_collection").Collection("receipt_requests")
+	request := receipts.ReceiptRequest{}
+	err := collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&request)
+
+	if err == nil {
+		fmt.Printf("error while fetch unprocessed user requests. %s", err)
+		return
+	}
+	//todo: here is wrong url in query string. need call buildOfdsUrl
+	nalogruClient.SendOdfsRequest(request.QueryString)
+	// find one UsersRequest without odfs request
+	//send odfs request
+	//update UsersRequest set odfs request time
 }
 
 func registerUnauthenticatedRoutes(router *mux.Router) {

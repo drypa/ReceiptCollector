@@ -7,19 +7,26 @@ import (
 	"time"
 )
 
-func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
-	odfsUrl := buildOfdsUrl(baseAddress, receiptParams)
+type NalogruClient struct {
+	BaseAddress string
+	Login       string
+	Password    string
+}
+
+func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
+	odfsUrl := buildOfdsUrl(nalogruClient.BaseAddress, receiptParams)
 	fmt.Println(odfsUrl)
-	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
+	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
 	fmt.Println(kktUrl)
 	client := &http.Client{}
-	sendOdfsRequest(odfsUrl, client, login, password)
-	bytes, err := sendKktsRequest(kktUrl, client, login, password)
+	nalogruClient.SendOdfsRequest(odfsUrl)
+	bytes, err := nalogruClient.SendKktsRequest(kktUrl, client, nalogruClient.Login, nalogruClient.Password)
 	return bytes, err
 }
 
-func sendOdfsRequest(url string, client *http.Client, login string, password string) {
-	response, err := sendRequest(url, client, login, password)
+func (nalogruClient NalogruClient) SendOdfsRequest(url string) {
+	client := &http.Client{}
+	response, err := sendRequest(url, client, nalogruClient.Login, nalogruClient.Password)
 	check(err)
 	bytes, err := ioutil.ReadAll(response.Body)
 	check(err)
@@ -27,7 +34,7 @@ func sendOdfsRequest(url string, client *http.Client, login string, password str
 	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
 }
 
-func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
+func (nalogruClient NalogruClient) SendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
 	retry := 0
 	for {
 		response, err := sendRequest(url, client, login, password)
