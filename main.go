@@ -41,11 +41,16 @@ var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
 
 func main() {
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
+	marketsController := markets.Controller{
+		MongoUrl:      mongoUrl,
+		MongoLogin:    mongoUser,
+		MongoPassword: mongoSecret,
+	}
 	go sendOdfsRequest(nalogruClient)
 	go consumeRawReceipts(rawReceiptQueue)
 	router := mux.NewRouter()
-	router.HandleFunc("/api/market", markets.MarketsBaseHandler)
-	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", markets.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
+	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
+	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", receipts.GetReceiptHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/from-bar-code", receipts.AddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
