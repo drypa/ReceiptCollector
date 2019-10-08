@@ -24,8 +24,11 @@ var authOpts = httpauth.AuthOptions{
 
 func authFunc(login string, password string, request *http.Request) bool {
 	ctx := request.Context()
-	client, collection := getCollection()
-	err := client.Connect(ctx)
+	client, collection, err := getCollection()
+	if err != nil {
+		return false
+	}
+	err = client.Connect(ctx)
 	if err != nil {
 		return false
 	}
@@ -54,8 +57,8 @@ func RequireBasicAuth(router http.Handler) http.Handler {
 	return httpauth.BasicAuth(authOpts)(router)
 }
 
-func getCollection() (client *mongo.Client, collection *mongo.Collection) {
-	client = mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+func getCollection() (client *mongo.Client, collection *mongo.Collection, err error) {
+	client, err = mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	collection = client.Database("receipt_collection").Collection("system_users")
 	return
 }

@@ -53,9 +53,16 @@ func insertNewUser(ctx context.Context, user User) error {
 }
 
 func getCollection() (client *mongo.Client, collection *mongo.Collection) {
-	client = mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	check(err)
 	collection = client.Database("receipt_collection").Collection("system_users")
 	return
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func validateRequest(registrationRequest *UserRequest) error {

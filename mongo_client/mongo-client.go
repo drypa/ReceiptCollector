@@ -7,17 +7,16 @@ import (
 	"time"
 )
 
-func GetMongoClient(mongoUrl string, mongoUser string, mongoSecret string) *mongo.Client {
+func GetMongoClient(mongoUrl string, mongoUser string, mongoSecret string) (*mongo.Client, error) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUrl).SetAuth(options.Credential{Username: mongoUser, Password: mongoSecret}))
-	check(err)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err = client.Connect(ctx)
-	check(err)
-	return client
-}
-
-func check(err error) {
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	return client, nil
 }

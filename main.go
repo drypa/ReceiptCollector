@@ -41,11 +41,7 @@ var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
 
 func main() {
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
-	marketsController := markets.Controller{
-		MongoUrl:      mongoUrl,
-		MongoLogin:    mongoUser,
-		MongoPassword: mongoSecret,
-	}
+	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
 	go sendOdfsRequest(nalogruClient)
 	go consumeRawReceipts(rawReceiptQueue)
 	router := mux.NewRouter()
@@ -64,14 +60,16 @@ func main() {
 
 func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
 	ctx := context.Background()
-	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	check(err)
+
 	defer utils.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
 
 	collection := client.Database("receipt_collection").Collection("receipt_requests")
 	request := receipts.ReceiptRequest{}
-	err := collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&request)
+	err = collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&request)
 
 	if err == nil {
 		fmt.Printf("error while fetch unprocessed user requests. %s", err)
@@ -132,7 +130,8 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 	check(err)
 	defer consumer.Quit()
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	check(err)
 	defer func() {
 		err := client.Disconnect(ctx)
 		fmt.Printf("error while disconnect %s", err)

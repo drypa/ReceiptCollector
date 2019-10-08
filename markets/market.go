@@ -27,9 +27,17 @@ const (
 )
 
 type Controller struct {
-	MongoUrl      string
-	MongoLogin    string
-	MongoPassword string
+	mongoUrl      string
+	mongoLogin    string
+	mongoPassword string
+}
+
+func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+	return Controller{
+		mongoUrl:      mongoUrl,
+		mongoLogin:    mongoUser,
+		mongoPassword: mongoSecret,
+	}
 }
 
 func (controller Controller) MarketsBaseHandler(writer http.ResponseWriter, request *http.Request) {
@@ -120,7 +128,8 @@ func (controller Controller) insertNewMarket(market Market) error {
 
 func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection, ctx context.Context) {
 	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
-	client = mongo_client.GetMongoClient(controller.MongoUrl, controller.MongoLogin, controller.MongoPassword)
+	client, err := mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
+	check(err)
 	collection = client.Database("receipt_collection").Collection("markets")
 	return
 }

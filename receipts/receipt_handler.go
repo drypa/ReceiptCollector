@@ -51,7 +51,10 @@ func saveRequest(request *http.Request) error {
 	ctx, _ := context.WithTimeout(requestContext, 10*time.Second)
 	defer utils.Dispose(request.Body.Close, "error while request body close")
 
-	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	if err != nil {
+		return err
+	}
 	defer utils.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
@@ -79,7 +82,12 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(requestContext, 10*time.Second)
 	defer utils.Dispose(request.Body.Close, "error while request body close")
 
-	client := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	defer utils.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
