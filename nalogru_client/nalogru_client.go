@@ -2,8 +2,10 @@ package nalogru_client
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -24,14 +26,43 @@ func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]b
 	return bytes, err
 }
 
-func (nalogruClient NalogruClient) SendOdfsRequest(url string) {
+func parseQuery(queryString string) (ParseResult, error) {
+	form, err := url.ParseQuery(queryString)
+	if err != nil {
+		return ParseResult{}, err
+	}
+	timeString := form.Get("t")
+
+	timeParsed := parseAsTime(timeString)
+
+	return ParseResult{
+		N:          template.HTMLEscapeString(form.Get("n")),
+		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
+		Sum:        template.HTMLEscapeString(form.Get("s")),
+		Fd:         template.HTMLEscapeString(form.Get("fn")),
+		Time:       timeParsed,
+		Fp:         template.HTMLEscapeString(form.Get("i")),
+	}, nil
+}
+
+func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
+	parseResult, err := parseQuery(queryString)
+	if err != nil {
+		return err
+	}
+	buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
 	client := &http.Client{}
-	response, err := sendRequest(url, client, nalogruClient.Login, nalogruClient.Password)
-	check(err)
+	response, err := sendRequest(queryString, client, nalogruClient.Login, nalogruClient.Password)
+	if err != nil {
+		return err
+	}
 	bytes, err := ioutil.ReadAll(response.Body)
-	check(err)
+	if err != nil {
+		return err
+	}
 	//406
 	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
+	return nil
 }
 
 func (nalogruClient NalogruClient) SendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {

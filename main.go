@@ -8,9 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"html/template"
 	"net/http"
-	"net/url"
 	"os"
 	"receipt_collector/auth"
 	"receipt_collector/markets"
@@ -75,8 +73,8 @@ func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
 		fmt.Printf("error while fetch unprocessed user requests. %s", err)
 		return
 	}
-	//todo: here is wrong url in query string. need call buildOfdsUrl
-	nalogruClient.SendOdfsRequest(request.QueryString)
+	err = nalogruClient.SendOdfsRequest(request.QueryString)
+	check(err)
 	// find one UsersRequest without odfs request
 	//send odfs request
 	//update UsersRequest set odfs request time
@@ -100,20 +98,20 @@ func check(err error) {
 	}
 }
 
-func parseQuery(form *url.Values) nalogru_client.ParseResult {
-	timeString := form.Get("t")
-
-	timeParsed := parseAsTime(timeString)
-
-	return nalogru_client.ParseResult{
-		N:          template.HTMLEscapeString(form.Get("n")),
-		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
-		Sum:        template.HTMLEscapeString(form.Get("s")),
-		Fd:         template.HTMLEscapeString(form.Get("fn")),
-		Time:       timeParsed,
-		Fp:         template.HTMLEscapeString(form.Get("i")),
-	}
-}
+//func parseQuery(form *url.Values) nalogru_client.ParseResult {
+//	timeString := form.Get("t")
+//
+//	timeParsed := parseAsTime(timeString)
+//
+//	return nalogru_client.ParseResult{
+//		N:          template.HTMLEscapeString(form.Get("n")),
+//		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
+//		Sum:        template.HTMLEscapeString(form.Get("s")),
+//		Fd:         template.HTMLEscapeString(form.Get("fn")),
+//		Time:       timeParsed,
+//		Fp:         template.HTMLEscapeString(form.Get("i")),
+//	}
+//}
 
 func parseReceipt(bytes []byte) receipts.Receipt {
 	var receipt map[string]map[string]receipts.Receipt
