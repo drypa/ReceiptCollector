@@ -76,9 +76,13 @@ func getReceipt(nalogruClient nalogru_client.NalogruClient) {
 	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
 	check(err)
 	receipt, err := receipts.ParseReceipt(receiptBytes)
+	userReceipt := receipts.UsersReceipt{
+		Receipt: receipt,
+		Owner:   request.Owner,
+	}
 	check(err)
-	collection = client.Database("receipt_collection").Collection("receipts")
-	_, err = collection.InsertOne(ctx, receipt)
+	collection = client.Database("receipt_collection").Collection("user_receipts")
+	_, err = collection.InsertOne(ctx, userReceipt)
 	check(err)
 }
 
@@ -101,9 +105,6 @@ func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
 	}
 	err = nalogruClient.SendOdfsRequest(request.QueryString)
 	check(err)
-	// find one UsersRequest without odfs request
-	//send odfs request
-	//update UsersRequest set odfs request time
 }
 
 func registerUnauthenticatedRoutes(router *mux.Router) {
