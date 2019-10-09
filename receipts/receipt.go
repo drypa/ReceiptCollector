@@ -1,6 +1,7 @@
 package receipts
 
 import (
+	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
@@ -51,6 +52,17 @@ func (purchase *Purchase) String() string {
 
 func (receipt *Receipt) String() string {
 	return fmt.Sprintf("Receipt: Date=%s; RetailAddress=%s; Inn=%s; ItemsCount=%d", receipt.DateTime, receipt.RetailPlaceAddress, receipt.UserInn, len(receipt.Items))
+}
+
+func ParseReceipt(bytes []byte) (Receipt, error) {
+	var receipt map[string]map[string]Receipt
+	err := json.Unmarshal(bytes, &receipt)
+	if err != nil {
+		return Receipt{}, err
+	}
+	res := receipt["document"]["receipt"]
+
+	return res, nil
 }
 
 type Category string

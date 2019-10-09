@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/adjust/redismq"
 	"github.com/gorilla/mux"
@@ -41,6 +40,7 @@ func main() {
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
 	go sendOdfsRequest(nalogruClient)
+	go getReceipt(nalogruClient)
 	go consumeRawReceipts(rawReceiptQueue)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
@@ -54,6 +54,32 @@ func main() {
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
 	fmt.Println(http.ListenAndServe(address, nil))
+}
+
+func getReceipt(nalogruClient nalogru_client.NalogruClient) {
+	ctx := context.Background()
+	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	check(err)
+
+	defer utils.Dispose(func() error {
+		return client.Disconnect(ctx)
+	}, "error while mongo disconnect")
+
+	collection := client.Database("receipt_collection").Collection("receipt_requests")
+	request := receipts.ReceiptRequest{}
+	err = collection.FindOne(ctx, bson.M{"odfs_request_time": bson.M{"$ne": nil}}).Decode(&request)
+
+	if err == nil {
+		fmt.Printf("error while fetch half-processed user requests. %s", err)
+		return
+	}
+	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
+	check(err)
+	receipt, err := receipts.ParseReceipt(receiptBytes)
+	check(err)
+	collection = client.Database("receipt_collection").Collection("receipts")
+	_, err = collection.InsertOne(ctx, receipt)
+	check(err)
 }
 
 func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
@@ -98,31 +124,6 @@ func check(err error) {
 	}
 }
 
-//func parseQuery(form *url.Values) nalogru_client.ParseResult {
-//	timeString := form.Get("t")
-//
-//	timeParsed := parseAsTime(timeString)
-//
-//	return nalogru_client.ParseResult{
-//		N:          template.HTMLEscapeString(form.Get("n")),
-//		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
-//		Sum:        template.HTMLEscapeString(form.Get("s")),
-//		Fd:         template.HTMLEscapeString(form.Get("fn")),
-//		Time:       timeParsed,
-//		Fp:         template.HTMLEscapeString(form.Get("i")),
-//	}
-//}
-
-func parseReceipt(bytes []byte) receipts.Receipt {
-	var receipt map[string]map[string]receipts.Receipt
-	err := json.Unmarshal(bytes, &receipt)
-	check(err)
-
-	res := receipt["document"]["receipt"]
-
-	return res
-}
-
 func consumeRawReceipts(rawQueue *redismq.Queue) {
 	consumer, err := rawQueue.AddConsumer("receipt-parser")
 	check(err)
@@ -156,12 +157,12 @@ func consumeRawReceipts(rawQueue *redismq.Queue) {
 
 func processReceipt(message *redismq.Package, collection *mongo.Collection) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	receipt := parseReceipt([]byte(message.Payload))
+	receipt, err := receipts.ParseReceipt([]byte(message.Payload))
 	fmt.Println(receipt.String())
 	for i := 0; i < len(receipt.Items); i++ {
 		fmt.Println(receipt.Items[i].String())
 	}
-	_, err := collection.InsertOne(ctx, receipt)
+	_, err = collection.InsertOne(ctx, receipt)
 	check(err)
 
 }

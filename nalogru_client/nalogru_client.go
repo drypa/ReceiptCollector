@@ -20,9 +20,8 @@ func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]b
 	fmt.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
 	fmt.Println(kktUrl)
-	client := &http.Client{}
 	nalogruClient.SendOdfsRequest(odfsUrl)
-	bytes, err := nalogruClient.SendKktsRequest(kktUrl, client, nalogruClient.Login, nalogruClient.Password)
+	bytes, err := nalogruClient.SendKktsRequest(kktUrl)
 	return bytes, err
 }
 
@@ -50,9 +49,9 @@ func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
 	if err != nil {
 		return err
 	}
-	buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
+	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
 	client := &http.Client{}
-	response, err := sendRequest(queryString, client, nalogruClient.Login, nalogruClient.Password)
+	response, err := sendRequest(ofdsUrl, client, nalogruClient.Login, nalogruClient.Password)
 	if err != nil {
 		return err
 	}
@@ -65,10 +64,17 @@ func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
 	return nil
 }
 
-func (nalogruClient NalogruClient) SendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
+func (nalogruClient NalogruClient) SendKktsRequest(queryString string) ([]byte, error) {
 	retry := 0
+	client := &http.Client{}
+	parseResult, err := parseQuery(queryString)
+	if err != nil {
+		return nil, err
+	}
+
+	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
 	for {
-		response, err := sendRequest(url, client, login, password)
+		response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
 		if err == nil && response.StatusCode == 200 {
 			return ioutil.ReadAll(response.Body)
 		}
