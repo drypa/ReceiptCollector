@@ -38,12 +38,7 @@ type UsersReceipt struct {
 	Owner           primitive.ObjectID `json:"owner" bson:"owner"`
 	OdfsRequestTime time.Time          `json:"odfs_request_time" bson:"odfs_request_time"`
 	KktRequestTime  time.Time          `json:"kkt_request_time" bson:"kkt_request_time"`
-}
-
-type ReceiptRequest struct {
-	Id          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Owner       primitive.ObjectID `json:"owner" bson:"owner"`
-	QueryString string             `bson:"query_string" json:"query_string"`
+	QueryString     string             `bson:"query_string" json:"query_string"`
 }
 
 func (purchase *Purchase) String() string {

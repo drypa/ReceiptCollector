@@ -66,10 +66,13 @@ func getReceipt(nalogruClient nalogru_client.NalogruClient) {
 	}, "error while mongo disconnect")
 
 	collection := client.Database("receipt_collection").Collection("receipt_requests")
-	request := receipts.ReceiptRequest{}
-	err = collection.FindOne(ctx, bson.M{"odfs_request_time": bson.M{"$ne": nil}}).Decode(&request)
+	request := receipts.UsersReceipt{}
+	err = collection.FindOne(ctx, bson.M{"$and": []bson.M{
+		{"odfs_request_time": bson.M{"$ne": nil}},
+		{"kkt_request_time": nil}},
+	}).Decode(&request)
 
-	if err == nil {
+	if err != nil {
 		fmt.Printf("error while fetch half-processed user requests. %s", err)
 		return
 	}
@@ -96,14 +99,14 @@ func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
 	}, "error while mongo disconnect")
 
 	collection := client.Database("receipt_collection").Collection("receipt_requests")
-	request := receipts.ReceiptRequest{}
-	err = collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&request)
+	usersReceipt := receipts.UsersReceipt{}
+	err = collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&usersReceipt)
 
-	if err == nil {
+	if err != nil {
 		fmt.Printf("error while fetch unprocessed user requests. %s", err)
 		return
 	}
-	err = nalogruClient.SendOdfsRequest(request.QueryString)
+	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
 	check(err)
 }
 

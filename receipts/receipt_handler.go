@@ -65,7 +65,7 @@ func saveRequest(request *http.Request) error {
 	if err != nil {
 		return err
 	}
-	receiptRequest := ReceiptRequest{
+	receiptRequest := UsersReceipt{
 		Owner:       id,
 		QueryString: queryString,
 	}
