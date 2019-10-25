@@ -80,7 +80,7 @@ func getReceipt(nalogruClient nalogru_client.NalogruClient) {
 	check(err)
 	receipt, err := receipts.ParseReceipt(receiptBytes)
 	userReceipt := receipts.UsersReceipt{
-		Receipt: receipt,
+		Receipt: &receipt,
 		Owner:   request.Owner,
 	}
 	check(err)
@@ -100,13 +100,22 @@ func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
 
 	collection := client.Database("receipt_collection").Collection("receipt_requests")
 	usersReceipt := receipts.UsersReceipt{}
-	err = collection.FindOne(ctx, bson.M{"odfs_request_time": nil}).Decode(&usersReceipt)
+	err = collection.FindOne(ctx, bson.M{"odfs_requested": false}).Decode(&usersReceipt)
 
 	if err != nil {
 		fmt.Printf("error while fetch unprocessed user requests. %s", err)
 		return
 	}
 	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
+	check(err)
+	update := bson.M{
+		"$set": bson.M{
+			"odfs_requested":    true,
+			"odfs_request_time": time.Now(),
+		},
+	}
+	filter := bson.M{"_id": bson.M{"$eq": usersReceipt.Id}}
+	_, err = collection.UpdateOne(ctx, filter, update)
 	check(err)
 }
 
