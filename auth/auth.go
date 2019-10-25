@@ -28,7 +28,7 @@ func authFunc(login string, password string, request *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	err = client.Connect(ctx)
+
 	if err != nil {
 		return false
 	}
@@ -47,8 +47,8 @@ func authFunc(login string, password string, request *http.Request) bool {
 
 	isPasswordValid := passwords.ComparePasswordWithHash(user.PasswordHash, password)
 	if isPasswordValid {
-		newContext := context.WithValue(ctx, "userId", user.Id)
-		request.WithContext(newContext)
+		newContext := context.WithValue(ctx, "userId", user.Id.String())
+		request = request.WithContext(newContext)
 	}
 	return isPasswordValid
 }
