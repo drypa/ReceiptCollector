@@ -39,9 +39,10 @@ var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
 func main() {
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
-	go sendOdfsRequest(nalogruClient)
-	go getReceipt(nalogruClient)
-	go consumeRawReceipts(rawReceiptQueue)
+	ctx := context.Background()
+	go sendOdfsRequest(ctx, nalogruClient)
+	go getReceipt(ctx, nalogruClient)
+	//go consumeRawReceipts(rawReceiptQueue)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
@@ -56,8 +57,7 @@ func main() {
 	fmt.Println(http.ListenAndServe(address, nil))
 }
 
-func getReceipt(nalogruClient nalogru_client.NalogruClient) {
-	ctx := context.Background()
+func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 
@@ -68,8 +68,8 @@ func getReceipt(nalogruClient nalogru_client.NalogruClient) {
 	collection := client.Database("receipt_collection").Collection("receipt_requests")
 	request := receipts.UsersReceipt{}
 	err = collection.FindOne(ctx, bson.M{"$and": []bson.M{
-		{"odfs_request_time": bson.M{"$ne": nil}},
-		{"kkt_request_time": nil}},
+		{"odfs_requested": bson.M{"$eq": true}},
+		{"receipt": bson.M{"$eq": nil}}},
 	}).Decode(&request)
 
 	if err != nil {
@@ -79,18 +79,14 @@ func getReceipt(nalogruClient nalogru_client.NalogruClient) {
 	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
 	check(err)
 	receipt, err := receipts.ParseReceipt(receiptBytes)
-	userReceipt := receipts.UsersReceipt{
-		Receipt: &receipt,
-		Owner:   request.Owner,
-	}
 	check(err)
-	collection = client.Database("receipt_collection").Collection("user_receipts")
-	_, err = collection.InsertOne(ctx, userReceipt)
+	filter := bson.M{"_id": bson.M{"$eq": request.Id}}
+	update := bson.M{"$set": bson.M{"receipt": receipt}}
+	_, err = collection.UpdateOne(ctx, filter, update)
 	check(err)
 }
 
-func sendOdfsRequest(nalogruClient nalogru_client.NalogruClient) {
-	ctx := context.Background()
+func sendOdfsRequest(ctx context.Context, nalogruClient nalogru_client.NalogruClient) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 
