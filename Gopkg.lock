@@ -14,6 +14,12 @@
   version = "v1.8.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/goji/httpauth"
+  packages = ["."]
+  revision = "2da839ab0f4df05a6db5eb277995589dadbd4fb9"
+
+[[projects]]
   name = "github.com/golang/snappy"
   packages = ["."]
   revision = "2a8bb927dd31d8daada140a5d09578521ce5c36a"
@@ -52,7 +58,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["pbkdf2"]
+  packages = ["bcrypt","blowfish","pbkdf2"]
   revision = "a29dc8fdc73485234dbef99ebedb95d2eced08de"
 
 [[projects]]
@@ -82,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8539f93c5c41dc3f5091fdb4e4d85cc5f8527d06a8450c7673a8699670c8e264"
+  inputs-digest = "0f81cc760b6c5eb942a8da50e330f01418359f65a0db9c00ef13ad65474b5b98"
   solver-name = "gps-cdcl"
   solver-version = 1

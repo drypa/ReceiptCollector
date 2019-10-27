@@ -2,35 +2,79 @@ package nalogru_client
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
-func GetRawReceipt(baseAddress string, receiptParams ParseResult, login string, password string) ([]byte, error) {
-	odfsUrl := buildOfdsUrl(baseAddress, receiptParams)
+type NalogruClient struct {
+	BaseAddress string
+	Login       string
+	Password    string
+}
+
+func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
+	odfsUrl := buildOfdsUrl(nalogruClient.BaseAddress, receiptParams)
 	fmt.Println(odfsUrl)
-	kktUrl := BuildKktsUrl(baseAddress, receiptParams)
+	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
 	fmt.Println(kktUrl)
-	client := &http.Client{}
-	sendOdfsRequest(odfsUrl, client, login, password)
-	bytes, err := sendKktsRequest(kktUrl, client, login, password)
+	nalogruClient.SendOdfsRequest(odfsUrl)
+	bytes, err := nalogruClient.SendKktsRequest(kktUrl)
 	return bytes, err
 }
 
-func sendOdfsRequest(url string, client *http.Client, login string, password string) {
-	response, err := sendRequest(url, client, login, password)
-	check(err)
-	bytes, err := ioutil.ReadAll(response.Body)
-	check(err)
-	//406
-	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
+func parseQuery(queryString string) (ParseResult, error) {
+	form, err := url.ParseQuery(queryString)
+	if err != nil {
+		return ParseResult{}, err
+	}
+	timeString := form.Get("t")
+
+	timeParsed := parseAsTime(timeString)
+
+	return ParseResult{
+		N:          template.HTMLEscapeString(form.Get("n")),
+		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
+		Sum:        template.HTMLEscapeString(form.Get("s")),
+		Fd:         template.HTMLEscapeString(form.Get("fn")),
+		Time:       timeParsed,
+		Fp:         template.HTMLEscapeString(form.Get("i")),
+	}, nil
 }
 
-func sendKktsRequest(url string, client *http.Client, login string, password string) ([]byte, error) {
+func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
+	parseResult, err := parseQuery(queryString)
+	if err != nil {
+		return err
+	}
+	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
+	client := &http.Client{}
+	response, err := sendRequest(ofdsUrl, client, nalogruClient.Login, nalogruClient.Password)
+	if err != nil {
+		return err
+	}
+	bytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	//406
+	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
+	return nil
+}
+
+func (nalogruClient NalogruClient) SendKktsRequest(queryString string) ([]byte, error) {
 	retry := 0
+	client := &http.Client{}
+	parseResult, err := parseQuery(queryString)
+	if err != nil {
+		return nil, err
+	}
+
+	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
 	for {
-		response, err := sendRequest(url, client, login, password)
+		response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
 		if err == nil && response.StatusCode == 200 {
 			return ioutil.ReadAll(response.Body)
 		}

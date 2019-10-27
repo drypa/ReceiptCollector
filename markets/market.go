@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"os"
 	"receipt_collector/mongo_client"
 	"time"
 )
@@ -27,20 +26,29 @@ const (
 	Fuel        MarketType = "fuel"
 )
 
-const mongoUrl = "mongodb://localhost:27017"
+type Controller struct {
+	mongoUrl      string
+	mongoLogin    string
+	mongoPassword string
+}
 
-var mongoUser = os.Getenv("MONGO_ADMIN")
-var mongoSecret = os.Getenv("MONGO_SECRET")
+func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+	return Controller{
+		mongoUrl:      mongoUrl,
+		mongoLogin:    mongoUser,
+		mongoPassword: mongoSecret,
+	}
+}
 
-func MarketsBaseHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) MarketsBaseHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
-		err := getMarketsHandler(writer, request)
+		err := controller.getMarketsHandler(writer, request)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
 	}
 	if request.Method == http.MethodPost {
-		err := addMarketHandler(writer, request)
+		err := controller.addMarketHandler(writer, request)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
@@ -49,9 +57,9 @@ func MarketsBaseHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusNotFound)
 }
 
-func ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
-		market, err := getMarketHandler(writer, request)
+		market, err := controller.getMarketHandler(writer, request)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
@@ -65,7 +73,7 @@ func ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	if request.Method == http.MethodPut {
-		err := updateMarketHandler(writer, request)
+		err := controller.updateMarketHandler(writer, request)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
@@ -73,11 +81,11 @@ func ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func getMarketHandler(writer http.ResponseWriter, request *http.Request) (Market, error) {
+func (controller Controller) getMarketHandler(writer http.ResponseWriter, request *http.Request) (Market, error) {
 	request.ParseForm()
 	vars := mux.Vars(request)
 	id := vars["id"]
-	client, collection, ctx := getCollection()
+	client, collection, ctx := controller.getCollection()
 	defer client.Disconnect(ctx)
 	var market = Market{}
 	objId, _ := primitive.ObjectIDFromHex(id)
@@ -85,19 +93,19 @@ func getMarketHandler(writer http.ResponseWriter, request *http.Request) (Market
 	return market, err
 }
 
-func updateMarketHandler(writer http.ResponseWriter, request *http.Request) error {
-	market := getMargetFromQuery(request)
+func (controller Controller) updateMarketHandler(writer http.ResponseWriter, request *http.Request) error {
+	market := controller.getMargetFromQuery(request)
 
-	client, collection, ctx := getCollection()
+	client, collection, ctx := controller.getCollection()
 	defer client.Disconnect(ctx)
 	_, err := collection.UpdateOne(ctx, bson.M{"_id": market.Id}, market)
 	return err
 }
 
-func getMarketsHandler(writer http.ResponseWriter, request *http.Request) error {
+func (controller Controller) getMarketsHandler(writer http.ResponseWriter, request *http.Request) error {
 	defer request.Body.Close()
 
-	markets := getMarkets()
+	markets := controller.getMarkets()
 	resp, err := json.Marshal(markets)
 	if err != nil {
 		return err
@@ -106,33 +114,34 @@ func getMarketsHandler(writer http.ResponseWriter, request *http.Request) error 
 	return err
 }
 
-func addMarketHandler(writer http.ResponseWriter, request *http.Request) error {
+func (controller Controller) addMarketHandler(writer http.ResponseWriter, request *http.Request) error {
 	defer request.Body.Close()
-	market := getMargetFromQuery(request)
-	return insertNewMarket(market)
+	market := controller.getMargetFromQuery(request)
+	return controller.insertNewMarket(market)
 }
-func insertNewMarket(market Market) error {
-	client, collection, ctx := getCollection()
+func (controller Controller) insertNewMarket(market Market) error {
+	client, collection, ctx := controller.getCollection()
 	defer client.Disconnect(ctx)
 	_, err := collection.InsertOne(ctx, market)
 	return err
 }
 
-func getCollection() (client *mongo.Client, collection *mongo.Collection, ctx context.Context) {
+func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection, ctx context.Context) {
 	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
-	client = mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
+	check(err)
 	collection = client.Database("receipt_collection").Collection("markets")
 	return
 }
 
-func getMargetFromQuery(request *http.Request) Market {
+func (controller Controller) getMargetFromQuery(request *http.Request) Market {
 	var market = Market{}
 	json.NewDecoder(request.Body).Decode(&market)
 	return market
 }
 
-func getMarkets() []Market {
-	client, collection, ctx := getCollection()
+func (controller Controller) getMarkets() []Market {
+	client, collection, ctx := controller.getCollection()
 	defer client.Disconnect(ctx)
 	cursor, err := collection.Find(ctx, bson.D{})
 	check(err)
