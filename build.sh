@@ -1,8 +1,5 @@
 #!/bin/sh
 
-echo dep ensure...
-dep ensure
-
 echo go build...
 CGO_ENABLED=0 go build -o docker/receipt_collector
 
