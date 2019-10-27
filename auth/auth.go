@@ -13,6 +13,12 @@ import (
 	"receipt_collector/users"
 )
 
+type ContextKey string
+
+const (
+	UserId = ContextKey("userId")
+)
+
 var mongoUrl = os.Getenv("MONGO_URL")
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
@@ -47,8 +53,8 @@ func authFunc(login string, password string, request *http.Request) bool {
 
 	isPasswordValid := passwords.ComparePasswordWithHash(user.PasswordHash, password)
 	if isPasswordValid {
-		newContext := context.WithValue(ctx, "userId", user.Id.String())
-		request = request.WithContext(newContext)
+		newContext := context.WithValue(ctx, UserId, user.Id.Hex())
+		*request = *request.WithContext(newContext)
 	}
 	return isPasswordValid
 }
