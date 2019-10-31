@@ -1,13 +1,6 @@
 version: '2'
 
 services:
-  redis:
-    image: redis:5.0.4
-    volumes:
-      - ${REDIS_DATA}:/data
-    networks:
-      - collector-net
-
   mongo:
     image: mongo:4.1
     environment:
@@ -21,16 +14,14 @@ services:
   collector:
     build: .
     depends_on:
-      - redis
       - mongo
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_LOGIN=${MONGO_LOGIN}
       - MONGO_SECRET=${MONGO_SECRET}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - NALOGRU_LOGIN=${NALOGRU_LOGIN}
       - NALOGRU_PASS=${NALOGRU_PASS}
+      - GET_RECEIPT_WORKER_INTERVAL=5s
     networks:
       - collector-net
 
