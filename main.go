@@ -42,7 +42,7 @@ func main() {
 	}
 
 	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval)
-	go getReceipt(ctx, nalogruClient)
+	go startGetReceiptWorker(ctx, nalogruClient, processingInterval)
 
 	fmt.Println(startServer(marketsController))
 }
@@ -62,6 +62,22 @@ func startServer(marketsController markets.Controller) error {
 	return http.ListenAndServe(address, nil)
 }
 
+func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.NalogruClient, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Kkt request worker finished")
+			return
+		case <-ticker.C:
+			getReceipt(ctx, nalogruClient)
+			break
+		}
+	}
+
+}
+
 func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
@@ -77,6 +93,11 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient)
 		{"receipt": bson.M{"$eq": nil}}},
 	}).Decode(&request)
 
+	if err == mongo.ErrNoDocuments {
+		fmt.Println("No Kkt requests required")
+		return
+	}
+
 	if err != nil {
 		fmt.Printf("error while fetch half-processed user requests. %s", err)
 		return
@@ -91,8 +112,8 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient)
 	check(err)
 }
 
-func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.NalogruClient, inteval time.Duration) {
-	ticker := time.NewTicker(inteval)
+func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.NalogruClient, interval time.Duration) {
+	ticker := time.NewTicker(interval)
 
 	for {
 		select {
