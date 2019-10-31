@@ -1,6 +1,6 @@
 #build stage
 FROM golang:alpine AS build
-ADD . /src
+COPY . /src
 WORKDIR /src
 RUN go build -o receipt_collector
 

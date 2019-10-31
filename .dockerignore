@@ -1,1 +1,5 @@
-docker/data
+/docker/
+/webapp/
+/.idea/
+.gitignore
+.dockerignore
