@@ -12,7 +12,8 @@ services:
       - collector-net
 
   collector:
-    build: .
+    build: backend
+    image: receipt_collector:latest
     depends_on:
       - mongo
     environment:
@@ -26,7 +27,7 @@ services:
       - collector-net
 
   gateway:
-    build: ../webapp
+    build: webapp
     ports:
       - "443:443"
     volumes:

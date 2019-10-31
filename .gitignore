@@ -19,3 +19,4 @@
 .env
 vendor
 receipt_collector
+ssl
