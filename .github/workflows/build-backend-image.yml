@@ -11,4 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Build Backend
-      run: docker build . --file ./backend/Dockerfile --tag drypa/receipt-collector:$(date +%s)
+      run: cd ./backend && docker build . --file Dockerfile --tag drypa/receipt-collector:$(date +%s)
