@@ -12,7 +12,7 @@ import (
 	"os"
 	"receipt_collector/auth"
 	"receipt_collector/mongo_client"
-	"receipt_collector/utils"
+	utils2 "receipt_collector/utils"
 )
 
 var mongoUrl = os.Getenv("MONGO_URL")
@@ -48,13 +48,13 @@ func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 func saveRequest(request *http.Request) error {
 	queryString := request.URL.RawQuery
 	ctx := request.Context()
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	if err != nil {
 		return err
 	}
-	defer utils.Dispose(func() error {
+	defer utils2.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
 
@@ -80,7 +80,7 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	ctx := request.Context()
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	if err != nil {
@@ -88,7 +88,7 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	defer utils.Dispose(func() error {
+	defer utils2.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
 
@@ -104,7 +104,7 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer utils.Dispose(func() error {
+	defer utils2.Dispose(func() error {
 		return cursor.Close(ctx)
 	}, "error while mongo cursor close")
 	var receipts = readReceipts(cursor, ctx)
