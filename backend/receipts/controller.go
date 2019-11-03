@@ -4,28 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/adjust/redismq"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"os"
 	"receipt_collector/auth"
 	"receipt_collector/mongo_client"
 	utils2 "receipt_collector/utils"
 )
 
-var mongoUrl = os.Getenv("MONGO_URL")
+type Controller struct {
+	mongoUrl      string
+	mongoLogin    string
+	mongoPassword string
+}
 
-var mongoUser = os.Getenv("MONGO_LOGIN")
-var mongoSecret = os.Getenv("MONGO_SECRET")
+func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+	return Controller{
+		mongoUrl:      mongoUrl,
+		mongoLogin:    mongoUser,
+		mongoPassword: mongoSecret,
+	}
+}
 
-var redisHost = os.Getenv("REDIS_HOST")
-var redisPort = os.Getenv("REDIS_PORT")
-
-var requestsQueue = redismq.CreateQueue(redisHost, redisPort, "", 6, "requests")
-
-func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusNotFound)
 		return
@@ -37,7 +39,7 @@ func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 		}
 	}()
 
-	err := saveRequest(request)
+	err := controller.saveRequest(request)
 	if err != nil {
 		fmt.Printf("error while save user request. %s", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -45,12 +47,16 @@ func AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func saveRequest(request *http.Request) error {
+func (controller Controller) getMongoClient() (*mongo.Client, error) {
+	return mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
+}
+
+func (controller Controller) saveRequest(request *http.Request) error {
 	queryString := request.URL.RawQuery
 	ctx := request.Context()
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := controller.getMongoClient()
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,7 @@ func saveRequest(request *http.Request) error {
 	return err
 }
 
-func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusNotFound)
 		return
@@ -82,7 +88,7 @@ func GetReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := controller.getMongoClient()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return

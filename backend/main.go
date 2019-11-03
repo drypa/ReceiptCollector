@@ -33,7 +33,6 @@ var workerIntervalString = os.Getenv(intervalEnvironmentVariable)
 
 func main() {
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
-	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
 	ctx := context.Background()
 
 	processingInterval, err := time.ParseDuration(workerIntervalString)
@@ -44,15 +43,17 @@ func main() {
 	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval)
 	go startGetReceiptWorker(ctx, nalogruClient, processingInterval)
 
-	fmt.Println(startServer(marketsController))
+	fmt.Println(startServer())
 }
 
-func startServer(marketsController markets.Controller) error {
+func startServer() error {
+	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
+	receiptsController := receipts.New(mongoUrl, mongoUser, mongoSecret)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
-	router.HandleFunc("/api/receipt", receipts.GetReceiptHandler).Methods(http.MethodGet)
-	router.HandleFunc("/api/receipt/from-bar-code", receipts.AddReceiptHandler).Methods(http.MethodPost)
+	router.HandleFunc("/api/receipt", receiptsController.GetReceiptHandler).Methods(http.MethodGet)
+	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, users.LoginHandler).Methods(http.MethodPost)
 	registerUnauthenticatedRoutes(router)
