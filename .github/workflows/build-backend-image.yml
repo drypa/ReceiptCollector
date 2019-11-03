@@ -8,6 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Publish Backend
+      run: cd ./backend
       uses: elgohr/Publish-Docker-Github-Action@2.7
       with:
         name: drypa/receipt-collector
