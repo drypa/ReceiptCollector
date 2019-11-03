@@ -3,12 +3,15 @@ name: Docker Image CI
 on: [push]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v1
     - name: Build Backend
       run: cd ./backend && docker build . --file Dockerfile --tag drypa/receipt-collector:$(date +%s)
+    - name: Publish Backend
+      uses: elgohr/Publish-Docker-Github-Action@master
+      with:
+        name: drypa/receipt-collector
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_SECRET }}
