@@ -14,3 +14,10 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_SECRET }}
         workdir: backend
+    - name: Publish Frontend
+      uses: elgohr/Publish-Docker-Github-Action@2.7
+      with:
+        name: drypa/receipt-frontend
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_SECRET }}
+        workdir: webapp
