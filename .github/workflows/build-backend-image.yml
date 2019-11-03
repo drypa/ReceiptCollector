@@ -13,4 +13,4 @@ jobs:
         name: drypa/receipt-collector
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_SECRET }}
-        workfir: backend
+        workdir: backend
