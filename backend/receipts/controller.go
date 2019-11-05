@@ -26,6 +26,10 @@ func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
 		mongoPassword: mongoSecret,
 	}
 }
+func OnError(writer http.ResponseWriter, err error) {
+	_ = fmt.Errorf("Error: %v", err)
+	writer.WriteHeader(http.StatusInternalServerError)
+}
 
 func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
@@ -41,8 +45,7 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 
 	err := controller.saveRequest(request)
 	if err != nil {
-		fmt.Printf("error while save user request. %s", err)
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 }
@@ -90,7 +93,7 @@ func (controller Controller) GetReceiptHandler(writer http.ResponseWriter, reque
 
 	client, err := controller.getMongoClient()
 	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 
@@ -102,12 +105,12 @@ func (controller Controller) GetReceiptHandler(writer http.ResponseWriter, reque
 	userId := ctx.Value(auth.UserId)
 	id, err := primitive.ObjectIDFromHex(userId.(string))
 	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 	cursor, err := collection.Find(ctx, bson.D{{"owner", id}})
 	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 	defer utils2.Dispose(func() error {
@@ -116,12 +119,12 @@ func (controller Controller) GetReceiptHandler(writer http.ResponseWriter, reque
 	var receipts = readReceipts(cursor, ctx)
 	resp, err := json.Marshal(receipts)
 	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 	_, err = writer.Write(resp)
 	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+		OnError(writer, err)
 		return
 	}
 }
