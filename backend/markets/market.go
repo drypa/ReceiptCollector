@@ -3,6 +3,7 @@ package markets
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -44,29 +45,35 @@ func (controller Controller) MarketsBaseHandler(writer http.ResponseWriter, requ
 	if request.Method == http.MethodGet {
 		err := controller.getMarketsHandler(writer, request)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 	}
 	if request.Method == http.MethodPost {
 		err := controller.addMarketHandler(writer, request)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 	}
 
 	writer.WriteHeader(http.StatusNotFound)
+}
+func OnError(writer http.ResponseWriter, err error) {
+	_ = fmt.Errorf("Error: %v", err)
+	writer.WriteHeader(http.StatusInternalServerError)
 }
 
 func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
 		market, err := controller.getMarketHandler(writer, request)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
 			return
 		}
 		bytes, err := json.Marshal(market)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
 			return
 		}
 		writer.Write(bytes)
@@ -75,7 +82,8 @@ func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, r
 	if request.Method == http.MethodPut {
 		err := controller.updateMarketHandler(writer, request)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 		return
 	}
@@ -163,6 +171,7 @@ func readMarkets(cursor *mongo.Cursor, context context.Context) []Market {
 
 func check(err error) {
 	if err != nil {
+		fmt.Errorf("Panic: %v", err)
 		panic(err)
 	}
 }

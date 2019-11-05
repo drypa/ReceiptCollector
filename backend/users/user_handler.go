@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
@@ -23,17 +24,25 @@ func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) 
 	if request.Method == http.MethodPost {
 		registrationRequest, err := getUserRequestFromQuery(request)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 		user, err := mapToUser(registrationRequest)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 		err = insertNewUser(ctx, user)
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
+			OnError(writer, err)
+			return
 		}
 	}
+}
+
+func OnError(writer http.ResponseWriter, err error) {
+	_ = fmt.Errorf("Error: %v", err)
+	writer.WriteHeader(http.StatusInternalServerError)
 }
 
 func LoginHandler(writer http.ResponseWriter, request *http.Request) {
@@ -61,6 +70,7 @@ func getCollection() (client *mongo.Client, collection *mongo.Collection) {
 
 func check(err error) {
 	if err != nil {
+		fmt.Errorf("Panic: %v", err)
 		panic(err)
 	}
 }
