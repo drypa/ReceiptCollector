@@ -49,14 +49,15 @@ func main() {
 func startServer() error {
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
 	receiptsController := receipts.New(mongoUrl, mongoUser, mongoSecret)
+	usersController := users.New(mongoUrl, mongoUser, mongoSecret)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
-	router.HandleFunc(loginRoute, users.LoginHandler).Methods(http.MethodPost)
-	registerUnauthenticatedRoutes(router)
+	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
+	registerUnauthenticatedRoutes(router, usersController)
 	http.Handle("/", auth.RequireBasicAuth(router))
 	address := ":8888"
 	fmt.Printf("Starting http server at: \"%s\"...", address)
@@ -161,9 +162,9 @@ func processRequests(ctx context.Context, nalogruClient nalogru_client.NalogruCl
 	check(err)
 }
 
-func registerUnauthenticatedRoutes(router *mux.Router) {
+func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller) {
 	registrationRoute := "/api/user/register"
-	router.HandleFunc(registrationRoute, users.UserRegistrationHandler)
+	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler)
 	http.Handle(registrationRoute, router)
 
 }

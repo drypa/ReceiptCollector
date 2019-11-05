@@ -7,18 +7,26 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"os"
 	"receipt_collector/mongo_client"
 	"receipt_collector/passwords"
 	"time"
 )
 
-const mongoUrl = "mongodb://localhost:27017"
+type Controller struct {
+	mongoUrl      string
+	mongoLogin    string
+	mongoPassword string
+}
 
-var mongoUser = os.Getenv("MONGO_ADMIN")
-var mongoSecret = os.Getenv("MONGO_SECRET")
+func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+	return Controller{
+		mongoUrl:      mongoUrl,
+		mongoLogin:    mongoUser,
+		mongoPassword: mongoSecret,
+	}
+}
 
-func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
 	defer request.Body.Close()
 	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
 	if request.Method == http.MethodPost {
@@ -32,7 +40,7 @@ func UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) 
 			OnError(writer, err)
 			return
 		}
-		err = insertNewUser(ctx, user)
+		err = controller.insertNewUser(ctx, user)
 		if err != nil {
 			OnError(writer, err)
 			return
@@ -45,7 +53,7 @@ func OnError(writer http.ResponseWriter, err error) {
 	writer.WriteHeader(http.StatusInternalServerError)
 }
 
-func LoginHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) LoginHandler(writer http.ResponseWriter, request *http.Request) {
 	//Do nothing
 }
 
@@ -54,15 +62,15 @@ func mapToUser(registrationRequest UserRequest) (User, error) {
 	return User{Name: registrationRequest.Login, PasswordHash: hash}, err
 }
 
-func insertNewUser(ctx context.Context, user User) error {
-	client, collection := getCollection()
+func (controller Controller) insertNewUser(ctx context.Context, user User) error {
+	client, collection := controller.getCollection()
 	defer client.Disconnect(ctx)
 	_, err := collection.InsertOne(ctx, user)
 	return err
 }
 
-func getCollection() (client *mongo.Client, collection *mongo.Collection) {
-	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection) {
+	client, err := mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
 	check(err)
 	collection = client.Database("receipt_collection").Collection("system_users")
 	return
