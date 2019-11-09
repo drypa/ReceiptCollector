@@ -22,7 +22,8 @@ services:
       - MONGO_SECRET=${MONGO_SECRET}
       - NALOGRU_LOGIN=${NALOGRU_LOGIN}
       - NALOGRU_PASS=${NALOGRU_PASS}
-      - GET_RECEIPT_WORKER_INTERVAL=5s
+      - GET_RECEIPT_WORKER_INTERVAL=5m
+      - NALOGRU_BASE_ADDR=https://proverkacheka.nalog.ru:9999
     networks:
       - collector-net
 
