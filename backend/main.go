@@ -33,6 +33,8 @@ const intervalEnvironmentVariable = "GET_RECEIPT_WORKER_INTERVAL"
 var workerIntervalString = os.Getenv(intervalEnvironmentVariable)
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
 
