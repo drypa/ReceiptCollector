@@ -21,7 +21,7 @@ func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]b
 	log.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
 	log.Println(kktUrl)
-	_ := nalogruClient.SendOdfsRequest(odfsUrl)
+	_ = nalogruClient.SendOdfsRequest(odfsUrl)
 	bytes, err := nalogruClient.SendKktsRequest(kktUrl)
 	return bytes, err
 }
