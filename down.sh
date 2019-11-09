@@ -2,6 +2,4 @@
 
 echo stoping containers...
 
-cd ./docker/
-docker-compose down
-cd ../
+docker-compose -p receipt-collector down

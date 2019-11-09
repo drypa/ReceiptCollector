@@ -13,7 +13,7 @@ services:
 
   collector:
     build: backend
-    image: receipt_collector:latest
+    image: drypa/receipt-collector:latest
     depends_on:
       - mongo
     environment:
@@ -29,6 +29,7 @@ services:
 
   gateway:
     build: webapp
+    image: drypa/receipt-frontend:latest
     ports:
       - "443:443"
     volumes:

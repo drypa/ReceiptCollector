@@ -2,6 +2,5 @@
 
 echo starting containers...
 
-cd ./docker/
+docker-compose pull
 docker-compose -p receipt-collector up -d
-cd ../
