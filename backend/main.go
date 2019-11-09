@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"net/http"
 	"os"
 	"receipt_collector/auth"
@@ -43,7 +44,7 @@ func main() {
 	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval)
 	go startGetReceiptWorker(ctx, nalogruClient, processingInterval)
 
-	fmt.Println(startServer())
+	log.Println(startServer())
 }
 
 func startServer() error {
@@ -70,7 +71,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Nal
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Kkt request worker finished")
+			log.Println("Kkt request worker finished")
 			return
 		case <-ticker.C:
 			getReceipt(ctx, nalogruClient)
@@ -96,7 +97,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient)
 	}).Decode(&request)
 
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("No Kkt requests required")
+		log.Println("No Kkt requests required")
 		return
 	}
 
@@ -120,7 +121,7 @@ func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_clien
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Odfs request worker finished")
+			log.Println("Odfs request worker finished")
 			return
 		case <-ticker.C:
 			processRequests(ctx, nalogruClient)
@@ -142,7 +143,7 @@ func processRequests(ctx context.Context, nalogruClient nalogru_client.NalogruCl
 	usersReceipt := receipts.UsersReceipt{}
 	err = collection.FindOne(ctx, bson.M{"odfs_requested": false}).Decode(&usersReceipt)
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("No Odfs requests required")
+		log.Println("No Odfs requests required")
 		return
 	}
 	if err != nil {

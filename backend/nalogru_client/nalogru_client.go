@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -17,10 +18,10 @@ type NalogruClient struct {
 
 func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
 	odfsUrl := buildOfdsUrl(nalogruClient.BaseAddress, receiptParams)
-	fmt.Println(odfsUrl)
+	log.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
-	fmt.Println(kktUrl)
-	nalogruClient.SendOdfsRequest(odfsUrl)
+	log.Println(kktUrl)
+	_ := nalogruClient.SendOdfsRequest(odfsUrl)
 	bytes, err := nalogruClient.SendKktsRequest(kktUrl)
 	return bytes, err
 }
@@ -78,9 +79,9 @@ func (nalogruClient NalogruClient) SendKktsRequest(queryString string) ([]byte, 
 		if err == nil && response.StatusCode == 200 {
 			return ioutil.ReadAll(response.Body)
 		}
-		fmt.Println(err)
+		log.Println(err)
 		if response != nil {
-			fmt.Println(response.StatusCode)
+			log.Println(response.StatusCode)
 		}
 		retry++
 		if retry >= 10 {
@@ -103,10 +104,4 @@ func addHeaders(request *http.Request, login string, password string) {
 	request.Header.Add("Version", "2")
 	request.Header.Add("ClientVersion", "1.4.4.4")
 	request.Header.Add("Device-Id", "123456")
-}
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
