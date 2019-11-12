@@ -3,8 +3,8 @@
     <nav class="col-md-2 sidebar bg-light">
       <div class="sidebar-sticky">
         <ul class="nav flex-column">
-          <li class="nav-item"><a href=# class="nav-link">Add new</a></li>
-          <li class="nav-item"><a href=# class="nav-link">Report</a></li>
+          <li class="nav-item"><a routerLink="/receipts/add" class="nav-link">Add new</a></li>
+          <li class="nav-item"><a routerLink="/receipts" class="nav-link">Report</a></li>
         </ul>
       </div>
     </nav>
@@ -15,6 +15,7 @@
             <th>Date and time</th>
             <th>Total sum</th>
             <th>Market Inn</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -22,11 +23,12 @@
             <td>{{receipt.dateTime}}</td>
             <td>{{receipt.totalSum}}</td>
             <td>{{receipt.userInn}}</td>
+            <td><a routerLink="/receipts/{{receipt.id}}">Details</a></td>
           </tr>
         </tbody>
       </table>
-    
+
     </main>
-    
+
   </div>
 </div>

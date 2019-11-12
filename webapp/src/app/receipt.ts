@@ -4,13 +4,7 @@ export class Receipt {
     totalSum: number;
     retailPlaceAddress: string;
 	userInn: string;
-	// Id                   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	// DateTime             string             `json:"dateTime"`
-	// TotalSum             int32              `json:"totalSum"`
-	// RetailPlaceAddress   string             `json:"retailPlaceAddress"`
-	// userInn              string             `json:"userInn"`
 	// items                []Purchase         `json:"items"`
-	// rawData              string             `json:"rawData"`
 	// operator             string             `json:"operator"`
 	// nds18                int32              `json:"nds18"`
 	// nds10                int32              `json:"nds10"`
