@@ -152,8 +152,8 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	}
 }
 
-func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (Receipt, error) {
-	receipt := Receipt{}
+func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
+	receipt := UsersReceipt{}
 	client, err := controller.getMongoClient()
 	if err != nil {
 		return receipt, err
