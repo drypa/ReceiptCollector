@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid" *ngIf="receipt">
   <p>
       {{receipt.id}}
   </p>
@@ -11,5 +11,38 @@
   <p>
       {{receipt.retailPlaceAddress}}
   </p>
-</div>
 
+  <p>
+      {{receipt.userInn}}
+  </p>
+  <p>
+      {{receipt.cashTotalSum}}
+  </p>
+  <p>
+      {{receipt.ecashTotalSum}}
+  </p>
+  <p>
+      {{receipt.user}}
+  </p>
+  <p>
+      {{receipt.operator}}
+  </p>
+  <p>
+      {{receipt.nds10}}
+  </p>
+  <p>
+      {{receipt.nds18}}
+  </p>
+  <div>
+    <p>Purchases:
+    </p>
+    <ol>
+      <li *ngFor="let item of receipt.items">
+          {{item.price}}
+          {{item.sum}}
+          {{item.quantity}}
+          {{item.name}}
+      </li>
+    </ol>
+  </div>
+</div>
