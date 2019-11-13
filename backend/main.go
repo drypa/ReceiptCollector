@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,7 +39,7 @@ func main() {
 
 	processingInterval, err := time.ParseDuration(workerIntervalString)
 	if err != nil {
-		fmt.Printf("invalid '%s' value: %s", intervalEnvironmentVariable, workerIntervalString)
+		log.Printf("invalid '%s' value: %s", intervalEnvironmentVariable, workerIntervalString)
 	}
 
 	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval)
@@ -105,7 +104,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	}
 
 	if err != nil {
-		fmt.Printf("error while fetch half-processed user requests. %s", err)
+		log.Printf("error while fetch half-processed user requests. %s", err)
 		return
 	}
 	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
@@ -150,7 +149,7 @@ func processRequests(ctx context.Context, nalogruClient nalogru_client.Client) {
 		return
 	}
 	if err != nil {
-		fmt.Printf("error while fetch unprocessed user requests. %s \n", err)
+		log.Printf("error while fetch unprocessed user requests. %s \n", err)
 		return
 	}
 	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
@@ -175,7 +174,7 @@ func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controll
 
 func check(err error) {
 	if err != nil {
-		fmt.Printf("Error occured %v", err)
+		log.Printf("Error occured %v", err)
 		panic(err)
 	}
 }

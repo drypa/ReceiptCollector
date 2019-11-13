@@ -1,29 +1,17 @@
 package nalogru_client
 
 import (
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 type Client struct {
 	BaseAddress string
 	Login       string
 	Password    string
-}
-
-func (nalogruClient Client) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
-	odfsUrl := buildOfdsUrl(nalogruClient.BaseAddress, receiptParams)
-	log.Println(odfsUrl)
-	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
-	log.Println(kktUrl)
-	_ = nalogruClient.SendOdfsRequest(odfsUrl)
-	bytes, err := nalogruClient.SendKktsRequest(kktUrl)
-	return bytes, err
 }
 
 func parseQuery(queryString string) (ParseResult, error) {
@@ -61,12 +49,11 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 		return err
 	}
 	//406
-	fmt.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
+	log.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
 	return nil
 }
 
 func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
-	retry := 0
 	client := &http.Client{}
 	parseResult, err := parseQuery(queryString)
 	if err != nil {
@@ -74,22 +61,17 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 	}
 
 	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
-	for {
-		response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
-		if err == nil && response.StatusCode == 200 {
-			return ioutil.ReadAll(response.Body)
-		}
-		log.Println(err)
-		if response != nil {
-			log.Println(response.StatusCode)
-		}
-		retry++
-		if retry >= 10 {
-			panic("Retry limit reached")
-		}
-		time.Sleep(time.Duration(int(time.Second) * 2 * retry))
 
+	response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
+	if err == nil && response.StatusCode == 200 {
+		return ioutil.ReadAll(response.Body)
 	}
+	log.Println(err)
+	if response != nil {
+		log.Println(response.StatusCode)
+	}
+	return nil, err
+
 }
 
 func sendRequest(url string, client *http.Client, login string, password string) (*http.Response, error) {
