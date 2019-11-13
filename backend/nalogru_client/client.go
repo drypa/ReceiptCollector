@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-type NalogruClient struct {
+type Client struct {
 	BaseAddress string
 	Login       string
 	Password    string
 }
 
-func (nalogruClient NalogruClient) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
+func (nalogruClient Client) GetRawReceipt(receiptParams ParseResult) ([]byte, error) {
 	odfsUrl := buildOfdsUrl(nalogruClient.BaseAddress, receiptParams)
 	log.Println(odfsUrl)
 	kktUrl := BuildKktsUrl(nalogruClient.BaseAddress, receiptParams)
@@ -45,7 +45,7 @@ func parseQuery(queryString string) (ParseResult, error) {
 	}, nil
 }
 
-func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
+func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	parseResult, err := parseQuery(queryString)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (nalogruClient NalogruClient) SendOdfsRequest(queryString string) error {
 	return nil
 }
 
-func (nalogruClient NalogruClient) SendKktsRequest(queryString string) ([]byte, error) {
+func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
 	retry := 0
 	client := &http.Client{}
 	parseResult, err := parseQuery(queryString)

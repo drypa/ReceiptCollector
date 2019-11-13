@@ -35,7 +35,7 @@ var workerIntervalString = os.Getenv(intervalEnvironmentVariable)
 func main() {
 	log.SetOutput(os.Stdout)
 
-	nalogruClient := nalogru_client.NalogruClient{BaseAddress: baseAddress, Login: login, Password: password}
+	nalogruClient := nalogru_client.Client{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
 
 	processingInterval, err := time.ParseDuration(workerIntervalString)
@@ -68,7 +68,7 @@ func startServer() error {
 	return http.ListenAndServe(address, nil)
 }
 
-func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.NalogruClient, interval time.Duration) {
+func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 
 	for {
@@ -84,7 +84,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Nal
 
 }
 
-func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient) {
+func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 
@@ -118,7 +118,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.NalogruClient)
 	check(err)
 }
 
-func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.NalogruClient, interval time.Duration) {
+func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 
 	for {
@@ -134,7 +134,7 @@ func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_clien
 
 }
 
-func processRequests(ctx context.Context, nalogruClient nalogru_client.NalogruClient) {
+func processRequests(ctx context.Context, nalogruClient nalogru_client.Client) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 
