@@ -116,7 +116,11 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
 	check(err)
 	receipt, err := receipts.ParseReceipt(receiptBytes)
-	check(err)
+	if err != nil {
+		body := string(receiptBytes)
+		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
+		return
+	}
 	filter := bson.M{"_id": bson.M{"$eq": request.Id}}
 	update := bson.M{"$set": bson.M{"receipt": receipt}}
 	_, err = collection.UpdateOne(ctx, filter, update)
