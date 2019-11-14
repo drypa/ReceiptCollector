@@ -3,14 +3,15 @@ package receipts
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"net/http"
 	"receipt_collector/auth"
 	"receipt_collector/mongo_client"
+	"receipt_collector/nalogru_client"
 	utils2 "receipt_collector/utils"
 )
 
@@ -28,23 +29,26 @@ func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
 	}
 }
 func OnError(writer http.ResponseWriter, err error) {
-	_ = fmt.Errorf("Error: %v", err)
+	log.Printf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
 
 func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
-		writer.WriteHeader(http.StatusNotFound)
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
+
+	queryString := request.URL.RawQuery
+	result, err := nalogru_client.Parse(queryString)
+	if err != nil {
+		OnError(writer, err)
 		return
 	}
-	defer func() {
-		err := request.Body.Close()
-		if err != nil {
-			fmt.Printf("error while request body close %s", err)
-		}
-	}()
 
-	err := controller.saveRequest(request)
+	err = nalogru_client.Validate(result)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+	err = controller.saveRequest(request.Context(), queryString)
 	if err != nil {
 		OnError(writer, err)
 		return
@@ -55,10 +59,7 @@ func (controller Controller) getMongoClient() (*mongo.Client, error) {
 	return mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
 }
 
-func (controller Controller) saveRequest(request *http.Request) error {
-	queryString := request.URL.RawQuery
-	ctx := request.Context()
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+func (controller Controller) saveRequest(ctx context.Context, queryString string) error {
 
 	client, err := controller.getMongoClient()
 	if err != nil {

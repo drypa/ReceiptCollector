@@ -1,11 +1,9 @@
 package nalogru_client
 
 import (
-	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 )
 
 type Client struct {
@@ -14,27 +12,8 @@ type Client struct {
 	Password    string
 }
 
-func parseQuery(queryString string) (ParseResult, error) {
-	form, err := url.ParseQuery(queryString)
-	if err != nil {
-		return ParseResult{}, err
-	}
-	timeString := form.Get("t")
-
-	timeParsed := parseAsTime(timeString)
-
-	return ParseResult{
-		N:          template.HTMLEscapeString(form.Get("n")),
-		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
-		Sum:        template.HTMLEscapeString(form.Get("s")),
-		Fd:         template.HTMLEscapeString(form.Get("fn")),
-		Time:       timeParsed,
-		Fp:         template.HTMLEscapeString(form.Get("i")),
-	}, nil
-}
-
 func (nalogruClient Client) SendOdfsRequest(queryString string) error {
-	parseResult, err := parseQuery(queryString)
+	parseResult, err := Parse(queryString)
 	if err != nil {
 		return err
 	}
@@ -55,7 +34,7 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 
 func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
 	client := &http.Client{}
-	parseResult, err := parseQuery(queryString)
+	parseResult, err := Parse(queryString)
 	if err != nil {
 		return nil, err
 	}

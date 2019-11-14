@@ -7,7 +7,7 @@ import (
 
 func TestOfdsUrlBuilder(t *testing.T) {
 	baseAddress := "https://example.com"
-	parsedReceipt := ParseResult{
+	parsedReceipt := Query{
 		FiscalSign: "4245472848",
 		Fd:         "9251440300012362",
 		Fp:         "30813",

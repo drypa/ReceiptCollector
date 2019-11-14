@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type ParseResult struct {
+type Query struct {
 	FiscalSign string
 	Fd         string
 	Fp         string
