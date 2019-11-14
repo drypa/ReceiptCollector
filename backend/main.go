@@ -77,7 +77,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Cli
 			return
 		case <-ticker.C:
 			hour := time.Now().Hour()
-			if hour > 22 || hour < 5 {
+			if hour > 20 || hour < 5 {
 				getReceipt(ctx, nalogruClient)
 			} else {
 				log.Print("Not Yet. Kkts request delayed.")
