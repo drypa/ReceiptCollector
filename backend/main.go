@@ -80,31 +80,26 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Cli
 			if hour > 22 || hour < 5 {
 				getReceipt(ctx, nalogruClient)
 			} else {
-				log.Print("Not Yet")
+				log.Print("Not Yet. Kkts request delayed.")
 				break
 			}
 			break
 		}
 	}
-
 }
 
 func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
+	receiptRepository := receipts.NewRepository(client)
 
 	defer utils.Dispose(func() error {
 		return client.Disconnect(ctx)
 	}, "error while mongo disconnect")
 
-	collection := client.Database("receipt_collection").Collection("receipt_requests")
-	request := receipts.UsersReceipt{}
-	err = collection.FindOne(ctx, bson.M{"$and": []bson.M{
-		{"odfs_requested": bson.M{"$eq": true}},
-		{"receipt": bson.M{"$eq": nil}}},
-	}).Decode(&request)
+	request := receiptRepository.FindOneOdfsRequestedWithoutReceipt(ctx)
 
-	if err == mongo.ErrNoDocuments {
+	if request == nil {
 		log.Println("No Kkt requests required")
 		return
 	}
@@ -121,9 +116,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
 		return
 	}
-	filter := bson.M{"_id": bson.M{"$eq": request.Id}}
-	update := bson.M{"$set": bson.M{"receipt": receipt}}
-	_, err = collection.UpdateOne(ctx, filter, update)
+	err = receiptRepository.SetReceipt(ctx, request.Id, receipt)
 	check(err)
 }
 
