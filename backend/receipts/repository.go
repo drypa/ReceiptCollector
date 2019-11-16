@@ -46,6 +46,29 @@ func (repository Repository) GetByUser(ctx context.Context, userId string) ([]Us
 	return receipts, nil
 }
 
+func (repository Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
+	receipt := UsersReceipt{}
+	collection := repository.getCollection()
+
+	ownerId, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return receipt, err
+	}
+	id, err := primitive.ObjectIDFromHex(receiptId)
+	if err != nil {
+		return receipt, err
+	}
+
+	query := bson.D{{"owner", ownerId}, {"_id", id}}
+
+	result := collection.FindOne(ctx, query)
+	if result.Err() != nil {
+		return receipt, err
+	}
+	err = result.Decode(&receipt)
+	return receipt, err
+}
+
 func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Context) *UsersReceipt {
 	collection := repository.getCollection()
 	request := UsersReceipt{}

@@ -53,7 +53,7 @@ func startServer() error {
 	}
 
 	repository := receipts.NewRepository(client)
-	receiptsController := receipts.New(repository, mongoUrl, mongoUser, mongoSecret)
+	receiptsController := receipts.New(repository)
 	usersController := users.New(mongoUrl, mongoUser, mongoSecret)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)

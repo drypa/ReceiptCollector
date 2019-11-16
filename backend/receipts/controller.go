@@ -4,31 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
 	"receipt_collector/auth"
-	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru_client"
 	utils2 "receipt_collector/utils"
 )
 
 type Controller struct {
-	mongoUrl      string
-	mongoLogin    string
-	mongoPassword string
-	repository    Repository
+	repository Repository
 }
 
-func New(repository Repository, mongoUrl string, mongoUser string, mongoSecret string) Controller {
-
+func New(repository Repository) Controller {
 	return Controller{
-		repository:    repository,
-		mongoUrl:      mongoUrl,
-		mongoLogin:    mongoUser,
-		mongoPassword: mongoSecret,
+		repository: repository,
 	}
 }
 func OnError(writer http.ResponseWriter, err error) {
@@ -56,10 +47,6 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 		OnError(writer, err)
 		return
 	}
-}
-
-func (controller Controller) getMongoClient() (*mongo.Client, error) {
-	return mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
 }
 
 func (controller Controller) saveRequest(ctx context.Context, queryString string) error {
@@ -132,29 +119,7 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 }
 
 func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
-	receipt := UsersReceipt{}
-	client, err := controller.getMongoClient()
-	if err != nil {
-		return receipt, err
-	}
-
-	defer utils2.Dispose(func() error {
-		return client.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
-	collection := client.Database("receipt_collection").Collection("receipt_requests")
-	ownerId, err := primitive.ObjectIDFromHex(userId)
-	id, err := primitive.ObjectIDFromHex(receiptId)
-	if err != nil {
-		return receipt, err
-	}
-	query := bson.D{{"owner", ownerId}, {"_id", id}}
-	result := collection.FindOne(ctx, query)
-	if result.Err() != nil {
-		return receipt, err
-	}
-	err = result.Decode(&receipt)
-	return receipt, err
+	return controller.repository.GetById(ctx, userId, receiptId)
 }
 
 func readReceipts(cursor *mongo.Cursor, context context.Context) []UsersReceipt {
