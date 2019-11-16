@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY ./ ./
 
-RUN npm i && npm run build-prod
+RUN npm ci && npm run build-prod
 
 
 
