@@ -19,10 +19,13 @@ type Controller struct {
 	mongoUrl      string
 	mongoLogin    string
 	mongoPassword string
+	repository    Repository
 }
 
-func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+func New(repository Repository, mongoUrl string, mongoUser string, mongoSecret string) Controller {
+
 	return Controller{
+		repository:    repository,
 		mongoUrl:      mongoUrl,
 		mongoLogin:    mongoUser,
 		mongoPassword: mongoSecret,
@@ -61,15 +64,6 @@ func (controller Controller) getMongoClient() (*mongo.Client, error) {
 
 func (controller Controller) saveRequest(ctx context.Context, queryString string) error {
 
-	client, err := controller.getMongoClient()
-	if err != nil {
-		return err
-	}
-	defer utils2.Dispose(func() error {
-		return client.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
-	collection := client.Database("receipt_collection").Collection("receipt_requests")
 	userId := ctx.Value(auth.UserId)
 
 	id, err := primitive.ObjectIDFromHex(userId.(string))
@@ -81,7 +75,7 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 		QueryString:   queryString,
 		OdfsRequested: false,
 	}
-	_, err = collection.InsertOne(ctx, receiptRequest)
+	err = controller.repository.Insert(ctx, receiptRequest)
 	return err
 }
 
@@ -93,32 +87,12 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 	ctx := request.Context()
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	client, err := controller.getMongoClient()
-	if err != nil {
-		OnError(writer, err)
-		return
-	}
-
-	defer utils2.Dispose(func() error {
-		return client.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
-	collection := client.Database("receipt_collection").Collection("receipt_requests")
 	userId := ctx.Value(auth.UserId)
-	id, err := primitive.ObjectIDFromHex(userId.(string))
+	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
 	if err != nil {
 		OnError(writer, err)
 		return
 	}
-	cursor, err := collection.Find(ctx, bson.D{{"owner", id}})
-	if err != nil {
-		OnError(writer, err)
-		return
-	}
-	defer utils2.Dispose(func() error {
-		return cursor.Close(ctx)
-	}, "error while mongo cursor close")
-	var receipts = readReceipts(cursor, ctx)
 	writeResponse(receipts, writer)
 }
 
@@ -127,7 +101,11 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	request.ParseForm()
+	err := request.ParseForm()
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
 	vars := mux.Vars(request)
 	id := vars["id"]
 

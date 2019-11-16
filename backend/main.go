@@ -41,9 +41,19 @@ func main() {
 	log.Println(startServer())
 }
 
+func getMongoClient(mongoUrl string, mongoLogin string, mongoPassword string) (*mongo.Client, error) {
+	return mongo_client.GetMongoClient(mongoUrl, mongoLogin, mongoPassword)
+}
+
 func startServer() error {
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
-	receiptsController := receipts.New(mongoUrl, mongoUser, mongoSecret)
+	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
+	if err != nil {
+		return err
+	}
+
+	repository := receipts.NewRepository(client)
+	receiptsController := receipts.New(repository, mongoUrl, mongoUser, mongoSecret)
 	usersController := users.New(mongoUrl, mongoUser, mongoSecret)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)

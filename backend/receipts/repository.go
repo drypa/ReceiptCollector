@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"receipt_collector/utils"
 )
 
 type Repository struct {
@@ -18,6 +19,31 @@ func NewRepository(client *mongo.Client) Repository {
 
 func (repository Repository) getCollection() *mongo.Collection {
 	return repository.client.Database("receipt_collection").Collection("receipt_requests")
+}
+
+func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) error {
+	collection := repository.getCollection()
+
+	_, err := collection.InsertOne(ctx, receipt)
+	return err
+}
+
+func (repository Repository) GetByUser(ctx context.Context, userId string) ([]UsersReceipt, error) {
+	collection := repository.getCollection()
+
+	id, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := collection.Find(ctx, bson.D{{"owner", id}})
+	if err != nil {
+		return nil, err
+	}
+	defer utils.Dispose(func() error {
+		return cursor.Close(ctx)
+	}, "error while mongo cursor close")
+	receipts := readReceipts(cursor, ctx)
+	return receipts, nil
 }
 
 func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Context) *UsersReceipt {
