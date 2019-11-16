@@ -83,6 +83,19 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 	return &request
 }
 
+func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, receiptId string) error {
+	collection := repository.getCollection()
+
+	id, err := primitive.ObjectIDFromHex(receiptId)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": bson.M{"$eq": id}}
+	update := bson.M{"$set": bson.M{"odfs_requested": false}}
+	_, err = collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
 func (repository Repository) SetReceipt(ctx context.Context, id primitive.ObjectID, receipt Receipt) error {
 	collection := repository.getCollection()
 

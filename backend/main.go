@@ -51,6 +51,9 @@ func startServer() error {
 	if err != nil {
 		return err
 	}
+	defer utils.Dispose(func() error {
+		return client.Disconnect(context.Background())
+	}, "error while mongo disconnect")
 
 	repository := receipts.NewRepository(client)
 	receiptsController := receipts.New(repository)
@@ -92,7 +95,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Cli
 }
 
 func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
-	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 	receiptRepository := receipts.NewRepository(client)
 
@@ -118,6 +121,8 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	if err != nil {
 		body := string(receiptBytes)
 		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
+		err := receiptRepository.ResetOdfsRequestForReceipt(ctx, request.Id.Hex())
+		check(err)
 		return
 	}
 	err = receiptRepository.SetReceipt(ctx, request.Id, receipt)
