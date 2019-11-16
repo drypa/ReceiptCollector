@@ -3,7 +3,17 @@ package nalogru_client
 import (
 	"html/template"
 	"net/url"
+	"time"
 )
+
+type Query struct {
+	FiscalSign string
+	Fd         string
+	Fp         string
+	Time       time.Time
+	Sum        string
+	N          string
+}
 
 func Parse(queryString string) (Query, error) {
 	form, err := url.ParseQuery(queryString)
