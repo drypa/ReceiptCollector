@@ -40,7 +40,7 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 	}
 
 	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
-
+	log.Printf("Kkt URL: %s\n", kktsUrl)
 	response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
 	if err == nil && response.StatusCode == 200 {
 		return ioutil.ReadAll(response.Body)

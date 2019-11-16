@@ -15,6 +15,7 @@ import (
 	"receipt_collector/receipts"
 	"receipt_collector/users"
 	"receipt_collector/utils"
+	"strconv"
 	"time"
 )
 
@@ -29,21 +30,46 @@ var mongoSecret = os.Getenv("MONGO_SECRET")
 
 const intervalEnvironmentVariable = "GET_RECEIPT_WORKER_INTERVAL"
 
+const workerStartHourEnvironmentVariable = "WORKER_START_HOUR"
+const workerEndHourEnvironmentVariable = "WORKER_END_HOUR"
+
 var workerIntervalString = os.Getenv(intervalEnvironmentVariable)
+
+type WorkerInterval struct {
+	start    int
+	end      int
+	interval time.Duration
+}
 
 func main() {
 	log.SetOutput(os.Stdout)
 
-	nalogruClient := nalogru_client.Client{BaseAddress: baseAddress, Login: login, Password: password}
-	ctx := context.Background()
-
+	start, err := strconv.Atoi(workerStartHourEnvironmentVariable)
+	if err != nil {
+		start = 0
+	}
+	end, err := strconv.Atoi(workerEndHourEnvironmentVariable)
+	if err != nil {
+		end = 0
+	}
 	processingInterval, err := time.ParseDuration(workerIntervalString)
 	if err != nil {
 		log.Printf("invalid '%s' value: %s", intervalEnvironmentVariable, workerIntervalString)
+		processingInterval = time.Minute
+		log.Println("processing interval is set to 1 minute")
 	}
 
-	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval)
-	go startGetReceiptWorker(ctx, nalogruClient, processingInterval)
+	workerInterval := WorkerInterval{
+		start:    start,
+		end:      end,
+		interval: processingInterval,
+	}
+
+	nalogruClient := nalogru_client.Client{BaseAddress: baseAddress, Login: login, Password: password}
+	ctx := context.Background()
+
+	go sendOdfsRequestWorkerStart(ctx, nalogruClient, processingInterval, workerInterval)
+	go startGetReceiptWorker(ctx, nalogruClient, processingInterval, workerInterval)
 
 	log.Println(startServer())
 }
@@ -67,7 +93,7 @@ func startServer() error {
 	return http.ListenAndServe(address, nil)
 }
 
-func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration) {
+func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration, hours WorkerInterval) {
 	ticker := time.NewTicker(interval)
 
 	for {
@@ -77,7 +103,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Cli
 			return
 		case <-ticker.C:
 			hour := time.Now().Hour()
-			if hour > 20 || hour < 5 {
+			if hour >= hours.start || hour <= hours.end {
 				getReceipt(ctx, nalogruClient)
 			} else {
 				log.Print("Not Yet. Kkts request delayed.")
@@ -103,6 +129,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 		log.Println("No Kkt requests required")
 		return
 	}
+	log.Printf("Kkt request for queryString: %s\n", request.QueryString)
 
 	if err != nil {
 		log.Printf("error while fetch half-processed user requests. %s", err)
@@ -120,7 +147,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	check(err)
 }
 
-func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration) {
+func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.Client, interval time.Duration, hours WorkerInterval) {
 	ticker := time.NewTicker(interval)
 
 	for {
@@ -129,7 +156,13 @@ func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_clien
 			log.Println("Odfs request worker finished")
 			return
 		case <-ticker.C:
-			processRequests(ctx, nalogruClient)
+			hour := time.Now().Hour()
+			if hour >= hours.start || hour <= hours.end {
+				processRequests(ctx, nalogruClient)
+			} else {
+				log.Print("Not Yet. Odfs request delayed.")
+				break
+			}
 			break
 		}
 	}
