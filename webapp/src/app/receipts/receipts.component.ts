@@ -31,5 +31,11 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-
+  delete(id: string) {
+    this.receiptService.delete(id)
+      .pipe(
+        first(),
+        takeUntil(this.destroy$))
+      .subscribe();
+  }
 }

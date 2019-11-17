@@ -105,6 +105,26 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 	writeResponse(receipt, writer)
 }
 
+func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
+
+	err := request.ParseForm()
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+	vars := mux.Vars(request)
+	id := vars["id"]
+
+	userId := ctx.Value(auth.UserId)
+	err = controller.repository.Delete(ctx, userId.(string), id)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+}
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {

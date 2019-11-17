@@ -15,6 +15,10 @@ export class ReceiptService {
     return this.http.get<Receipt[]>('/api/receipt');
   }
 
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/receipt/${id}`);
+  }
+
   get(id: string): Observable<Receipt> {
     return this.http.get<Receipt>(`/api/receipt/${id}`);
   }

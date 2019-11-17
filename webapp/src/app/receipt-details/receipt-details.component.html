@@ -1,6 +1,7 @@
 <div class="container-fluid" *ngIf="receipt">
   <p>
       {{receipt.id}}
+    <span *ngIf="receipt.deleted">(deleted)</span>
   </p>
   <p>
       {{receipt.dateTime}}

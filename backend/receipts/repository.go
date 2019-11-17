@@ -46,6 +46,22 @@ func (repository Repository) GetByUser(ctx context.Context, userId string) ([]Us
 	return receipts, nil
 }
 
+func (repository Repository) Delete(ctx context.Context, userId string, receiptId string) error {
+	collection := repository.getCollection()
+	id, err := primitive.ObjectIDFromHex(receiptId)
+	if err != nil {
+		return err
+	}
+	ownerId, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return err
+	}
+	filter := bson.D{{"owner", ownerId}, {"_id", id}}
+	update := bson.M{"$set": bson.M{"deleted": true}}
+	_, err = collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
 func (repository Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	receipt := UsersReceipt{}
 	collection := repository.getCollection()
@@ -74,7 +90,9 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 	request := UsersReceipt{}
 	err := collection.FindOne(ctx, bson.M{"$and": []bson.M{
 		{"odfs_requested": bson.M{"$eq": true}},
-		{"receipt": bson.M{"$eq": nil}}},
+		{"receipt": bson.M{"$eq": nil}},
+		{"$or": []bson.M{{"deleted": nil}, {"deleted": false}}},
+	},
 	}).Decode(&request)
 
 	if err == mongo.ErrNoDocuments {

@@ -40,6 +40,7 @@ type UsersReceipt struct {
 	KktRequestTime  time.Time          `json:"kkt_request_time" bson:"kkt_request_time"`
 	QueryString     string             `bson:"query_string" json:"query_string"`
 	OdfsRequested   bool               `json:"odfs_requested" bson:"odfs_requested"'`
+	Deleted         bool               `json:"deleted" bson:"deleted"`
 }
 
 func (purchase *Purchase) String() string {
