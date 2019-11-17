@@ -24,7 +24,11 @@
           <td>{{receipt.dateTime}}</td>
           <td>{{receipt.totalSum}}</td>
           <td>{{receipt.userInn}}</td>
-          <td>{{receipt.deleted? 'deleted' : ''}}</td>
+          <td>
+            <mat-chip-list>
+              <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
+            </mat-chip-list>
+          </td>
           <td>
             <a routerLink="/receipts/{{receipt.id}}">Details</a>
             <button mat-raised-button color="warn" (click)="delete(receipt.id)">Delete</button>

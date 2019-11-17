@@ -1,7 +1,9 @@
 <div class="container-fluid" *ngIf="receipt">
   <p>
       {{receipt.id}}
-    <span *ngIf="receipt.deleted">(deleted)</span>
+    <mat-chip-list>
+      <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
+    </mat-chip-list>
   </p>
   <p>
       {{receipt.dateTime}}
