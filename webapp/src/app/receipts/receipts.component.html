@@ -21,9 +21,10 @@
         </thead>
         <tbody>
         <tr *ngFor="let receipt of receiptList">
-          <td>{{receipt.dateTime}}</td>
-          <td>{{receipt.totalSum}}</td>
-          <td>{{receipt.userInn}}</td>
+          <td *ngIf="receipt.totalSum">{{receipt.dateTime}}</td>
+          <td *ngIf="receipt.totalSum">{{receipt.totalSum}}</td>
+          <td *ngIf="receipt.totalSum">{{receipt.userInn}}</td>
+          <td colspan="3" *ngIf="!receipt.totalSum">{{receipt.queryString}}</td>
           <td>
             <mat-chip-list>
               <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
