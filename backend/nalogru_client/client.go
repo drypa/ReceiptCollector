@@ -19,7 +19,11 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	}
 	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
 	client := &http.Client{}
-	response, err := sendRequest(ofdsUrl, client, nalogruClient.Login, nalogruClient.Password)
+	request, err := createRequest(ofdsUrl)
+	if err != nil {
+		return err
+	}
+	response, err := sendRequest(request, client)
 	if err != nil {
 		return err
 	}
@@ -41,7 +45,12 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 
 	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
 	log.Printf("Kkt URL: %s\n", kktsUrl)
-	response, err := sendRequest(kktsUrl, client, nalogruClient.Login, nalogruClient.Password)
+	request, err := createRequest(kktsUrl)
+	if err != nil {
+		return nil, err
+	}
+	addAuth(request, nalogruClient.Login, nalogruClient.Password)
+	response, err := sendRequest(request, client)
 	if err == nil && response.StatusCode == 200 {
 		return ioutil.ReadAll(response.Body)
 	}
@@ -53,16 +62,25 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 
 }
 
-func sendRequest(url string, client *http.Client, login string, password string) (*http.Response, error) {
-	request, _ := http.NewRequest("GET", url, nil)
-	addHeaders(request, login, password)
+func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
 	return client.Do(request)
 }
 
-func addHeaders(request *http.Request, login string, password string) {
+func createRequest(url string) (*http.Request, error) {
+	request, _ := http.NewRequest("GET", url, nil)
+	addHeaders(request)
+	return request, nil
+}
+
+func addAuth(request *http.Request, login string, password string) {
 	request.SetBasicAuth(login, password)
-	request.Header.Add("Device-OS", "Android 5.1")
+}
+
+func addHeaders(request *http.Request) {
+	request.Header.Add("Device-OS", "Adnroid 6.0.1") //not my misspell. is is from traffic dump
 	request.Header.Add("Version", "2")
 	request.Header.Add("ClientVersion", "1.4.4.4")
 	request.Header.Add("Device-Id", "123456")
+	request.Header.Add("Connection", "Keep-Alive")
+	request.Header.Add("User-Agent", "okhttp/3.0.1")
 }
