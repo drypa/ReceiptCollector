@@ -3,6 +3,7 @@ package receipts
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -42,6 +43,7 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 		OnError(writer, err)
 		return
 	}
+
 	err = controller.saveRequest(request.Context(), queryString)
 	if err != nil {
 		OnError(writer, err)
@@ -57,6 +59,16 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 	if err != nil {
 		return err
 	}
+
+	receipt, err := controller.repository.GetByQueryString(ctx, userId.(string), queryString)
+	if err != nil {
+		return err
+	}
+
+	if receipt != nil {
+		return errors.New("already exist")
+	}
+
 	receiptRequest := UsersReceipt{
 		Owner:         id,
 		QueryString:   queryString,
