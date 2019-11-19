@@ -13,4 +13,5 @@ export class Receipt {
   operator: string;
   nds18: number;
   nds10: number;
+  queryString: string;
 }

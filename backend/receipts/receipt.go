@@ -36,10 +36,10 @@ type UsersReceipt struct {
 	*Receipt
 	Id              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Owner           primitive.ObjectID `json:"owner" bson:"owner"`
-	OdfsRequestTime time.Time          `json:"odfs_request_time" bson:"odfs_request_time"`
-	KktRequestTime  time.Time          `json:"kkt_request_time" bson:"kkt_request_time"`
-	QueryString     string             `bson:"query_string" json:"query_string"`
-	OdfsRequested   bool               `json:"odfs_requested" bson:"odfs_requested"'`
+	OdfsRequestTime time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
+	KktRequestTime  time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
+	QueryString     string             `bson:"query_string" json:"queryString"`
+	OdfsRequested   bool               `json:"odfsRequested" bson:"odfs_requested"'`
 	Deleted         bool               `json:"deleted" bson:"deleted"`
 }
 
