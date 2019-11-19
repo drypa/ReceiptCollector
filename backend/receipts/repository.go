@@ -62,6 +62,28 @@ func (repository Repository) Delete(ctx context.Context, userId string, receiptI
 	return err
 }
 
+func (repository Repository) GetByQueryString(ctx context.Context, userId string, queryString string) (*UsersReceipt, error) {
+	collection := repository.getCollection()
+
+	ownerId, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	query := bson.D{{"owner", ownerId}, {"query_string", queryString}}
+
+	result := collection.FindOne(ctx, query)
+	if result.Err() != nil {
+		return nil, err
+	}
+
+	receipt := UsersReceipt{}
+	err = result.Decode(&receipt)
+
+	return &receipt, err
+
+}
+
 func (repository Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	receipt := UsersReceipt{}
 	collection := repository.getCollection()
