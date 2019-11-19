@@ -17,6 +17,7 @@ import {ReactiveFormsModule} from '@angular/forms';
 import {LoginComponent} from './login/login.component';
 import {AuthorizedComponent} from './authorized/authorized.component';
 import {BasicAuthInterceptor} from "./basic-auth-interceptor";
+import {MatSnackBarModule} from "@angular/material/snack-bar";
 
 @NgModule({
   declarations: [
@@ -41,7 +42,8 @@ import {BasicAuthInterceptor} from "./basic-auth-interceptor";
     MatInputModule,
     ReactiveFormsModule,
     MatAutocompleteModule,
-    MatChipsModule
+    MatChipsModule,
+    MatSnackBarModule
   ],
   providers: [
     {provide: HTTP_INTERCEPTORS, useClass: BasicAuthInterceptor, multi: true}
