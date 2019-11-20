@@ -46,6 +46,17 @@ func (repository Repository) GetByUser(ctx context.Context, userId string) ([]Us
 	return receipts, nil
 }
 
+func readReceipts(cursor *mongo.Cursor, context context.Context) []UsersReceipt {
+	var receipts = make([]UsersReceipt, 0, 0)
+	for cursor.Next(context) {
+		var receipt UsersReceipt
+		err := cursor.Decode(&receipt)
+		check(err)
+		receipts = append(receipts, receipt)
+	}
+	return receipts
+}
+
 func (repository Repository) Delete(ctx context.Context, userId string, receiptId string) error {
 	collection := repository.getCollection()
 	id, err := primitive.ObjectIDFromHex(receiptId)

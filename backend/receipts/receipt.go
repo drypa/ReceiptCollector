@@ -2,7 +2,6 @@ package receipts
 
 import (
 	"encoding/json"
-	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
@@ -39,16 +38,8 @@ type UsersReceipt struct {
 	OdfsRequestTime time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
 	KktRequestTime  time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
 	QueryString     string             `bson:"query_string" json:"queryString"`
-	OdfsRequested   bool               `json:"odfsRequested" bson:"odfs_requested"'`
+	OdfsRequested   bool               `json:"odfsRequested" bson:"odfs_requested"`
 	Deleted         bool               `json:"deleted" bson:"deleted"`
-}
-
-func (purchase *Purchase) String() string {
-	return fmt.Sprintf("Purchase: Name=%s; Price=%d; Quantity=%f; Sum=%d", purchase.Name, purchase.Price, purchase.Quantity, purchase.Sum)
-}
-
-func (receipt *Receipt) String() string {
-	return fmt.Sprintf("Receipt: Date=%s; RetailAddress=%s; Inn=%s; ItemsCount=%d", receipt.DateTime, receipt.RetailPlaceAddress, receipt.UserInn, len(receipt.Items))
 }
 
 func ParseReceipt(bytes []byte) (Receipt, error) {

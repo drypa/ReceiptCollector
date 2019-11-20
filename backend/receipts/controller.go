@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
 	"receipt_collector/auth"
@@ -152,17 +151,6 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 
 func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	return controller.repository.GetById(ctx, userId, receiptId)
-}
-
-func readReceipts(cursor *mongo.Cursor, context context.Context) []UsersReceipt {
-	var receipts = make([]UsersReceipt, 0, 0)
-	for cursor.Next(context) {
-		var receipt UsersReceipt
-		err := cursor.Decode(&receipt)
-		check(err)
-		receipts = append(receipts, receipt)
-	}
-	return receipts
 }
 
 func check(err error) {
