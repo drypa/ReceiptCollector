@@ -32,7 +32,11 @@
           </td>
           <td>
             <a routerLink="/receipts/{{receipt.id}}">Details</a>
-            <button mat-raised-button color="warn" (click)="delete(receipt.id)">Delete</button>
+            <button *ngIf="!receipt.deleted"
+                    mat-raised-button
+                    color="warn"
+                    (click)="delete(receipt.id)">Delete
+            </button>
           </td>
         </tr>
         </tbody>

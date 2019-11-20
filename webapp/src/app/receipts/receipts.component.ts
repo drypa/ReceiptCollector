@@ -3,6 +3,7 @@ import {Receipt} from '../receipt';
 import {ReceiptService} from '../receipt.service';
 import {first, takeUntil, tap} from 'rxjs/operators';
 import {Subject} from 'rxjs';
+import {MatSnackBar} from "@angular/material/snack-bar";
 
 @Component({
   selector: 'app-receipts',
@@ -12,12 +13,33 @@ import {Subject} from 'rxjs';
 export class ReceiptsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<boolean>();
 
-  constructor(private receiptService: ReceiptService) {
+  constructor(private receiptService: ReceiptService,
+              private snackBar: MatSnackBar) {
   }
 
   receiptList: Receipt[];
 
   ngOnInit() {
+    this.loadData();
+  }
+
+  delete(id: string) {
+    this.receiptService.delete(id)
+      .pipe(
+        first(),
+        takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.showSnack("Deleted");
+        this.loadData();
+      }, err => this.showSnack("Error"));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next(true);
+    this.destroy$.complete();
+  }
+
+  private loadData() {
     this.receiptService.getReceipts()
       .pipe(
         first(),
@@ -26,16 +48,7 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
       ).subscribe();
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next(true);
-    this.destroy$.complete();
-  }
-
-  delete(id: string) {
-    this.receiptService.delete(id)
-      .pipe(
-        first(),
-        takeUntil(this.destroy$))
-      .subscribe();
+  private showSnack(message: string) {
+    this.snackBar.open(message, "OK", {})
   }
 }
