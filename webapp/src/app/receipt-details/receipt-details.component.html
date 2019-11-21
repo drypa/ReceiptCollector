@@ -39,16 +39,5 @@
   <p>
       {{receipt.nds18}}
   </p>
-  <div>
-    <p>Purchases:
-    </p>
-    <ol>
-      <li *ngFor="let item of receipt.items">
-          {{item.price}}
-          {{item.sum}}
-          {{item.quantity}}
-          {{item.name}}
-      </li>
-    </ol>
-  </div>
+  <app-receipt-items [purchases]="receipt.items"></app-receipt-items>
 </div>

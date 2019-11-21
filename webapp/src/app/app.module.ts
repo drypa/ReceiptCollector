@@ -18,6 +18,7 @@ import {LoginComponent} from './login/login.component';
 import {AuthorizedComponent} from './authorized/authorized.component';
 import {BasicAuthInterceptor} from "./basic-auth-interceptor";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
+import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
 
 @NgModule({
   declarations: [
@@ -29,7 +30,8 @@ import {MatSnackBarModule} from "@angular/material/snack-bar";
     NewMarketComponent,
     MarketDetailsComponent,
     LoginComponent,
-    AuthorizedComponent
+    AuthorizedComponent,
+    ReceiptItemsComponent
   ],
   imports: [
     BrowserModule,
