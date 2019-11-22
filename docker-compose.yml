@@ -8,6 +8,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
     volumes:
       - ${MONGO_DATA}:/data/db
+      - ${MONGO_BACKUP}:/backup
     networks:
       - collector-net
 
