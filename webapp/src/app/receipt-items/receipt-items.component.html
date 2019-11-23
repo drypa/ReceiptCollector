@@ -1,14 +1,21 @@
+<p>Purchases:
+</p>
+<table class="table table-hover">
+  <thead>
+  <tr>
+    <th>Name</th>
+    <th>Price</th>
+    <th>Quantity</th>
+    <th>Sum</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr *ngFor="let item of purchases">
+    <td>{{item.name}}</td>
+    <td>{{item.price}}</td>
+    <td>{{item.quantity}}</td>
+    <td>{{item.sum}}</td>
+  </tr>
+  </tbody>
+</table>
 <div>
-  <p>Purchases:
-  </p>
-  <ol>
-    <li *ngFor="let item of purchases">
-        {{item.price}}
-        {{item.sum}}
-        {{item.quantity}}
-        {{item.name}}
-    </li>
-  </ol>
-</div>
-
-
