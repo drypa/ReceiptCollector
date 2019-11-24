@@ -3,6 +3,7 @@ package nalogru_client
 import (
 	"html/template"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -17,12 +18,16 @@ type Query struct {
 
 func Parse(queryString string) (Query, error) {
 	form, err := url.ParseQuery(queryString)
+	res := Query{}
 	if err != nil {
-		return Query{}, err
+		return res, err
 	}
 	timeString := form.Get("t")
 
-	timeParsed := parseAsTime(timeString)
+	timeParsed, err := parseAsTime(timeString)
+	if err != nil {
+		return res, err
+	}
 
 	return Query{
 		N:          template.HTMLEscapeString(form.Get("n")),
@@ -34,7 +39,10 @@ func Parse(queryString string) (Query, error) {
 	}, nil
 }
 
-func Validate(query Query) error {
-	//TODO: need implement format validation
-	return nil
+func (query Query) Validate() error {
+	_, errN := strconv.Atoi(query.N)
+	_, errFs := strconv.Atoi(query.FiscalSign)
+	_, errSum := strconv.Atoi(query.Sum)
+	_, errFd := strconv.Atoi(query.Fd)
+	return firstError([]error{errN, errFs, errSum, errFd})
 }

@@ -13,8 +13,8 @@ func Test(t *testing.T) {
 	}
 
 	for key, val := range testData {
-		result := parseAsTime(key)
-		if result != val {
+		result, err := parseAsTime(key)
+		if err != nil || result != val {
 			t.Errorf("Parse was incorrect got %s, want %s", result, val)
 		}
 	}

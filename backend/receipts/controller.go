@@ -37,7 +37,7 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 		return
 	}
 
-	err = nalogru_client.Validate(result)
+	err = result.Validate()
 	if err != nil {
 		OnError(writer, err)
 		return
