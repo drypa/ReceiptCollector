@@ -1,4 +1,4 @@
-package nalogru_client
+package nalogru
 
 import (
 	"testing"

@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"receipt_collector/auth"
-	"receipt_collector/nalogru_client"
+	"receipt_collector/nalogru"
 	utils2 "receipt_collector/utils"
 )
 
@@ -31,7 +31,7 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
 	queryString := request.URL.RawQuery
-	result, err := nalogru_client.Parse(queryString)
+	result, err := nalogru.Parse(queryString)
 	if err != nil {
 		OnError(writer, err)
 		return

@@ -11,7 +11,7 @@ import (
 	"receipt_collector/auth"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
-	"receipt_collector/nalogru_client"
+	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
 	"receipt_collector/utils"
@@ -32,7 +32,7 @@ func main() {
 	log.SetOutput(os.Stdout)
 	settings := workers.ReadFromEnvironment()
 
-	nalogruClient := nalogru_client.Client{BaseAddress: baseAddress, Login: login, Password: password}
+	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
 
 	go sendOdfsRequestWorkerStart(ctx, nalogruClient, settings)
@@ -74,7 +74,7 @@ func startServer() error {
 	return http.ListenAndServe(address, nil)
 }
 
-func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Client, settings workers.Settings) {
+func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru.Client, settings workers.Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
 	for {
@@ -95,7 +95,7 @@ func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru_client.Cli
 	}
 }
 
-func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
+func getReceipt(ctx context.Context, nalogruClient nalogru.Client) {
 	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 	receiptRepository := receipts.NewRepository(client)
@@ -130,7 +130,7 @@ func getReceipt(ctx context.Context, nalogruClient nalogru_client.Client) {
 	check(err)
 }
 
-func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_client.Client, settings workers.Settings) {
+func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru.Client, settings workers.Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
 	for {
@@ -152,7 +152,7 @@ func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru_clien
 
 }
 
-func processRequests(ctx context.Context, nalogruClient nalogru_client.Client) {
+func processRequests(ctx context.Context, nalogruClient nalogru.Client) {
 	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
 	check(err)
 
