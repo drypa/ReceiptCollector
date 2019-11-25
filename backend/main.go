@@ -35,7 +35,7 @@ func main() {
 	ctx := context.Background()
 	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
 	if err != nil {
-		panic(err)
+		check(err)
 	}
 	defer utils.Dispose(func() error {
 		return client.Disconnect(context.Background())

@@ -155,6 +155,7 @@ func (controller Controller) getReceiptById(ctx context.Context, userId string, 
 
 func check(err error) {
 	if err != nil {
+		log.Printf("Error occured %v", err)
 		panic(err)
 	}
 }
