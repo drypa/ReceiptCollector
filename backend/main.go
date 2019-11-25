@@ -37,6 +37,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer utils.Dispose(func() error {
+		return client.Disconnect(context.Background())
+	}, "error while mongo disconnect")
+
 	go workers.OdfsWorkerStart(ctx, nalogruClient, client, settings)
 	go startGetReceiptWorker(ctx, nalogruClient, settings)
 
