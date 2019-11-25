@@ -30,6 +30,7 @@ var mongoSecret = os.Getenv("MONGO_SECRET")
 func main() {
 	log.SetOutput(os.Stdout)
 	settings := workers.ReadFromEnvironment()
+	log.Printf("Worker settings %v \n", settings)
 
 	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
