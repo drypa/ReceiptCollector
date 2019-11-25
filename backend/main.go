@@ -15,7 +15,6 @@ import (
 	"receipt_collector/users"
 	"receipt_collector/utils"
 	"receipt_collector/workers"
-	"time"
 )
 
 var login = os.Getenv("NALOGRU_LOGIN")
@@ -43,7 +42,7 @@ func main() {
 	}, "error while mongo disconnect")
 
 	go workers.OdfsWorkerStart(ctx, nalogruClient, client, settings)
-	go startGetReceiptWorker(ctx, nalogruClient, settings)
+	go workers.GetReceiptWorkerStart(ctx, nalogruClient, client, settings)
 
 	log.Println(startServer())
 }
@@ -79,62 +78,6 @@ func startServer() error {
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	return http.ListenAndServe(address, nil)
-}
-
-func startGetReceiptWorker(ctx context.Context, nalogruClient nalogru.Client, settings workers.Settings) {
-	ticker := time.NewTicker(settings.Interval)
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Kkt request worker finished")
-			return
-		case <-ticker.C:
-			hour := time.Now().Hour()
-			if hour >= settings.Start || hour <= settings.End {
-				getReceipt(ctx, nalogruClient)
-			} else {
-				log.Print("Not Yet. Kkts request delayed.")
-				break
-			}
-			break
-		}
-	}
-}
-
-func getReceipt(ctx context.Context, nalogruClient nalogru.Client) {
-	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
-	check(err)
-	receiptRepository := receipts.NewRepository(client)
-
-	defer utils.Dispose(func() error {
-		return client.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
-	request := receiptRepository.FindOneOdfsRequestedWithoutReceipt(ctx)
-
-	if request == nil {
-		log.Println("No Kkt requests required")
-		return
-	}
-	log.Printf("Kkt request for queryString: %s\n", request.QueryString)
-
-	if err != nil {
-		log.Printf("error while fetch half-processed user requests. %s", err)
-		return
-	}
-	receiptBytes, err := nalogruClient.SendKktsRequest(request.QueryString)
-	check(err)
-	receipt, err := receipts.ParseReceipt(receiptBytes)
-	if err != nil {
-		body := string(receiptBytes)
-		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
-		err := receiptRepository.ResetOdfsRequestForReceipt(ctx, request.Id.Hex())
-		check(err)
-		return
-	}
-	err = receiptRepository.SetReceipt(ctx, request.Id, receipt)
-	check(err)
 }
 
 func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller) {

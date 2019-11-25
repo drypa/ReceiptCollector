@@ -7,7 +7,6 @@ import (
 	"log"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
-	"receipt_collector/utils"
 	"time"
 )
 
@@ -34,11 +33,6 @@ func OdfsWorkerStart(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 }
 
 func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoClient *mongo.Client) {
-
-	defer utils.Dispose(func() error {
-		return mongoClient.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
 	collection := mongoClient.Database("receipt_collection").Collection("receipt_requests")
 	usersReceipt := receipts.UsersReceipt{}
 	err := collection.FindOne(ctx, bson.M{"odfs_requested": false}).Decode(&usersReceipt)
