@@ -42,7 +42,7 @@ func Parse(queryString string) (Query, error) {
 func (query Query) Validate() error {
 	_, errN := strconv.Atoi(query.N)
 	_, errFs := strconv.Atoi(query.FiscalSign)
-	_, errSum := strconv.Atoi(query.Sum)
+	_, errSum := strconv.ParseFloat(query.Sum, 64)
 	_, errFd := strconv.Atoi(query.Fd)
 	return firstError([]error{errN, errFs, errSum, errFd})
 }
