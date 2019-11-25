@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
@@ -34,8 +33,11 @@ func main() {
 
 	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
-
-	go sendOdfsRequestWorkerStart(ctx, nalogruClient, settings)
+	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
+	if err != nil {
+		panic(err)
+	}
+	go workers.OdfsWorkerStart(ctx, nalogruClient, client, settings)
 	go startGetReceiptWorker(ctx, nalogruClient, settings)
 
 	log.Println(startServer())
@@ -127,60 +129,6 @@ func getReceipt(ctx context.Context, nalogruClient nalogru.Client) {
 		return
 	}
 	err = receiptRepository.SetReceipt(ctx, request.Id, receipt)
-	check(err)
-}
-
-func sendOdfsRequestWorkerStart(ctx context.Context, nalogruClient nalogru.Client, settings workers.Settings) {
-	ticker := time.NewTicker(settings.Interval)
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Odfs request worker finished")
-			return
-		case <-ticker.C:
-			hour := time.Now().Hour()
-			if hour >= settings.Start || hour <= settings.End {
-				processRequests(ctx, nalogruClient)
-			} else {
-				log.Print("Not Yet. Odfs request delayed.")
-				break
-			}
-			break
-		}
-	}
-
-}
-
-func processRequests(ctx context.Context, nalogruClient nalogru.Client) {
-	client, err := mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
-	check(err)
-
-	defer utils.Dispose(func() error {
-		return client.Disconnect(ctx)
-	}, "error while mongo disconnect")
-
-	collection := client.Database("receipt_collection").Collection("receipt_requests")
-	usersReceipt := receipts.UsersReceipt{}
-	err = collection.FindOne(ctx, bson.M{"odfs_requested": false}).Decode(&usersReceipt)
-	if err == mongo.ErrNoDocuments {
-		log.Println("No Odfs requests required")
-		return
-	}
-	if err != nil {
-		log.Printf("error while fetch unprocessed user requests. %s \n", err)
-		return
-	}
-	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
-	check(err)
-	update := bson.M{
-		"$set": bson.M{
-			"odfs_requested":    true,
-			"odfs_request_time": time.Now(),
-		},
-	}
-	filter := bson.M{"_id": bson.M{"$eq": usersReceipt.Id}}
-	_, err = collection.UpdateOne(ctx, filter, update)
 	check(err)
 }
 
