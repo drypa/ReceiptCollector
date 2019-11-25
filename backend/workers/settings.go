@@ -21,12 +21,16 @@ type Settings struct {
 func ReadFromEnvironment() Settings {
 	workerIntervalString := os.Getenv(intervalEnvironmentVariable)
 
-	start, err := strconv.Atoi(workerStartHourEnvironmentVariable)
+	startString := os.Getenv(workerStartHourEnvironmentVariable)
+	start, err := strconv.Atoi(startString)
 	if err != nil {
+		log.Printf("Error while parse %s variable value=%s. Error: %v", workerStartHourEnvironmentVariable, startString, err)
 		start = 0
 	}
-	end, err := strconv.Atoi(workerEndHourEnvironmentVariable)
+	endString := os.Getenv(workerEndHourEnvironmentVariable)
+	end, err := strconv.Atoi(endString)
 	if err != nil {
+		log.Printf("Error while parse %s variable value=%s. Error: %v", workerEndHourEnvironmentVariable, endString, err)
 		end = 0
 	}
 	processingInterval, err := time.ParseDuration(workerIntervalString)
