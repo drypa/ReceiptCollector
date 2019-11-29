@@ -69,9 +69,9 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 	}
 
 	receiptRequest := UsersReceipt{
-		Owner:         id,
-		QueryString:   queryString,
-		OdfsRequested: false,
+		Owner:             id,
+		QueryString:       queryString,
+		OdfsRequestStatus: Undefined,
 	}
 	err = controller.repository.Insert(ctx, receiptRequest)
 	return err

@@ -122,7 +122,7 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 	collection := repository.getCollection()
 	request := UsersReceipt{}
 	err := collection.FindOne(ctx, bson.M{"$and": []bson.M{
-		{"odfs_requested": bson.M{"$eq": true}},
+		{"odfs_request_status": bson.M{"$eq": Success}},
 		{"receipt": bson.M{"$eq": nil}},
 		{"$or": []bson.M{{"deleted": nil}, {"deleted": false}}},
 	},
@@ -136,13 +136,13 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 
 func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, receiptId string) error {
 	collection := repository.getCollection()
-
+	//TODO: do not reset odfs status but set kkts status
 	id, err := primitive.ObjectIDFromHex(receiptId)
 	if err != nil {
 		return err
 	}
 	filter := bson.M{"_id": bson.M{"$eq": id}}
-	update := bson.M{"$set": bson.M{"odfs_requested": false}}
+	update := bson.M{"$set": bson.M{"odfs_request_status": Undefined}}
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
 }

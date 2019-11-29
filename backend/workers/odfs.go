@@ -35,7 +35,10 @@ func OdfsWorkerStart(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoClient *mongo.Client) {
 	collection := mongoClient.Database("receipt_collection").Collection("receipt_requests")
 	usersReceipt := receipts.UsersReceipt{}
-	err := collection.FindOne(ctx, bson.M{"odfs_requested": false}).Decode(&usersReceipt)
+	//TODO: move to repository
+	query := bson.M{"$or": []bson.M{{"odfs_request_status": receipts.Undefined}, {"odfs_request_status": nil}}}
+
+	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
 	if err == mongo.ErrNoDocuments {
 		log.Println("No Odfs requests required")
 		return
@@ -46,10 +49,11 @@ func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 	}
 	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
 	check(err)
+	//TODO: move to repository
 	update := bson.M{
 		"$set": bson.M{
-			"odfs_requested":    true,
-			"odfs_request_time": time.Now(),
+			"odfs_request_status": receipts.Success,
+			"odfs_request_time":   time.Now(),
 		},
 	}
 	filter := bson.M{"_id": bson.M{"$eq": usersReceipt.Id}}

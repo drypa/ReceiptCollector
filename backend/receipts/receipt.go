@@ -33,14 +33,24 @@ type Receipt struct {
 
 type UsersReceipt struct {
 	*Receipt
-	Id              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Owner           primitive.ObjectID `json:"owner" bson:"owner"`
-	OdfsRequestTime time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
-	KktRequestTime  time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
-	QueryString     string             `bson:"query_string" json:"queryString"`
-	OdfsRequested   bool               `json:"odfsRequested" bson:"odfs_requested"`
-	Deleted         bool               `json:"deleted" bson:"deleted"`
+	Id                primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Owner             primitive.ObjectID `json:"owner" bson:"owner"`
+	OdfsRequestTime   time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
+	KktRequestTime    time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
+	QueryString       string             `bson:"query_string" json:"queryString"`
+	OdfsRequested     bool               `json:"odfsRequested" bson:"odfs_requested"`
+	OdfsRequestStatus RequestStatus      `json:"odfsRequestStatus" bson:"odfs_request_status"`
+	KktsRequestStatus RequestStatus      `json:"kktsRequestStatus" bson:"kkts_request_status"`
+	Deleted           bool               `json:"deleted" bson:"deleted"`
 }
+
+type RequestStatus string
+
+const (
+	Undefined = RequestStatus("undefined")
+	Error     = RequestStatus("error")
+	Success   = RequestStatus("success")
+)
 
 func ParseReceipt(bytes []byte) (Receipt, error) {
 	var receipt map[string]map[string]Receipt
@@ -49,7 +59,6 @@ func ParseReceipt(bytes []byte) (Receipt, error) {
 		return Receipt{}, err
 	}
 	res := receipt["document"]["receipt"]
-
 	return res, nil
 }
 

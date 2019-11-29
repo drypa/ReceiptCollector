@@ -1,6 +1,7 @@
 package nalogru
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -27,12 +28,11 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	if err != nil {
 		return err
 	}
-	bytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
+	if response.StatusCode != http.StatusOK || response.StatusCode != http.StatusAccepted {
+		//406
+		log.Printf("ODFS request status: %d \n", response.StatusCode)
+		return errors.New(response.Status)
 	}
-	//406
-	log.Printf("ODFS request status: %d and body: %s \n", response.StatusCode, string(bytes))
 	return nil
 }
 
@@ -51,12 +51,19 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 	}
 	addAuth(request, nalogruClient.Login, nalogruClient.Password)
 	response, err := sendRequest(request, client)
-	if err == nil && response.StatusCode == 200 {
+
+	if err != nil {
+		log.Printf("KKTs request error %v.", err)
+		return nil, err
+	}
+
+	if response.StatusCode == http.StatusOK {
 		return ioutil.ReadAll(response.Body)
 	}
-	log.Println(err)
 	if response != nil {
 		log.Println(response.StatusCode)
+		bytes, _ := ioutil.ReadAll(response.Body)
+		log.Println(string(bytes))
 	}
 	return nil, err
 
