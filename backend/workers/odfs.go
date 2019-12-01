@@ -43,16 +43,24 @@ func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 		log.Println("No Odfs requests required")
 		return
 	}
+
 	if err != nil {
 		log.Printf("error while fetch unprocessed user requests. %s \n", err)
 		return
 	}
-	err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
-	check(err)
+
+	status := receipts.Success
+	if usersReceipt.Receipt == nil {
+		err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
+		if err != nil {
+			status = receipts.Error
+			log.Printf("Odfs request error for query: %s. error= %v", usersReceipt.QueryString, err)
+		}
+	}
 	//TODO: move to repository
 	update := bson.M{
 		"$set": bson.M{
-			"odfs_request_status": receipts.Success,
+			"odfs_request_status": status,
 			"odfs_request_time":   time.Now(),
 		},
 	}
