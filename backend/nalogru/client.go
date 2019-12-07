@@ -21,6 +21,7 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
 	client := &http.Client{}
 	request, err := createRequest(ofdsUrl)
+
 	if err != nil {
 		return err
 	}

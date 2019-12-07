@@ -44,14 +44,14 @@ func main() {
 	go workers.OdfsWorkerStart(ctx, nalogruClient, client, settings)
 	go workers.GetReceiptWorkerStart(ctx, nalogruClient, client, settings)
 
-	log.Println(startServer())
+	log.Println(startServer(nalogruClient))
 }
 
 func getMongoClient(mongoUrl string, mongoLogin string, mongoPassword string) (*mongo.Client, error) {
 	return mongo_client.GetMongoClient(mongoUrl, mongoLogin, mongoPassword)
 }
 
-func startServer() error {
+func startServer(nalogruClient nalogru.Client) error {
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
 	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
 	if err != nil {
@@ -62,13 +62,15 @@ func startServer() error {
 	}, "error while mongo disconnect")
 
 	repository := receipts.NewRepository(client)
-	receiptsController := receipts.New(repository)
+	receiptsController := receipts.New(repository, nalogruClient)
 	usersController := users.New(mongoUrl, mongoUser, mongoSecret)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.GetReceiptDetailsHandler).Methods(http.MethodGet)
+	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}/odfs", receiptsController.OdfsRequestHandler).Methods(http.MethodPost)
+	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}/kkts", receiptsController.KktsRequestHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
 	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"

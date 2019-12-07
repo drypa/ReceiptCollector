@@ -14,12 +14,14 @@ import (
 )
 
 type Controller struct {
-	repository Repository
+	repository    Repository
+	nalogruClient nalogru.Client
 }
 
-func New(repository Repository) Controller {
+func New(repository Repository, nalogruClient nalogru.Client) Controller {
 	return Controller{
-		repository: repository,
+		repository:    repository,
+		nalogruClient: nalogruClient,
 	}
 }
 func OnError(writer http.ResponseWriter, err error) {
@@ -99,21 +101,30 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	err := request.ParseForm()
-	if err != nil {
-		OnError(writer, err)
-		return
-	}
-	vars := mux.Vars(request)
-	id := vars["id"]
-
-	userId := ctx.Value(auth.UserId)
-	receipt, err := controller.getReceiptById(ctx, userId.(string), id)
+	id := getReceiptId(writer, request)
+	userId := getUserId(ctx)
+	receipt, err := controller.getReceiptById(ctx, userId, id)
 	if err != nil {
 		OnError(writer, err)
 		return
 	}
 	writeResponse(receipt, writer)
+}
+
+func getUserId(ctx context.Context) string {
+	userId := ctx.Value(auth.UserId)
+	return userId.(string)
+}
+
+func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
+	err := request.ParseForm()
+	if err != nil {
+		OnError(writer, err)
+		return ""
+	}
+	vars := mux.Vars(request)
+	id := vars["id"]
+	return id
 }
 
 func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, request *http.Request) {
@@ -151,6 +162,26 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 
 func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	return controller.repository.GetById(ctx, userId, receiptId)
+}
+
+func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
+
+	receiptId := getReceiptId(writer, request)
+	userId := getUserId(ctx)
+	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+	err = controller.nalogruClient.SendOdfsRequest(receipt.QueryString)
+	writeResponse(err, writer)
+}
+
+func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, request *http.Request) {
+
 }
 
 func check(err error) {
