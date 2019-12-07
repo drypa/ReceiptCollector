@@ -26,4 +26,8 @@ export class ReceiptService {
   addReceiptByBarCode(parsedBarCode: string): Observable<void> {
     return this.http.post<void>('/api/receipt/from-bar-code?' + parsedBarCode, null);
   }
+
+  odfsRequest(id: string): Observable<string> {
+    return this.http.post<string>(`/api/receipt/${id}/odfs`, null);
+  }
 }

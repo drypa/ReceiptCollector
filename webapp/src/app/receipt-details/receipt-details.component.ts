@@ -4,6 +4,8 @@ import {ReceiptService} from "../receipt.service";
 import {Subject} from "rxjs";
 import {first, flatMap, map, takeUntil, tap} from "rxjs/operators";
 import {Receipt} from "../receipt";
+import {MatDialog} from "@angular/material/dialog";
+import {RequestResultComponent} from "../request-result/request-result.component";
 
 @Component({
   selector: 'app-receipt-details',
@@ -14,7 +16,10 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
   receipt: Receipt;
   private destroy$ = new Subject<boolean>();
 
-  constructor(private route: ActivatedRoute, private receiptService: ReceiptService) {
+  constructor(
+    private route: ActivatedRoute,
+    private receiptService: ReceiptService,
+    private dialog: MatDialog) {
   }
 
   ngOnInit() {
@@ -32,4 +37,18 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  sendOdfsRequest(): void {
+    this.receiptService.odfsRequest(this.receipt.id)
+      .pipe(
+        first(),
+        takeUntil(this.destroy$)
+      ).subscribe(x => this.openDialog(x));
+  }
+
+  openDialog(message: string): void {
+    this.dialog.open(RequestResultComponent, {
+      width: '250px',
+      data: message
+    })
+  }
 }

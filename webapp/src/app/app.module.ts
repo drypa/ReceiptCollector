@@ -19,6 +19,8 @@ import {AuthorizedComponent} from './authorized/authorized.component';
 import {BasicAuthInterceptor} from "./basic-auth-interceptor";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
 import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
+import {MatDialogModule} from "@angular/material/dialog";
+import {RequestResultComponent} from './request-result/request-result.component';
 
 @NgModule({
   declarations: [
@@ -31,7 +33,8 @@ import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
     MarketDetailsComponent,
     LoginComponent,
     AuthorizedComponent,
-    ReceiptItemsComponent
+    ReceiptItemsComponent,
+    RequestResultComponent
   ],
   imports: [
     BrowserModule,
@@ -45,12 +48,14 @@ import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
     ReactiveFormsModule,
     MatAutocompleteModule,
     MatChipsModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatDialogModule
   ],
   providers: [
     {provide: HTTP_INTERCEPTORS, useClass: BasicAuthInterceptor, multi: true}
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
+  entryComponents: [RequestResultComponent]
 })
 export class AppModule {
 }

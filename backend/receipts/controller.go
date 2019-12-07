@@ -177,7 +177,7 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 		return
 	}
 	err = controller.nalogruClient.SendOdfsRequest(receipt.QueryString)
-	writeResponse(err, writer)
+	writeResponse(err.Error(), writer)
 }
 
 func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, request *http.Request) {
