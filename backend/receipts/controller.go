@@ -132,16 +132,10 @@ func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, re
 
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
-	err := request.ParseForm()
-	if err != nil {
-		OnError(writer, err)
-		return
-	}
-	vars := mux.Vars(request)
-	id := vars["id"]
+	id := getReceiptId(writer, request)
 
 	userId := ctx.Value(auth.UserId)
-	err = controller.repository.Delete(ctx, userId.(string), id)
+	err := controller.repository.Delete(ctx, userId.(string), id)
 	if err != nil {
 		OnError(writer, err)
 		return
