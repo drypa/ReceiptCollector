@@ -80,10 +80,6 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 }
 
 func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodGet {
-		writer.WriteHeader(http.StatusNotFound)
-		return
-	}
 	ctx := request.Context()
 	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
