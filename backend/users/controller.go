@@ -5,24 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"receipt_collector/mongo_client"
 	"receipt_collector/passwords"
 	"time"
 )
 
 type Controller struct {
-	mongoUrl      string
-	mongoLogin    string
-	mongoPassword string
+	repository Repository
 }
 
-func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+func New(repository Repository) Controller {
 	return Controller{
-		mongoUrl:      mongoUrl,
-		mongoLogin:    mongoUser,
-		mongoPassword: mongoSecret,
+		repository: repository,
 	}
 }
 
@@ -40,7 +34,7 @@ func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter,
 			OnError(writer, err)
 			return
 		}
-		err = controller.insertNewUser(ctx, user)
+		err = controller.repository.Insert(ctx, user)
 		if err != nil {
 			OnError(writer, err)
 			return
@@ -60,27 +54,6 @@ func (controller Controller) LoginHandler(writer http.ResponseWriter, request *h
 func mapToUser(registrationRequest UserRequest) (User, error) {
 	hash, err := passwords.HashPassword(registrationRequest.Password)
 	return User{Name: registrationRequest.Login, PasswordHash: hash}, err
-}
-
-func (controller Controller) insertNewUser(ctx context.Context, user User) error {
-	client, collection := controller.getCollection()
-	defer client.Disconnect(ctx)
-	_, err := collection.InsertOne(ctx, user)
-	return err
-}
-
-func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection) {
-	client, err := mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
-	check(err)
-	collection = client.Database("receipt_collection").Collection("system_users")
-	return
-}
-
-func check(err error) {
-	if err != nil {
-		fmt.Errorf("Panic: %v", err)
-		panic(err)
-	}
 }
 
 func validateRequest(registrationRequest *UserRequest) error {

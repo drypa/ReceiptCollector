@@ -7,8 +7,23 @@ import (
 	"time"
 )
 
-func GetMongoClient(mongoUrl string, mongoUser string, mongoSecret string) (*mongo.Client, error) {
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUrl).SetAuth(options.Credential{Username: mongoUser, Password: mongoSecret}))
+type Settings struct {
+	url    string
+	user   string
+	secret string
+}
+
+func CreateSettings(url string, user string, secret string) Settings {
+	return Settings{
+		url:    url,
+		user:   user,
+		secret: secret,
+	}
+}
+
+func New(settings Settings) (*mongo.Client, error) {
+	opts := options.Client().ApplyURI(settings.url).SetAuth(options.Credential{Username: settings.user, Password: settings.secret})
+	client, err := mongo.NewClient(opts)
 	if err != nil {
 		return nil, err
 	}

@@ -122,7 +122,9 @@ func (controller Controller) insertNewMarket(market Market) error {
 
 func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection, ctx context.Context) {
 	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo_client.GetMongoClient(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
+	//TODO: refactor this(use repository injection instead mongo settings)
+	settings := mongo_client.CreateSettings(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
+	client, err := mongo_client.New(settings)
 	check(err)
 	collection = client.Database("receipt_collection").Collection("markets")
 	return

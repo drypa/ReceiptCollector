@@ -2,13 +2,8 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"github.com/goji/httpauth"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"os"
-	"receipt_collector/mongo_client"
 	"receipt_collector/passwords"
 	"receipt_collector/users"
 )
@@ -19,38 +14,23 @@ const (
 	UserId = ContextKey("userId")
 )
 
-var mongoUrl = os.Getenv("MONGO_URL")
-var mongoUser = os.Getenv("MONGO_LOGIN")
-var mongoSecret = os.Getenv("MONGO_SECRET")
-
-var authOpts = httpauth.AuthOptions{
-	Realm:    "ReceiptCollection",
-	AuthFunc: authFunc,
+type BasicAuth struct {
+	repository users.Repository
 }
 
-func authFunc(login string, password string, request *http.Request) bool {
+func New(repository users.Repository) BasicAuth {
+	return BasicAuth{
+		repository: repository,
+	}
+}
+
+func (basicAuth BasicAuth) authFunc(login string, password string, request *http.Request) bool {
 	ctx := request.Context()
-	client, collection, err := getCollection()
+
+	user, err := basicAuth.repository.GetByLogin(ctx, login)
 	if err != nil {
 		return false
 	}
-
-	if err != nil {
-		return false
-	}
-
-	defer func() {
-		err := client.Disconnect(ctx)
-		if err != nil {
-			fmt.Printf("error while mongo connection close %s", err)
-		}
-	}()
-	var user users.User
-	err = collection.FindOne(ctx, bson.D{{"name", login}}).Decode(&user)
-	if err != nil {
-		return false
-	}
-
 	isPasswordValid := passwords.ComparePasswordWithHash(user.PasswordHash, password)
 	if isPasswordValid {
 		newContext := context.WithValue(ctx, UserId, user.Id.Hex())
@@ -59,12 +39,10 @@ func authFunc(login string, password string, request *http.Request) bool {
 	return isPasswordValid
 }
 
-func RequireBasicAuth(router http.Handler) http.Handler {
-	return httpauth.BasicAuth(authOpts)(router)
-}
-
-func getCollection() (client *mongo.Client, collection *mongo.Collection, err error) {
-	client, err = mongo_client.GetMongoClient(mongoUrl, mongoUser, mongoSecret)
-	collection = client.Database("receipt_collection").Collection("system_users")
-	return
+func (basicAuth BasicAuth) RequireBasicAuth(router http.Handler) http.Handler {
+	options := httpauth.AuthOptions{
+		Realm:    "ReceiptCollection",
+		AuthFunc: basicAuth.authFunc,
+	}
+	return httpauth.BasicAuth(options)(router)
 }

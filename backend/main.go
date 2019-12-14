@@ -48,7 +48,9 @@ func main() {
 }
 
 func getMongoClient(mongoUrl string, mongoLogin string, mongoPassword string) (*mongo.Client, error) {
-	return mongo_client.GetMongoClient(mongoUrl, mongoLogin, mongoPassword)
+	//TODO: refactor this(use repository injection instead mongo settings)
+	settings := mongo_client.CreateSettings(mongoUrl, mongoLogin, mongoPassword)
+	return mongo_client.New(settings)
 }
 
 func startServer(nalogruClient nalogru.Client) error {
@@ -61,9 +63,11 @@ func startServer(nalogruClient nalogru.Client) error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
 
-	repository := receipts.NewRepository(client)
-	receiptsController := receipts.New(repository, nalogruClient)
-	usersController := users.New(mongoUrl, mongoUser, mongoSecret)
+	receiptRepository := receipts.NewRepository(client)
+	userRepository := users.NewRepository(client)
+	receiptsController := receipts.New(receiptRepository, nalogruClient)
+	usersController := users.New(userRepository)
+	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
@@ -76,7 +80,7 @@ func startServer(nalogruClient nalogru.Client) error {
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
 	registerUnauthenticatedRoutes(router, usersController)
-	http.Handle("/", auth.RequireBasicAuth(router))
+	http.Handle("/", basicAuth.RequireBasicAuth(router))
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	return http.ListenAndServe(address, nil)
