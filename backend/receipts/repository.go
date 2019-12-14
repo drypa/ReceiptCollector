@@ -170,3 +170,17 @@ func (repository Repository) UpdateOdfsStatus(ctx context.Context, receipt Users
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
 }
+
+func (repository Repository) GetWithoutOdfsRequest(ctx context.Context) (*UsersReceipt, error) {
+	collection := repository.getCollection()
+
+	usersReceipt := UsersReceipt{}
+	query := bson.M{"$or": []bson.M{{"odfs_request_status": Undefined}, {"odfs_request_status": nil}}}
+
+	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &usersReceipt, err
+}

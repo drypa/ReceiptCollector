@@ -43,7 +43,7 @@ func main() {
 	receiptRepository := receipts.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
-	go worker.OdfsStart(ctx, client, settings)
+	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 
 	log.Println(startServer(nalogruClient))

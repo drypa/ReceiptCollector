@@ -2,8 +2,6 @@ package workers
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
@@ -22,7 +20,7 @@ func New(nalogruClient nalogru.Client, repository receipts.Repository) Worker {
 	}
 }
 
-func (worker Worker) OdfsStart(ctx context.Context, mongoClient *mongo.Client, settings Settings) {
+func (worker Worker) OdfsStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
 	for {
@@ -33,7 +31,7 @@ func (worker Worker) OdfsStart(ctx context.Context, mongoClient *mongo.Client, s
 		case <-ticker.C:
 			hour := time.Now().Hour()
 			if hour >= settings.Start || hour <= settings.End {
-				worker.processRequests(ctx, mongoClient)
+				worker.processRequests(ctx)
 			} else {
 				log.Print("Not Yet. Odfs request delayed.")
 				break
@@ -44,20 +42,15 @@ func (worker Worker) OdfsStart(ctx context.Context, mongoClient *mongo.Client, s
 
 }
 
-func (worker Worker) processRequests(ctx context.Context, mongoClient *mongo.Client) {
-	collection := mongoClient.Database("receipt_collection").Collection("receipt_requests")
-	usersReceipt := receipts.UsersReceipt{}
-	//TODO: move to repository
-	query := bson.M{"$or": []bson.M{{"odfs_request_status": receipts.Undefined}, {"odfs_request_status": nil}}}
-
-	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
-	if err == mongo.ErrNoDocuments {
-		log.Println("No Odfs requests required")
-		return
-	}
+func (worker Worker) processRequests(ctx context.Context) {
+	usersReceipt, err := worker.repository.GetWithoutOdfsRequest(ctx)
 
 	if err != nil {
 		log.Printf("error while fetch unprocessed user requests. %s \n", err)
+		return
+	}
+	if usersReceipt == nil {
+		log.Println("No Odfs requests required")
 		return
 	}
 
@@ -70,7 +63,7 @@ func (worker Worker) processRequests(ctx context.Context, mongoClient *mongo.Cli
 		}
 	}
 
-	err = worker.repository.UpdateOdfsStatus(ctx, usersReceipt, status)
+	err = worker.repository.UpdateOdfsStatus(ctx, *usersReceipt, status)
 	check(err)
 }
 
