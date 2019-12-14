@@ -10,7 +10,19 @@ import (
 	"time"
 )
 
-func OdfsWorkerStart(ctx context.Context, nalogruClient nalogru.Client, mongoClient *mongo.Client, settings Settings) {
+type Worker struct {
+	nalogruClient nalogru.Client
+	repository    receipts.Repository
+}
+
+func New(nalogruClient nalogru.Client, repository receipts.Repository) Worker {
+	return Worker{
+		nalogruClient: nalogruClient,
+		repository:    repository,
+	}
+}
+
+func (worker Worker) OdfsStart(ctx context.Context, mongoClient *mongo.Client, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
 	for {
@@ -21,7 +33,7 @@ func OdfsWorkerStart(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 		case <-ticker.C:
 			hour := time.Now().Hour()
 			if hour >= settings.Start || hour <= settings.End {
-				processRequests(ctx, nalogruClient, mongoClient)
+				worker.processRequests(ctx, mongoClient)
 			} else {
 				log.Print("Not Yet. Odfs request delayed.")
 				break
@@ -32,7 +44,7 @@ func OdfsWorkerStart(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 
 }
 
-func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoClient *mongo.Client) {
+func (worker Worker) processRequests(ctx context.Context, mongoClient *mongo.Client) {
 	collection := mongoClient.Database("receipt_collection").Collection("receipt_requests")
 	usersReceipt := receipts.UsersReceipt{}
 	//TODO: move to repository
@@ -51,21 +63,14 @@ func processRequests(ctx context.Context, nalogruClient nalogru.Client, mongoCli
 
 	status := receipts.Success
 	if usersReceipt.Receipt == nil {
-		err = nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
+		err = worker.nalogruClient.SendOdfsRequest(usersReceipt.QueryString)
 		if err != nil {
 			status = receipts.Error
 			log.Printf("Odfs request error for query: %s. error= %v", usersReceipt.QueryString, err)
 		}
 	}
-	//TODO: move to repository
-	update := bson.M{
-		"$set": bson.M{
-			"odfs_request_status": status,
-			"odfs_request_time":   time.Now(),
-		},
-	}
-	filter := bson.M{"_id": bson.M{"$eq": usersReceipt.Id}}
-	_, err = collection.UpdateOne(ctx, filter, update)
+
+	err = worker.repository.UpdateOdfsStatus(ctx, usersReceipt, status)
 	check(err)
 }
 

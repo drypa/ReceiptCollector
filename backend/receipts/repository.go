@@ -6,6 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"receipt_collector/utils"
+	"time"
 )
 
 type Repository struct {
@@ -152,6 +153,20 @@ func (repository Repository) SetReceipt(ctx context.Context, id primitive.Object
 
 	filter := bson.M{"_id": bson.M{"$eq": id}}
 	update := bson.M{"$set": bson.M{"receipt": receipt}}
+	_, err := collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (repository Repository) UpdateOdfsStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
+	collection := repository.getCollection()
+
+	update := bson.M{
+		"$set": bson.M{
+			"odfs_request_status": status,
+			"odfs_request_time":   time.Now(),
+		},
+	}
+	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
 }

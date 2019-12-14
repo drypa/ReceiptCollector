@@ -40,8 +40,10 @@ func main() {
 	defer utils.Dispose(func() error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
+	receiptRepository := receipts.NewRepository(client)
+	worker := workers.New(nalogruClient, receiptRepository)
 
-	go workers.OdfsWorkerStart(ctx, nalogruClient, client, settings)
+	go worker.OdfsStart(ctx, client, settings)
 	go workers.GetReceiptWorkerStart(ctx, nalogruClient, client, settings)
 
 	log.Println(startServer(nalogruClient))
