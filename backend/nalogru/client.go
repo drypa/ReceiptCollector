@@ -65,6 +65,7 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 		log.Println(response.StatusCode)
 		bytes, _ := ioutil.ReadAll(response.Body)
 		log.Println(string(bytes))
+		return nil, errors.New(string(bytes))
 	}
 	return nil, err
 

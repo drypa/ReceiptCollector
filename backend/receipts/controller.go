@@ -171,7 +171,22 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 }
 
 func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	defer utils2.Dispose(request.Body.Close, "error while request body close")
 
+	receiptId := getReceiptId(writer, request)
+	userId := getUserId(ctx)
+	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)
+
+	if err != nil {
+		writeResponse(err.Error(), writer)
+	}
+	writer.Write(response)
 }
 
 func check(err error) {

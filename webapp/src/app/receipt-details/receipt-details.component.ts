@@ -45,6 +45,14 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
       ).subscribe(x => this.openDialog(x));
   }
 
+  sendKktsRequest(): void {
+    this.receiptService.kktsRequest(this.receipt.id)
+      .pipe(
+        first(),
+        takeUntil(this.destroy$)
+      ).subscribe(x => this.openDialog(x));
+  }
+
   openDialog(message: string): void {
     this.dialog.open(RequestResultComponent, {
       width: '250px',
