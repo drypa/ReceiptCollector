@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
@@ -186,7 +187,21 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	if err != nil {
 		writeResponse(err.Error(), writer)
 	}
-	writer.Write(response)
+	controller.trySaveReceipt(ctx, response, writer, receipt)
+}
+
+func (controller Controller) trySaveReceipt(ctx context.Context, response []byte, writer http.ResponseWriter, receipt UsersReceipt) {
+	receiptFromApi, err := ParseReceipt(response)
+	if err != nil {
+		body := string(response)
+		result := fmt.Sprintf("Can not parse response body.Body: '%s'.Error: %v", body, err)
+		writeResponse(result, writer)
+		return
+	}
+	err = controller.repository.SetReceipt(ctx, receipt.Id, receiptFromApi)
+	if err != nil {
+		writeResponse(err.Error(), writer)
+	}
 }
 
 func check(err error) {
