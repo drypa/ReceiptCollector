@@ -119,7 +119,7 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
-func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Context) *UsersReceipt {
+func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Context) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 	request := UsersReceipt{}
 	err := collection.FindOne(ctx, bson.M{"$and": []bson.M{
@@ -130,9 +130,13 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 	}).Decode(&request)
 
 	if err == mongo.ErrNoDocuments {
-		return nil
+		return nil, nil
 	}
-	return &request
+	if err != nil {
+		return nil, err
+	}
+
+	return &request, nil
 }
 
 func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, receiptId string) error {

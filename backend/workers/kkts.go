@@ -29,7 +29,8 @@ func (worker Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 }
 
 func (worker Worker) getReceipt(ctx context.Context) {
-	request := worker.repository.FindOneOdfsRequestedWithoutReceipt(ctx)
+	request, err := worker.repository.FindOneOdfsRequestedWithoutReceipt(ctx)
+	check(err)
 
 	if request == nil {
 		log.Println("No Kkt requests required")
