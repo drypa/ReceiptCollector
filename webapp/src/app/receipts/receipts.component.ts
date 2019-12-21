@@ -51,4 +51,8 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
   private showSnack(message: string) {
     this.snackBar.open(message, "OK", {})
   }
+
+  isLoaded(receipt: Receipt): boolean {
+    return receipt.items && receipt.items.length > 0;
+  }
 }

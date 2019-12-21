@@ -15,8 +15,4 @@ export class Receipt {
   nds10: number;
   queryString: string;
   deleted: boolean;
-
-  get isLoaded(): boolean {
-    return this.items.length > 0;
-  }
 }

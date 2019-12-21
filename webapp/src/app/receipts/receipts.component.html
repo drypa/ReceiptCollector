@@ -21,10 +21,10 @@
         </thead>
         <tbody>
         <tr *ngFor="let receipt of receiptList">
-          <td *ngIf="receipt.isLoaded">{{receipt.dateTime}}</td>
-          <td *ngIf="receipt.isLoaded">{{receipt.totalSum}}</td>
-          <td *ngIf="receipt.isLoaded">{{receipt.userInn}}</td>
-          <td colspan="3" *ngIf="!receipt.isLoaded">{{receipt.queryString}}</td>
+          <td *ngIf="isLoaded(receipt)">{{receipt.dateTime}}</td>
+          <td *ngIf="isLoaded(receipt)">{{receipt.totalSum}}</td>
+          <td *ngIf="isLoaded(receipt)">{{receipt.userInn}}</td>
+          <td colspan="3" *ngIf="!isLoaded(receipt)">{{receipt.queryString}}</td>
           <td>
             <mat-chip-list>
               <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
