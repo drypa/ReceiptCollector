@@ -185,7 +185,8 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)
 
 	if err != nil {
-		writeResponse(err.Error(), writer)
+		writer.Write([]byte(err.Error()))
+		return
 	}
 	controller.trySaveReceipt(ctx, response, writer, receipt)
 }

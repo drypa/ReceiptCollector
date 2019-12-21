@@ -33,6 +33,6 @@ export class ReceiptService {
   }
 
   kktsRequest(id: string): Observable<string> {
-    return this.http.post<string>(`/api/receipt/${id}/kkts`, null);
+    return this.http.post(`/api/receipt/${id}/kkts`, null, {responseType: 'text'});
   }
 }
