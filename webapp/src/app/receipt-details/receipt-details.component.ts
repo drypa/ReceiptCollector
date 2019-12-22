@@ -23,6 +23,10 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    this.loadReceipt();
+  }
+
+  loadReceipt() {
     this.route.paramMap.pipe(
       first(),
       map(p => p.get('id')),
@@ -50,7 +54,10 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
       .pipe(
         first(),
         takeUntil(this.destroy$)
-      ).subscribe(x => this.openDialog(x));
+      ).subscribe(x => {
+      this.loadReceipt();
+      this.openDialog(x);
+    });
   }
 
   openDialog(message: string): void {
