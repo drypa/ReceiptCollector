@@ -42,12 +42,13 @@ func main() {
 	}, "error while mongo disconnect")
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
+	marketRepository := markets.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 
-	log.Println(startServer(nalogruClient, receiptRepository, userRepository))
+	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository))
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -55,8 +56,8 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository) error {
-	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
+func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository, marketRepository markets.Repository) error {
+	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret, marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)

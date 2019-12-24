@@ -17,13 +17,15 @@ type Controller struct {
 	mongoUrl      string
 	mongoLogin    string
 	mongoPassword string
+	repository    Repository
 }
 
-func New(mongoUrl string, mongoUser string, mongoSecret string) Controller {
+func New(mongoUrl string, mongoUser string, mongoSecret string, repository Repository) Controller {
 	return Controller{
 		mongoUrl:      mongoUrl,
 		mongoLogin:    mongoUser,
 		mongoPassword: mongoSecret,
+		repository:    repository,
 	}
 }
 
@@ -88,7 +90,7 @@ func (controller Controller) getMarketHandler(writer http.ResponseWriter, reques
 }
 
 func (controller Controller) updateMarketHandler(writer http.ResponseWriter, request *http.Request) error {
-	market := controller.getMargetFromQuery(request)
+	market := controller.getMarketFromQuery(request)
 
 	client, collection, ctx := controller.getCollection()
 	defer client.Disconnect(ctx)
@@ -98,8 +100,12 @@ func (controller Controller) updateMarketHandler(writer http.ResponseWriter, req
 
 func (controller Controller) getMarketsHandler(writer http.ResponseWriter, request *http.Request) error {
 	defer request.Body.Close()
-
-	markets := controller.getMarkets()
+	ctx := request.Context()
+	markets, err := controller.repository.GetAll(ctx)
+	if err != nil {
+		OnError(writer, err)
+		return err
+	}
 	resp, err := json.Marshal(markets)
 	if err != nil {
 		return err
@@ -110,7 +116,7 @@ func (controller Controller) getMarketsHandler(writer http.ResponseWriter, reque
 
 func (controller Controller) addMarketHandler(writer http.ResponseWriter, request *http.Request) error {
 	defer request.Body.Close()
-	market := controller.getMargetFromQuery(request)
+	market := controller.getMarketFromQuery(request)
 	return controller.insertNewMarket(market)
 }
 func (controller Controller) insertNewMarket(market Market) error {
@@ -130,31 +136,10 @@ func (controller Controller) getCollection() (client *mongo.Client, collection *
 	return
 }
 
-func (controller Controller) getMargetFromQuery(request *http.Request) Market {
+func (controller Controller) getMarketFromQuery(request *http.Request) Market {
 	var market = Market{}
 	json.NewDecoder(request.Body).Decode(&market)
 	return market
-}
-
-func (controller Controller) getMarkets() []Market {
-	client, collection, ctx := controller.getCollection()
-	defer client.Disconnect(ctx)
-	cursor, err := collection.Find(ctx, bson.D{})
-	check(err)
-	defer cursor.Close(ctx)
-	var receipts = readMarkets(cursor, ctx)
-	return receipts
-}
-
-func readMarkets(cursor *mongo.Cursor, context context.Context) []Market {
-	var receipts = make([]Market, 0, 0)
-	for cursor.Next(context) {
-		var receipt Market
-		err := cursor.Decode(&receipt)
-		check(err)
-		receipts = append(receipts, receipt)
-	}
-	return receipts
 }
 
 func check(err error) {
