@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"receipt_collector/auth"
 	"receipt_collector/nalogru"
-	utils2 "receipt_collector/utils"
+	"receipt_collector/utils"
 )
 
 type Controller struct {
@@ -31,7 +31,7 @@ func OnError(writer http.ResponseWriter, err error) {
 }
 
 func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	queryString := request.URL.RawQuery
 	result, err := nalogru.Parse(queryString)
@@ -82,7 +82,7 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 
 func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	userId := ctx.Value(auth.UserId)
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
@@ -96,7 +96,7 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
 	userId := getUserId(ctx)
@@ -127,7 +127,7 @@ func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
 
@@ -158,7 +158,7 @@ func (controller Controller) getReceiptById(ctx context.Context, userId string, 
 func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	receiptId := getReceiptId(writer, request)
 	userId := getUserId(ctx)
@@ -173,7 +173,7 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 
 func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	defer utils2.Dispose(request.Body.Close, "error while request body close")
+	defer utils.Dispose(request.Body.Close, "error while request body close")
 
 	receiptId := getReceiptId(writer, request)
 	userId := getUserId(ctx)
