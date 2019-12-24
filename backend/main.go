@@ -33,7 +33,7 @@ func main() {
 
 	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
 	ctx := context.Background()
-	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
+	client, err := getMongoClient()
 	if err != nil {
 		check(err)
 	}
@@ -41,32 +41,23 @@ func main() {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
 	receiptRepository := receipts.NewRepository(client)
+	userRepository := users.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 
-	log.Println(startServer(nalogruClient))
+	log.Println(startServer(nalogruClient, receiptRepository, userRepository))
 }
 
-func getMongoClient(mongoUrl string, mongoLogin string, mongoPassword string) (*mongo.Client, error) {
-	//TODO: refactor this(use repository injection instead mongo settings)
-	settings := mongo_client.CreateSettings(mongoUrl, mongoLogin, mongoPassword)
+func getMongoClient() (*mongo.Client, error) {
+	settings := mongo_client.CreateSettings(mongoUrl, mongoUser, mongoSecret)
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient nalogru.Client) error {
+func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository) error {
 	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret)
-	client, err := getMongoClient(mongoUrl, mongoUser, mongoSecret)
-	if err != nil {
-		return err
-	}
-	defer utils.Dispose(func() error {
-		return client.Disconnect(context.Background())
-	}, "error while mongo disconnect")
 
-	receiptRepository := receipts.NewRepository(client)
-	userRepository := users.NewRepository(client)
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
 	basicAuth := auth.New(userRepository)
