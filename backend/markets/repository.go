@@ -4,7 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"receipt_collector/utils"
+	"receipt_collector/dispose"
 )
 
 type Repository struct {
@@ -26,7 +26,7 @@ func (repository Repository) GetAll(ctx context.Context) ([]Market, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer utils.Dispose(func() error { return cursor.Close(ctx) }, "Cursor close error")
+	defer dispose.Dispose(func() error { return cursor.Close(ctx) }, "Cursor close error")
 
 	return readMarkets(cursor, ctx)
 }

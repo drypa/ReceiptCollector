@@ -10,8 +10,8 @@ import (
 	"log"
 	"net/http"
 	"receipt_collector/auth"
+	"receipt_collector/dispose"
 	"receipt_collector/nalogru"
-	"receipt_collector/utils"
 )
 
 type Controller struct {
@@ -31,7 +31,7 @@ func OnError(writer http.ResponseWriter, err error) {
 }
 
 func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	queryString := request.URL.RawQuery
 	result, err := nalogru.Parse(queryString)
@@ -82,7 +82,7 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 
 func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	userId := ctx.Value(auth.UserId)
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
@@ -96,7 +96,7 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
 	userId := getUserId(ctx)
@@ -127,7 +127,7 @@ func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
 
@@ -158,7 +158,7 @@ func (controller Controller) getReceiptById(ctx context.Context, userId string, 
 func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	receiptId := getReceiptId(writer, request)
 	userId := getUserId(ctx)
@@ -168,12 +168,14 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 		return
 	}
 	err = controller.nalogruClient.SendOdfsRequest(receipt.QueryString)
-	writeResponse(err.Error(), writer)
+	if err != nil {
+		writeResponse(err.Error(), writer)
+	}
 }
 
 func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	defer utils.Dispose(request.Body.Close, "error while request body close")
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	receiptId := getReceiptId(writer, request)
 	userId := getUserId(ctx)

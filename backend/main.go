@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"receipt_collector/auth"
+	"receipt_collector/dispose"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
-	"receipt_collector/utils"
 	"receipt_collector/workers"
 )
 
@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		check(err)
 	}
-	defer utils.Dispose(func() error {
+	defer dispose.Dispose(func() error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
 	receiptRepository := receipts.NewRepository(client)

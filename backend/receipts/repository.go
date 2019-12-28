@@ -5,7 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"receipt_collector/utils"
+	"receipt_collector/dispose"
 	"time"
 )
 
@@ -40,7 +40,7 @@ func (repository Repository) GetByUser(ctx context.Context, userId string) ([]Us
 	if err != nil {
 		return nil, err
 	}
-	defer utils.Dispose(func() error {
+	defer dispose.Dispose(func() error {
 		return cursor.Close(ctx)
 	}, "error while mongo cursor close")
 	receipts := readReceipts(cursor, ctx)
