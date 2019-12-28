@@ -187,6 +187,9 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)
 
 	if err != nil {
+		if err.Error() == nalogru.TicketNotFound {
+			controller.repository.SetKktsRequestStatus(ctx, receiptId, NotFound)
+		}
 		writer.Write([]byte(err.Error()))
 		return
 	}

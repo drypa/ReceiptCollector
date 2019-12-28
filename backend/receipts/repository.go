@@ -151,6 +151,18 @@ func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, rec
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
 }
+func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId string, status RequestStatus) error {
+	collection := repository.getCollection()
+
+	id, err := primitive.ObjectIDFromHex(receiptId)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": bson.M{"$eq": id}}
+	update := bson.M{"$set": bson.M{"kkts_request_status": status}}
+	_, err = collection.UpdateOne(ctx, filter, update)
+	return err
+}
 
 func (repository Repository) SetReceipt(ctx context.Context, id primitive.ObjectID, receipt Receipt) error {
 	collection := repository.getCollection()
