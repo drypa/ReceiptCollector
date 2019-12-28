@@ -3,7 +3,7 @@ import {ActivatedRoute} from "@angular/router";
 import {ReceiptService} from "../receipt.service";
 import {Subject} from "rxjs";
 import {first, flatMap, map, takeUntil, tap} from "rxjs/operators";
-import {Receipt} from "../receipt";
+import {Receipt, RequestStatus} from "../receipt";
 import {MatDialog} from "@angular/material/dialog";
 import {RequestResultComponent} from "../request-result/request-result.component";
 
@@ -58,6 +58,10 @@ export class ReceiptDetailsComponent implements OnInit, OnDestroy {
       this.loadReceipt();
       this.openDialog(x);
     });
+  }
+
+  needShowKktsStatus(receipt: Receipt): boolean {
+    return receipt.kktsRequestStatus && receipt.kktsRequestStatus != RequestStatus.success;
   }
 
   openDialog(message: string): void {
