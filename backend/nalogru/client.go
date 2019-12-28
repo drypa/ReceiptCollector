@@ -13,6 +13,8 @@ type Client struct {
 	Password    string
 }
 
+const TicketNotFound string = "the ticket was not found"
+
 func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	parseResult, err := Parse(queryString)
 	if err != nil {
@@ -58,16 +60,15 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 		return nil, err
 	}
 
-	if response.StatusCode == http.StatusOK {
-		return ioutil.ReadAll(response.Body)
-	}
+	log.Println(response.StatusCode)
+
 	if response != nil {
-		log.Println(response.StatusCode)
 		bytes, _ := ioutil.ReadAll(response.Body)
-		log.Println(string(bytes))
-		return nil, errors.New(string(bytes))
+		body := string(bytes)
+		log.Println(body)
+		return nil, errors.New(body)
 	}
-	return nil, err
+	return ioutil.ReadAll(response.Body)
 
 }
 

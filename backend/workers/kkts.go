@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"log"
+	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"time"
 )
@@ -39,7 +40,13 @@ func (worker Worker) getReceipt(ctx context.Context) {
 	log.Printf("Kkt request for queryString: %s\n", request.QueryString)
 
 	receiptBytes, err := worker.nalogruClient.SendKktsRequest(request.QueryString)
-	check(err)
+	if err != nil {
+		if err.Error() == nalogru.TicketNotFound {
+			worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
+			return
+		}
+		check(err)
+	}
 	receipt, err := receipts.ParseReceipt(receiptBytes)
 	if err != nil {
 		body := string(receiptBytes)

@@ -15,4 +15,12 @@ export class Receipt {
   nds10: number;
   queryString: string;
   deleted: boolean;
+  kktsRequestStatus: RequestStatus;
+}
+
+export enum RequestStatus {
+  undefined = "undefined",
+  error = "error",
+  success = "success",
+  notFound = "not_found",
 }

@@ -5,7 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"receipt_collector/utils"
+	"receipt_collector/dispose"
 	"time"
 )
 
@@ -40,7 +40,7 @@ func (repository Repository) GetByUser(ctx context.Context, userId string) ([]Us
 	if err != nil {
 		return nil, err
 	}
-	defer utils.Dispose(func() error {
+	defer dispose.Dispose(func() error {
 		return cursor.Close(ctx)
 	}, "error while mongo cursor close")
 	receipts := readReceipts(cursor, ctx)
@@ -148,6 +148,18 @@ func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, rec
 	}
 	filter := bson.M{"_id": bson.M{"$eq": id}}
 	update := bson.M{"$set": bson.M{"odfs_request_status": Undefined}}
+	_, err = collection.UpdateOne(ctx, filter, update)
+	return err
+}
+func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId string, status RequestStatus) error {
+	collection := repository.getCollection()
+
+	id, err := primitive.ObjectIDFromHex(receiptId)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": bson.M{"$eq": id}}
+	update := bson.M{"$set": bson.M{"kkts_request_status": status}}
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
 }

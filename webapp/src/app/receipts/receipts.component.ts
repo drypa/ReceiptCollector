@@ -1,5 +1,5 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {Receipt} from '../receipt';
+import {Receipt, RequestStatus} from '../receipt';
 import {ReceiptService} from '../receipt.service';
 import {first, takeUntil, tap} from 'rxjs/operators';
 import {Subject} from 'rxjs';
@@ -54,5 +54,9 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
 
   isLoaded(receipt: Receipt): boolean {
     return receipt.items && receipt.items.length > 0;
+  }
+
+  needShowKktsStatus(receipt: Receipt): boolean {
+    return receipt.kktsRequestStatus && receipt.kktsRequestStatus != RequestStatus.success;
   }
 }

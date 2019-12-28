@@ -28,6 +28,7 @@
           <td>
             <mat-chip-list>
               <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
+              <mat-chip *ngIf="needShowKktsStatus(receipt)">{{receipt.kktsRequestStatus}}</mat-chip>
             </mat-chip-list>
           </td>
           <td>

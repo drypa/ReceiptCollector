@@ -50,6 +50,7 @@ const (
 	Undefined = RequestStatus("undefined")
 	Error     = RequestStatus("error")
 	Success   = RequestStatus("success")
+	NotFound  = RequestStatus("not_found")
 )
 
 func ParseReceipt(bytes []byte) (Receipt, error) {
