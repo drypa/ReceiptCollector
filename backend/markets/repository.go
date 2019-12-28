@@ -43,3 +43,31 @@ func readMarkets(cursor *mongo.Cursor, context context.Context) ([]Market, error
 	}
 	return receipts, nil
 }
+
+func (repository Repository) Insert(ctx context.Context, market Market) error {
+	collection := repository.getCollection()
+
+	_, err := collection.InsertOne(ctx, market)
+	return err
+}
+
+func (repository Repository) Update(ctx context.Context, market Market) error {
+	collection := repository.getCollection()
+
+	filter := bson.M{"_id": market.Id}
+	_, err := collection.UpdateOne(ctx, filter, market)
+	return err
+}
+
+func (repository Repository) GetById(ctx context.Context, id string) (Market, error) {
+	collection := repository.getCollection()
+	market := Market{}
+	filter := bson.M{"_id": id}
+	result := collection.FindOne(ctx, filter)
+	err := result.Err()
+	if err != nil {
+		return market, err
+	}
+	err = result.Decode(&market)
+	return market, err
+}

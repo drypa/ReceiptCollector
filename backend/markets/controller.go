@@ -1,31 +1,19 @@
 package markets
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
-	"receipt_collector/mongo_client"
-	"time"
 )
 
 type Controller struct {
-	mongoUrl      string
-	mongoLogin    string
-	mongoPassword string
-	repository    Repository
+	repository Repository
 }
 
 func New(mongoUrl string, mongoUser string, mongoSecret string, repository Repository) Controller {
 	return Controller{
-		mongoUrl:      mongoUrl,
-		mongoLogin:    mongoUser,
-		mongoPassword: mongoSecret,
-		repository:    repository,
+		repository: repository,
 	}
 }
 
@@ -79,22 +67,17 @@ func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, r
 
 func (controller Controller) getMarketHandler(writer http.ResponseWriter, request *http.Request) (Market, error) {
 	request.ParseForm()
+	ctx := request.Context()
 	vars := mux.Vars(request)
 	id := vars["id"]
-	client, collection, ctx := controller.getCollection()
-	defer client.Disconnect(ctx)
-	var market = Market{}
-	objId, _ := primitive.ObjectIDFromHex(id)
-	err := collection.FindOne(ctx, bson.M{"_id": objId}).Decode(&market)
+	market, err := controller.repository.GetById(ctx, id)
 	return market, err
 }
 
 func (controller Controller) updateMarketHandler(writer http.ResponseWriter, request *http.Request) error {
+	ctx := request.Context()
 	market := controller.getMarketFromQuery(request)
-
-	client, collection, ctx := controller.getCollection()
-	defer client.Disconnect(ctx)
-	_, err := collection.UpdateOne(ctx, bson.M{"_id": market.Id}, market)
+	err := controller.repository.Update(ctx, market)
 	return err
 }
 
@@ -116,35 +99,13 @@ func (controller Controller) getMarketsHandler(writer http.ResponseWriter, reque
 
 func (controller Controller) addMarketHandler(writer http.ResponseWriter, request *http.Request) error {
 	defer request.Body.Close()
+	ctx := request.Context()
 	market := controller.getMarketFromQuery(request)
-	return controller.insertNewMarket(market)
-}
-func (controller Controller) insertNewMarket(market Market) error {
-	client, collection, ctx := controller.getCollection()
-	defer client.Disconnect(ctx)
-	_, err := collection.InsertOne(ctx, market)
-	return err
-}
-
-func (controller Controller) getCollection() (client *mongo.Client, collection *mongo.Collection, ctx context.Context) {
-	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
-	//TODO: refactor this(use repository injection instead mongo settings)
-	settings := mongo_client.CreateSettings(controller.mongoUrl, controller.mongoLogin, controller.mongoPassword)
-	client, err := mongo_client.New(settings)
-	check(err)
-	collection = client.Database("receipt_collection").Collection("markets")
-	return
+	return controller.repository.Insert(ctx, market)
 }
 
 func (controller Controller) getMarketFromQuery(request *http.Request) Market {
 	var market = Market{}
 	json.NewDecoder(request.Body).Decode(&market)
 	return market
-}
-
-func check(err error) {
-	if err != nil {
-		fmt.Errorf("Panic: %v", err)
-		panic(err)
-	}
 }
