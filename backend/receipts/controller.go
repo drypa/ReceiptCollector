@@ -187,9 +187,6 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)
 
 	if err != nil {
-		if err.Error() == nalogru.TicketNotFound {
-			controller.repository.SetKktsRequestStatus(ctx, receiptId, NotFound)
-		}
 		writer.Write([]byte(err.Error()))
 		return
 	}
@@ -200,6 +197,10 @@ func (controller Controller) trySaveReceipt(ctx context.Context, response []byte
 	receiptFromApi, err := ParseReceipt(response)
 	if err != nil {
 		body := string(response)
+		if body == nalogru.TicketNotFound {
+			controller.repository.SetKktsRequestStatus(ctx, receipt.Id.Hex(), NotFound)
+			return
+		}
 		result := fmt.Sprintf("Can not parse response body.Body: '%s'.Error: %v", body, err)
 		writeResponse(result, writer)
 		return

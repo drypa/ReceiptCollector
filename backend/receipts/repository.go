@@ -167,7 +167,7 @@ func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId
 func (repository Repository) SetReceipt(ctx context.Context, id primitive.ObjectID, receipt Receipt) error {
 	collection := repository.getCollection()
 
-	filter := bson.M{"_id": bson.M{"$eq": id}}
+	filter := bson.M{"_id": id}
 	update := bson.M{"$set": bson.M{"receipt": receipt}}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
