@@ -57,7 +57,7 @@ func getMongoClient() (*mongo.Client, error) {
 }
 
 func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository, marketRepository markets.Repository) error {
-	marketsController := markets.New(mongoUrl, mongoUser, mongoSecret, marketRepository)
+	marketsController := markets.New(marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
