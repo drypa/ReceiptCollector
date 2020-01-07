@@ -1,7 +1,6 @@
 package waste
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"receipt_collector/receipts"
 	"time"
 )
@@ -20,7 +19,7 @@ type Waste struct {
 	// Users description.
 	Description string
 	// User owner.
-	Owner primitive.ObjectID
+	OwnerId string
 	// Waste category. Defined by market type.
 	Category *Category
 	// Waste category from Category(id defined) or set manually.
