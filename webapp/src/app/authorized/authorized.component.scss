@@ -1,0 +1,34 @@
+section {
+  display: grid;
+}
+
+header {
+  background-color: #f8f8f8;
+  border: 1px solid #e7e7e7;
+  display: flex;
+  padding-left: 10px;
+  align-items: center;
+
+  ul {
+    list-style-type: none;
+    display: flex;
+    flex-direction: row;
+  }
+}
+
+nav {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: 200px;
+
+  .menu {
+    list-style-type: none;
+  }
+}
+
+main {
+  grid-column: 2;
+  grid-row: 1;
+  grid-column-end: 10;
+
+}
