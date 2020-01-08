@@ -1,11 +1,13 @@
-<mat-card>
-  <form [formGroup]="newReceiptForm">
-    <mat-card-header>Add new receipt</mat-card-header>
-    <mat-form-field>
+<div mat-dialog-title>Add new receipt</div>
+<mat-dialog-content>
+  <form [formGroup]="newReceiptForm" class="fill">
+    <mat-form-field class="fill">
       <input matInput placeholder="barcode value" formControlName='barCodeText'>
     </mat-form-field>
-    <button mat-raised-button (click)="onSubmit()">
-      Submit
-    </button>
   </form>
-</mat-card>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button mat-raised-button (click)="onSubmit()">
+    Submit
+  </button>
+</mat-dialog-actions>

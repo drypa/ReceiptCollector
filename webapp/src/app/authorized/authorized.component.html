@@ -4,16 +4,16 @@
   </div>
   <ul>
     <li>
-      <a routerLink="/receipts">Receipts</a>
+      <a mat-button routerLink="/receipts">Receipts</a>
     </li>
     <li>
-      <a routerLink="/receipts/add">Add new receipt</a>
+      <a mat-button (click)="openNewReceiptDialog()">Add new receipt</a>
     </li>
     <li>
-      <a routerLink="/markets">Markets</a>
+      <a mat-button outerLink="/markets">Markets</a>
     </li>
     <li>
-      <a routerLink="/markets/add">Add New Market</a>
+      <a mat-button routerLink="/markets/add">Add New Market</a>
     </li>
   </ul>
 </header>
@@ -21,16 +21,16 @@
   <nav>
     <ul class="menu">
       <li>
-        <a routerLink="/receipts">Receipts</a>
+        <a mat-button routerLink="/receipts">Receipts</a>
       </li>
       <li>
-        <a routerLink="/receipts/add">Add new receipt</a>
+        <a mat-button (click)="openNewReceiptDialog()">Add new receipt</a>
       </li>
       <li>
-        <a routerLink="/markets">Markets</a>
+        <a mat-button outerLink="/markets">Markets</a>
       </li>
       <li>
-        <a routerLink="/markets/add">Add New Market</a>
+        <a mat-button routerLink="/markets/add">Add New Market</a>
       </li>
     </ul>
   </nav>
