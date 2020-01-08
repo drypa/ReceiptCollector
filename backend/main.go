@@ -14,6 +14,7 @@ import (
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
+	"receipt_collector/waste"
 	"receipt_collector/workers"
 )
 
@@ -45,6 +46,8 @@ func main() {
 	marketRepository := markets.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
+	wasteWorker := waste.NewWorker()
+	go wasteWorker.Process(ctx, client)
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 

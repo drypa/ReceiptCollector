@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"sync"
 )
 
@@ -54,9 +55,11 @@ func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg
 			return err
 		}
 		createWasteIfNeeded(ctx, user, receipt, client)
+		log.Printf("User %s processing is done\n", user.Id.Hex())
 	}
 
 	wg.Done()
+	return nil
 }
 
 func createWasteIfNeeded(ctx context.Context, user User, receipt UsersReceipt, client *mongo.Client) error {
