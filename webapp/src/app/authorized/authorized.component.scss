@@ -5,9 +5,6 @@ section {
 header {
   background-color: #f8f8f8;
   border: 1px solid #e7e7e7;
-  grid-column-start: 1;
-  grid-column-end: 3;
-  grid-row: 1;
   display: flex;
   padding-left: 10px;
   align-items: center;
@@ -22,17 +19,13 @@ header {
   li {
     padding: 10px 15px 10px 15px;
     display: block;
-
-    a {
-      text-decoration: none;
-    }
   }
 }
 
 nav {
-  border: 1px solid #4cae4c;
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
+  max-width: 200px;
 
   .menu {
     list-style-type: none;
@@ -41,6 +34,7 @@ nav {
 
 main {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
+  grid-column-end: 10;
 
 }
