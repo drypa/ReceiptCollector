@@ -59,4 +59,5 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
   needShowKktsStatus(receipt: Receipt): boolean {
     return receipt.kktsRequestStatus && receipt.kktsRequestStatus != RequestStatus.success;
   }
+
 }

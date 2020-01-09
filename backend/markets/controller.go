@@ -11,7 +11,7 @@ type Controller struct {
 	repository Repository
 }
 
-func New(mongoUrl string, mongoUser string, mongoSecret string, repository Repository) Controller {
+func New(repository Repository) Controller {
 	return Controller{
 		repository: repository,
 	}

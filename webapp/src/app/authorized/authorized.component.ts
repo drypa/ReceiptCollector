@@ -1,4 +1,6 @@
 import {Component, OnInit} from '@angular/core';
+import {NewReceiptComponent} from "../new-receipt/new-receipt.component";
+import {MatDialog} from "@angular/material/dialog";
 
 @Component({
   selector: 'app-authorized',
@@ -7,10 +9,15 @@ import {Component, OnInit} from '@angular/core';
 })
 export class AuthorizedComponent implements OnInit {
 
-  constructor() {
+  constructor(private dialog: MatDialog) {
   }
 
   ngOnInit() {
   }
 
+  openNewReceiptDialog(): void {
+    this.dialog.open(NewReceiptComponent, {
+      width: '700px'
+    })
+  }
 }
