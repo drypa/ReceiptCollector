@@ -34,22 +34,49 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	queryString := request.URL.RawQuery
-	result, err := nalogru.Parse(queryString)
+	err := controller.processReceiptQueryString(request.Context(), queryString)
 	if err != nil {
 		OnError(writer, err)
 		return
+	}
+}
+
+func (controller Controller) processReceiptQueryString(ctx context.Context, queryString string) error {
+	result, err := nalogru.Parse(queryString)
+	if err != nil {
+		return err
 	}
 
 	err = result.Validate()
 	if err != nil {
-		OnError(writer, err)
-		return
+		return err
 	}
 
-	err = controller.saveRequest(request.Context(), queryString)
+	err = controller.saveRequest(ctx, queryString)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
+	ctx := request.Context()
+	strings := make([]string, 0, 0)
+
+	decoder := json.NewDecoder(request.Body)
+	err := decoder.Decode(&strings)
 	if err != nil {
 		OnError(writer, err)
 		return
+	}
+	for _, v := range strings {
+		err := controller.processReceiptQueryString(ctx, v)
+		if err != nil {
+			log.Printf("error processing %s with error %v\n", v, err)
+			OnError(writer, err)
+			return
+		}
 	}
 }
 
