@@ -74,6 +74,7 @@ func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Reposi
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}/kkts", receiptsController.KktsRequestHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
 	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
+	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
 	registerUnauthenticatedRoutes(router, usersController)
