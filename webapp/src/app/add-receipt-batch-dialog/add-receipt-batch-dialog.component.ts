@@ -24,6 +24,20 @@ export class AddReceiptBatchDialogComponent implements OnInit {
   }
 
   onSubmit() {
-    console.log(this.control.value.split('\n'));
+    const receipts = this.control.value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length !== 0);
+
+    console.log(receipts);
+    this.receiptService.batchAdd(receipts)
+      .subscribe(() => {
+        this.control.setValue('');
+        this.showSnack("Added")
+      }, err => this.showSnack("Error"));
+  }
+
+  private showSnack(message: string) {
+    this.snackBar.open(message, "OK", {})
   }
 }

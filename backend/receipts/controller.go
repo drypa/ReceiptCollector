@@ -12,6 +12,7 @@ import (
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru"
+	"strings"
 )
 
 type Controller struct {
@@ -62,18 +63,19 @@ func (controller Controller) processReceiptQueryString(ctx context.Context, quer
 func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 	ctx := request.Context()
-	strings := make([]string, 0, 0)
+	receiptStrings := make([]string, 0, 0)
 
 	decoder := json.NewDecoder(request.Body)
-	err := decoder.Decode(&strings)
+	err := decoder.Decode(&receiptStrings)
 	if err != nil {
 		OnError(writer, err)
 		return
 	}
-	for _, v := range strings {
-		err := controller.processReceiptQueryString(ctx, v)
+	for _, v := range receiptStrings {
+		receiptString := strings.TrimSpace(v)
+		err := controller.processReceiptQueryString(ctx, receiptString)
 		if err != nil {
-			log.Printf("error processing %s with error %v\n", v, err)
+			log.Printf("error processing %s with error %v\n", receiptString, err)
 			OnError(writer, err)
 			return
 		}
