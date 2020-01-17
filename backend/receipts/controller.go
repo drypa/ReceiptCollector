@@ -25,7 +25,7 @@ func New(repository Repository, nalogruClient nalogru.Client) Controller {
 		nalogruClient: nalogruClient,
 	}
 }
-func OnError(writer http.ResponseWriter, err error) {
+func onError(writer http.ResponseWriter, err error) {
 	log.Printf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
@@ -36,19 +36,19 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	queryString := request.URL.RawQuery
 	result, err := nalogru.Parse(queryString)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 
 	err = result.Validate()
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 
 	err = controller.saveRequest(request.Context(), queryString)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
@@ -87,7 +87,7 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 	userId := ctx.Value(auth.UserId)
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	writeResponse(receipts, writer)
@@ -102,7 +102,7 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 	userId := getUserId(ctx)
 	receipt, err := controller.getReceiptById(ctx, userId, id)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	writeResponse(receipt, writer)
@@ -116,7 +116,7 @@ func getUserId(ctx context.Context) string {
 func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 	err := request.ParseForm()
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return ""
 	}
 	vars := mux.Vars(request)
@@ -134,19 +134,19 @@ func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, re
 	userId := ctx.Value(auth.UserId)
 	err := controller.repository.Delete(ctx, userId.(string), id)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	_, err = writer.Write(resp)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
@@ -164,7 +164,7 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 	userId := getUserId(ctx)
 	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	err = controller.nalogruClient.SendOdfsRequest(receipt.QueryString)
@@ -181,7 +181,7 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	userId := getUserId(ctx)
 	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)

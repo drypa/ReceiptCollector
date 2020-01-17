@@ -26,23 +26,23 @@ func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter,
 	if request.Method == http.MethodPost {
 		registrationRequest, err := getUserRequestFromQuery(request)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 		user, err := mapToUser(registrationRequest)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 		err = controller.repository.Insert(ctx, user)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 	}
 }
 
-func OnError(writer http.ResponseWriter, err error) {
+func onError(writer http.ResponseWriter, err error) {
 	_ = fmt.Errorf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
