@@ -12,6 +12,7 @@ import (
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru"
+	"strings"
 )
 
 type Controller struct {
@@ -25,7 +26,7 @@ func New(repository Repository, nalogruClient nalogru.Client) Controller {
 		nalogruClient: nalogruClient,
 	}
 }
-func onError(writer http.ResponseWriter, err error) {
+func OnError(writer http.ResponseWriter, err error) {
 	log.Printf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
@@ -34,22 +35,50 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	queryString := request.URL.RawQuery
+	err := controller.processReceiptQueryString(request.Context(), queryString)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+}
+
+func (controller Controller) processReceiptQueryString(ctx context.Context, queryString string) error {
 	result, err := nalogru.Parse(queryString)
 	if err != nil {
-		onError(writer, err)
-		return
+		return err
 	}
 
 	err = result.Validate()
 	if err != nil {
-		onError(writer, err)
-		return
+		return err
 	}
 
-	err = controller.saveRequest(request.Context(), queryString)
+	err = controller.saveRequest(ctx, queryString)
 	if err != nil {
-		onError(writer, err)
+		return err
+	}
+	return nil
+}
+
+func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
+	ctx := request.Context()
+	receiptStrings := make([]string, 0, 0)
+
+	decoder := json.NewDecoder(request.Body)
+	err := decoder.Decode(&receiptStrings)
+	if err != nil {
+		OnError(writer, err)
 		return
+	}
+	for _, v := range receiptStrings {
+		receiptString := strings.TrimSpace(v)
+		err := controller.processReceiptQueryString(ctx, receiptString)
+		if err != nil {
+			log.Printf("error processing %s with error %v\n", receiptString, err)
+			OnError(writer, err)
+			return
+		}
 	}
 }
 
@@ -87,7 +116,7 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 	userId := ctx.Value(auth.UserId)
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 	writeResponse(receipts, writer)
@@ -102,7 +131,7 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 	userId := getUserId(ctx)
 	receipt, err := controller.getReceiptById(ctx, userId, id)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 	writeResponse(receipt, writer)
@@ -116,7 +145,7 @@ func getUserId(ctx context.Context) string {
 func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 	err := request.ParseForm()
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return ""
 	}
 	vars := mux.Vars(request)
@@ -134,19 +163,19 @@ func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, re
 	userId := ctx.Value(auth.UserId)
 	err := controller.repository.Delete(ctx, userId.(string), id)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 }
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 	_, err = writer.Write(resp)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 }
@@ -164,7 +193,7 @@ func (controller Controller) OdfsRequestHandler(writer http.ResponseWriter, requ
 	userId := getUserId(ctx)
 	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 	err = controller.nalogruClient.SendOdfsRequest(receipt.QueryString)
@@ -181,7 +210,7 @@ func (controller Controller) KktsRequestHandler(writer http.ResponseWriter, requ
 	userId := getUserId(ctx)
 	receipt, err := controller.repository.GetById(ctx, userId, receiptId)
 	if err != nil {
-		onError(writer, err)
+		OnError(writer, err)
 		return
 	}
 	response, err := controller.nalogruClient.SendKktsRequest(receipt.QueryString)

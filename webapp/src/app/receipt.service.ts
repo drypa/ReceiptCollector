@@ -28,6 +28,11 @@ export class ReceiptService {
     return this.http.post<void>('/api/receipt/from-bar-code?' + parsedBarCode, null);
   }
 
+  batchAdd(barCodes: string[]): Observable<void> {
+    return this.http.post<void>('/api/receipt/batch', barCodes);
+
+  }
+
   odfsRequest(id: string): Observable<string> {
     return this.http.post<string>(`/api/receipt/${id}/odfs`, null);
   }
