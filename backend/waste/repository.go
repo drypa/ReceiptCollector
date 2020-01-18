@@ -17,11 +17,19 @@ func NewRepository(client *mongo.Client) Repository {
 
 func (repository Repository) GetForUser(ctx context.Context, ownerId string) ([]Waste, error) {
 	collection := repository.getCollection()
-	wastes := make([]Waste, 0, 0)
 	cursor, err := collection.Find(ctx, bson.D{{"owner_id", ownerId}})
 	if err != nil {
 		return nil, err
 	}
+	wastes, err := readWastes(ctx, cursor)
+	if err != nil {
+		return nil, err
+	}
+	return wastes, nil
+}
+
+func readWastes(ctx context.Context, cursor *mongo.Cursor) ([]Waste, error) {
+	wastes := make([]Waste, 0, 0)
 	waste := Waste{}
 	for cursor.Next(ctx) {
 		err := cursor.Decode(&waste)
@@ -31,6 +39,23 @@ func (repository Repository) GetForUser(ctx context.Context, ownerId string) ([]
 		wastes = append(wastes, waste)
 	}
 	return wastes, nil
+}
+
+func (repository Repository) GetByFilter(ctx context.Context, filter WasteFilter) ([]Waste, error) {
+	collection := repository.getCollection()
+	query := bson.D{{"owner_id", filter.UserId}}
+	if filter.StartDate != nil {
+		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: filter.StartDate}})
+	}
+	if filter.EndDate != nil {
+		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: filter.EndDate}})
+	}
+	cursor, err := collection.Find(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	wastes, err := readWastes(ctx, cursor)
+	return wastes, err
 }
 
 func (repository Repository) Add(ctx context.Context, waste Waste) error {

@@ -44,6 +44,7 @@ func main() {
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
+	wasteRepository := waste.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
 	wasteWorker := waste.NewWorker()
@@ -51,7 +52,7 @@ func main() {
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 
-	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository))
+	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository))
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -59,21 +60,30 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository, marketRepository markets.Repository) error {
+func startServer(nalogruClient nalogru.Client,
+	receiptRepository receipts.Repository,
+	userRepository users.Repository,
+	marketRepository markets.Repository,
+	wasteRepository waste.Repository) error {
 	marketsController := markets.New(marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
+	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
+
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.GetReceiptDetailsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}/odfs", receiptsController.OdfsRequestHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}/kkts", receiptsController.KktsRequestHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
 	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
+
+	router.HandleFunc("/api/waste", wasteController.GetHandler).Methods(http.MethodGet)
+
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
 	registerUnauthenticatedRoutes(router, usersController)
