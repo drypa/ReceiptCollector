@@ -3,6 +3,7 @@ version: '2'
 services:
   mongo:
     image: mongo:4.1
+    restart: always
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
@@ -15,6 +16,7 @@ services:
   collector:
     build: backend
     image: drypa/receipt-collector:latest
+    restart: always
     depends_on:
       - mongo
     environment:
@@ -33,6 +35,7 @@ services:
   gateway:
     build: webapp
     image: drypa/receipt-frontend:latest
+    restart: always
     ports:
       - "443:443"
     volumes:
