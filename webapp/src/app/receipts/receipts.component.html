@@ -1,49 +1,33 @@
-<div class="container-fluid">
-  <div class="row">
-    <nav class="col-md-2 sidebar bg-light">
-      <div class="sidebar-sticky">
-        <ul class="nav flex-column">
-          <li class="nav-item"><a routerLink="/receipts/add" class="nav-link">Add new</a></li>
-          <li class="nav-item"><a routerLink="/receipts" class="nav-link">Report</a></li>
-        </ul>
-      </div>
-    </nav>
-    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-      <table class="table table-hover">
-        <thead>
-        <tr>
-          <th>Date and time</th>
-          <th>Total sum</th>
-          <th>Market Inn</th>
-          <th>Other</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr *ngFor="let receipt of receiptList">
-          <td *ngIf="isLoaded(receipt)">{{receipt.dateTime}}</td>
-          <td *ngIf="isLoaded(receipt)">{{receipt.totalSum}}</td>
-          <td *ngIf="isLoaded(receipt)">{{receipt.userInn}}</td>
-          <td colspan="3" *ngIf="!isLoaded(receipt)">{{receipt.queryString}}</td>
-          <td>
-            <mat-chip-list>
-              <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
-              <mat-chip *ngIf="needShowKktsStatus(receipt)">{{receipt.kktsRequestStatus}}</mat-chip>
-            </mat-chip-list>
-          </td>
-          <td>
-            <a routerLink="/receipts/{{receipt.id}}">details</a>
-            <button *ngIf="!receipt.deleted"
-                    mat-raised-button
-                    color="warn"
-                    (click)="delete(receipt.id)">Delete
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-
-    </main>
-
-  </div>
-</div>
+<table class="table table-hover">
+  <thead>
+  <tr>
+    <th>Date and time</th>
+    <th>Total sum</th>
+    <th>Market Inn</th>
+    <th>Other</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr *ngFor="let receipt of receiptList">
+    <td *ngIf="isLoaded(receipt)">{{receipt.dateTime}}</td>
+    <td *ngIf="isLoaded(receipt)">{{receipt.totalSum}}</td>
+    <td *ngIf="isLoaded(receipt)">{{receipt.userInn}}</td>
+    <td colspan="3" *ngIf="!isLoaded(receipt)">{{receipt.queryString}}</td>
+    <td>
+      <mat-chip-list>
+        <mat-chip *ngIf="receipt.deleted">deleted</mat-chip>
+        <mat-chip *ngIf="needShowKktsStatus(receipt)">{{receipt.kktsRequestStatus}}</mat-chip>
+      </mat-chip-list>
+    </td>
+    <td>
+      <a routerLink="/receipts/{{receipt.id}}">details</a>
+      <button *ngIf="!receipt.deleted"
+              mat-raised-button
+              color="warn"
+              (click)="delete(receipt.id)">Delete
+      </button>
+    </td>
+  </tr>
+  </tbody>
+</table>

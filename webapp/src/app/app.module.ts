@@ -21,6 +21,7 @@ import {MatSnackBarModule} from "@angular/material/snack-bar";
 import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
 import {MatDialogModule} from "@angular/material/dialog";
 import {RequestResultComponent} from './request-result/request-result.component';
+import {AddReceiptBatchDialogComponent} from './add-receipt-batch-dialog/add-receipt-batch-dialog.component';
 
 @NgModule({
   declarations: [
@@ -34,7 +35,8 @@ import {RequestResultComponent} from './request-result/request-result.component'
     LoginComponent,
     AuthorizedComponent,
     ReceiptItemsComponent,
-    RequestResultComponent
+    RequestResultComponent,
+    AddReceiptBatchDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -55,7 +57,7 @@ import {RequestResultComponent} from './request-result/request-result.component'
     {provide: HTTP_INTERCEPTORS, useClass: BasicAuthInterceptor, multi: true}
   ],
   bootstrap: [AppComponent],
-  entryComponents: [RequestResultComponent]
+  entryComponents: [RequestResultComponent, AddReceiptBatchDialogComponent]
 })
 export class AppModule {
 }

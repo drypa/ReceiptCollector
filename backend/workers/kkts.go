@@ -42,7 +42,8 @@ func (worker Worker) getReceipt(ctx context.Context) {
 	receiptBytes, err := worker.nalogruClient.SendKktsRequest(request.QueryString)
 	if err != nil {
 		if err.Error() == nalogru.TicketNotFound {
-			worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
+			err := worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
+			check(err)
 			return
 		}
 		check(err)
@@ -51,8 +52,6 @@ func (worker Worker) getReceipt(ctx context.Context) {
 	if err != nil {
 		body := string(receiptBytes)
 		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
-		err := worker.repository.ResetOdfsRequestForReceipt(ctx, request.Id.Hex())
-		check(err)
 		return
 	}
 	err = worker.repository.SetReceipt(ctx, request.Id, receipt)
