@@ -5,34 +5,24 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 )
 
 type Options struct {
-	ApiToken   string
-	Debug      bool
-	WebHookUrl string
-	CertPath   string
-	KeyPath    string
+	ApiToken string
+	Debug    bool
 }
 
 func FromEnv() Options {
 	token := getEnvVar("BOT_TOKEN")
-	webHookUrl := getEnvVar("BOT_WEB_HOOK_URL")
-	certPath := getEnvVar("BOT_CERT_PATH")
-	keyPath := getEnvVar("BOT_KEY_PATH")
 	debugString := getEnvVar("BOT_DEBUG")
 	debug := false
 	debug, _ = strconv.ParseBool(debugString)
 
 	return Options{
-		ApiToken:   token,
-		Debug:      debug,
-		WebHookUrl: webHookUrl,
-		CertPath:   certPath,
-		KeyPath:    keyPath,
+		ApiToken: token,
+		Debug:    debug,
 	}
 }
 
@@ -41,18 +31,7 @@ func (options Options) validate() error {
 	if err != nil {
 		return err
 	}
-	err = validateEmpty(options.WebHookUrl, "Web hook url is not set")
-	if err != nil {
-		return err
-	}
-	err = validateEmpty(options.CertPath, "Certificate path is not set")
-	if err != nil {
-		return err
-	}
-	err = validateEmpty(options.KeyPath, "SSL key file path is not set")
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -72,11 +51,11 @@ func getEnvVar(varName string) string {
 	return value
 }
 func Start(options Options) error {
-	//err := options.validate()
-	//if err != nil {
-	//	log.Println("Bot options invalid")
-	//	return err
-	//}
+	err := options.validate()
+	if err != nil {
+		log.Println("Bot options invalid")
+		return err
+	}
 
 	bot, err := tgbotapi.NewBotAPI(options.ApiToken)
 	if err != nil {
@@ -86,29 +65,13 @@ func Start(options Options) error {
 	bot.Debug = options.Debug
 
 	log.Printf("Autorised as %s", bot.Self.UserName)
-	//config := tgbotapi.NewWebhookWithCert(options.WebHookUrl+bot.Token, options.CertPath)
-	//_, err = bot.SetWebhook(config)
-	//if err != nil {
-	//	log.Println("Web hook create error")
-	//	return err
-	//}
-	//info, err := bot.GetWebhookInfo()
-	//if err != nil {
-	//	log.Println("Web hook error")
-	//	return err
-	//}
-	//if info.LastErrorDate != 0 {
-	//	log.Printf("Telegram callback failed. %s\n", info.LastErrorMessage)
-	//}
-	//updatesChan := bot.ListenForWebhook("/" + bot.Token)
+
 	updateCfg := tgbotapi.NewUpdate(0)
 	updatesChan, err := bot.GetUpdatesChan(updateCfg)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-
-	go http.ListenAndServeTLS(":8443", options.CertPath, options.KeyPath, nil)
 
 	processUpdates(updatesChan, bot)
 	return nil
@@ -137,13 +100,17 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI) {
 			}
 		}
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, responseText)
-		bot.Send(msg)
+		_, err := bot.Send(msg)
+		if err != nil {
+			//TODO: do not return error to user
+			responseText = err.Error()
+		}
 	}
 }
 
 func tryAddReceipt(userId int, messageText string) error {
 	//TODO: validate receipt query string and store
-	panic("not implemented exception")
+	return nil
 }
 
 func register(userId int) {

@@ -1,7 +1,3 @@
-github.com/drypa/receipt-telegram-bot v0.0.0-20200104132707-1855b85b3832 h1:Ou+ZLuz4vrxDjWo35eEXHTq3h+enfBeCgcBL4+5Gqu0=
-github.com/drypa/receipt-telegram-bot v0.0.0-20200104132707-1855b85b3832/go.mod h1:OUmWl5VRC27p6P37aDdoYOPgQ+CkO/aOPyJ2BJ4C3xs=
-github.com/drypa/receipt-telegram-bot v0.0.0-20200104141656-917ac1154917 h1:bCQPKtZErZqqulM6/v8MBWwXOxpDrI2No4UTzqJt+Ao=
-github.com/drypa/receipt-telegram-bot v0.0.0-20200104141656-917ac1154917/go.mod h1:OUmWl5VRC27p6P37aDdoYOPgQ+CkO/aOPyJ2BJ4C3xs=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible h1:2cauKuaELYAEARXRkq2LrJ0yDDv1rW7+wrTEdVL3uaU=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible/go.mod h1:qf9acutJ8cwBUhm1bqgz6Bei9/C/c93FPDljKWwsOgM=
 github.com/technoweenie/multipartstreamer v1.0.1 h1:XRztA5MXiR1TIRHxH2uNxXxaIkKQDeX7m2XsSOlQEnM=
