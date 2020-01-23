@@ -21,7 +21,7 @@ var login = os.Getenv("NALOGRU_LOGIN")
 var password = os.Getenv("NALOGRU_PASS")
 var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
 
-var mongoUrl = os.Getenv("MONGO_URL")
+var mongoURL = os.Getenv("MONGO_URL")
 
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
@@ -52,7 +52,7 @@ func main() {
 }
 
 func getMongoClient() (*mongo.Client, error) {
-	settings := mongo_client.CreateSettings(mongoUrl, mongoUser, mongoSecret)
+	settings := mongo_client.CreateSettings(mongoURL, mongoUser, mongoSecret)
 	return mongo_client.New(settings)
 }
 
