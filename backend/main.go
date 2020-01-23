@@ -90,7 +90,7 @@ func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controll
 
 func check(err error) {
 	if err != nil {
-		log.Printf("Error occured %v", err)
+		log.Printf("Error occurred %v", err)
 		panic(err)
 	}
 }

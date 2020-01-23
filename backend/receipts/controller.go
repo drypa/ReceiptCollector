@@ -242,7 +242,7 @@ func (controller Controller) trySaveReceipt(ctx context.Context, response []byte
 
 func check(err error) {
 	if err != nil {
-		log.Printf("Error occured %v", err)
+		log.Printf("Error occurred %v", err)
 		panic(err)
 	}
 }
