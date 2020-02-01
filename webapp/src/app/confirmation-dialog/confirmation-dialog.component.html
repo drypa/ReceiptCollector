@@ -1,0 +1,12 @@
+<div mat-dialog-title>Action confirmation</div>
+<mat-dialog-content>
+  <div>{{data.message}}</div>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button mat-raised-button (click)="onOk()">
+    Ok
+  </button>
+  <button mat-raised-button (click)="onCancel()">
+    Cancel
+  </button>
+</mat-dialog-actions>

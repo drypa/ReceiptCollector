@@ -1,9 +1,10 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
-import {Receipt, RequestStatus} from '../receipt';
-import {ReceiptService} from '../receipt.service';
-import {first, takeUntil, tap} from 'rxjs/operators';
-import {Subject} from 'rxjs';
-import {MatSnackBar} from "@angular/material/snack-bar";
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Receipt, RequestStatus } from '../receipt';
+import { ReceiptService } from '../receipt.service';
+import { first, takeUntil, tap } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { ConfirmationService } from "../confirmation.service";
 
 @Component({
   selector: 'app-receipts',
@@ -14,7 +15,8 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<boolean>();
 
   constructor(private receiptService: ReceiptService,
-              private snackBar: MatSnackBar) {
+              private snackBar: MatSnackBar,
+              private confirmationService: ConfirmationService) {
   }
 
   receiptList: Receipt[];
@@ -24,14 +26,20 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
   }
 
   delete(id: string) {
-    this.receiptService.delete(id)
-      .pipe(
-        first(),
-        takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.showSnack("Deleted");
-        this.loadData();
-      }, err => this.showSnack("Error"));
+    const message = 'Really delete this receipt?';
+    this.confirmationService.showConfirmation(message).subscribe(x => {
+      if (x === false) {
+        return;
+      }
+      this.receiptService.delete(id)
+        .pipe(
+          first(),
+          takeUntil(this.destroy$))
+        .subscribe(() => {
+          this.showSnack("Deleted");
+          this.loadData();
+        }, err => this.showSnack("Error"));
+    });
   }
 
   ngOnDestroy(): void {
