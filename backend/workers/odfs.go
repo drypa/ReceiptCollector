@@ -69,7 +69,7 @@ func (worker Worker) processRequests(ctx context.Context) {
 
 func check(err error) {
 	if err != nil {
-		log.Printf("Error occured %v", err)
+		log.Printf("Error occurred %v", err)
 		panic(err)
 	}
 }

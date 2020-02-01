@@ -8,16 +8,20 @@ import (
 	"receipt_collector/users"
 )
 
+//ContextKey is type to define values in context.
 type ContextKey string
 
 const (
+	//UserId is key to store id of authorized user.
 	UserId = ContextKey("userId")
 )
 
+//BasicAuth provides struct to use basic auth.
 type BasicAuth struct {
 	repository users.Repository
 }
 
+//New is BasicAuth constructor.
 func New(repository users.Repository) BasicAuth {
 	return BasicAuth{
 		repository: repository,
@@ -39,6 +43,7 @@ func (basicAuth BasicAuth) authFunc(login string, password string, request *http
 	return isPasswordValid
 }
 
+//RequireBasicAuth provides handler to add basic auth.
 func (basicAuth BasicAuth) RequireBasicAuth(router http.Handler) http.Handler {
 	options := httpauth.AuthOptions{
 		Realm:    "ReceiptCollection",
