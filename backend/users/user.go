@@ -6,6 +6,7 @@ type User struct {
 	Id           primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Name         string             `json:"name" bson:"name"`
 	PasswordHash string             `json:"-" bson:"password_hash"`
+	TelegramId   string             `json:"telegram_id" bson:"telegram_id"`
 }
 
 type UserRequest struct {

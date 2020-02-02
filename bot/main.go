@@ -4,7 +4,7 @@ import "log"
 
 func main() {
 	options := FromEnv()
-	err := Start(options)
+	err := start(options)
 	if err != nil {
 		log.Fatal(err)
 	}

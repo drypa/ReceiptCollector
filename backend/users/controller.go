@@ -51,6 +51,16 @@ func (controller Controller) LoginHandler(writer http.ResponseWriter, request *h
 	//Do nothing
 }
 
+func (controller Controller) RegisterHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	telegramId := getFromBody(request)
+	controller.repository.GetByTelegramId(ctx, telegramId)
+}
+
+func getFromBody(request *http.Request) string {
+	panic("TODO: need implement")
+}
+
 func mapToUser(registrationRequest UserRequest) (User, error) {
 	hash, err := passwords.HashPassword(registrationRequest.Password)
 	return User{Name: registrationRequest.Login, PasswordHash: hash}, err

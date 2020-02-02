@@ -23,7 +23,8 @@ func getEnvVar(varName string) string {
 	}
 	return value
 }
-func Start(options Options) error {
+
+func start(options Options) error {
 	err := options.validate()
 	if err != nil {
 		log.Println("Bot options invalid")
