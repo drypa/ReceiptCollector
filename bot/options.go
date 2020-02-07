@@ -3,19 +3,22 @@ package main
 import "strconv"
 
 type Options struct {
-	ApiToken string
-	Debug    bool
+	ApiToken     string
+	Debug        bool
+	HttpProxyUrl string
 }
 
 func FromEnv() Options {
 	token := getEnvVar("BOT_TOKEN")
 	debugString := getEnvVar("BOT_DEBUG")
+	proxy := getEnvVar("HTTP_PROXY")
 	debug := false
 	debug, _ = strconv.ParseBool(debugString)
 
 	return Options{
-		ApiToken: token,
-		Debug:    debug,
+		ApiToken:     token,
+		Debug:        debug,
+		HttpProxyUrl: proxy,
 	}
 }
 

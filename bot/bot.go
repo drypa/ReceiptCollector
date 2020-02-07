@@ -5,6 +5,8 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -25,19 +27,13 @@ func getEnvVar(varName string) string {
 }
 
 func start(options Options) error {
-	err := options.validate()
-	if err != nil {
-		log.Println("Bot options invalid")
-		return err
-	}
 
-	bot, err := tgbotapi.NewBotAPI(options.ApiToken)
+	bot, err := create(options)
 	if err != nil {
 		log.Println("Bot create error")
 		return err
 	}
 	bot.Debug = options.Debug
-
 	log.Printf("Autorised as %s", bot.Self.UserName)
 
 	updateCfg := tgbotapi.NewUpdate(0)
@@ -49,6 +45,27 @@ func start(options Options) error {
 
 	processUpdates(updatesChan, bot)
 	return nil
+}
+
+func create(options Options) (*tgbotapi.BotAPI, error) {
+	err := options.validate()
+	if err != nil {
+		log.Println("Bot options invalid")
+		return nil, err
+	}
+	if options.HttpProxyUrl != "" {
+		url, err := url.Parse(options.HttpProxyUrl)
+		if err != nil {
+			log.Println("Proxy url invalid")
+			return nil, err
+		}
+
+		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(url)}}
+
+		return tgbotapi.NewBotAPIWithClient(options.ApiToken, client)
+	}
+
+	return tgbotapi.NewBotAPI(options.ApiToken)
 }
 
 func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI) {
