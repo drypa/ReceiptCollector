@@ -1,10 +1,15 @@
 package main
 
-import "log"
+import (
+	"github.com/drypa/ReceiptCollector/bot/backend"
+	"log"
+)
 
 func main() {
 	options := FromEnv()
-	err := start(options)
+	backendUrl := getEnvVar("BACKEND_URL")
+	client := backend.New(backendUrl)
+	err := start(options, client)
 	if err != nil {
 		log.Fatal(err)
 	}

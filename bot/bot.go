@@ -3,11 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/drypa/ReceiptCollector/bot/backend"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 func validateEmpty(value string, emptyErrorMessage string) error {
@@ -26,7 +28,7 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options) error {
+func start(options Options, client backend.Client) error {
 
 	bot, err := create(options)
 	if err != nil {
@@ -43,7 +45,7 @@ func start(options Options) error {
 		return err
 	}
 
-	processUpdates(updatesChan, bot)
+	processUpdates(updatesChan, bot, client)
 	return nil
 }
 
@@ -68,7 +70,7 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 	return tgbotapi.NewBotAPI(options.ApiToken)
 }
 
-func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI) {
+func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI, client backend.Client) {
 	for update := range updatesChan {
 		log.Printf("%v\n", update)
 		if update.Message == nil {
@@ -81,8 +83,12 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI) {
 		case "/start":
 			responseText = "I'm a bot to collect Your purchase tickets."
 		case "/register":
-			register(update.Message.From.ID)
-			responseText = "You are registered. I collect only your virtual telegram Id."
+			err := register(update.Message.From.ID, client)
+			if err != nil {
+				responseText = err.Error()
+			} else {
+				responseText = "You are registered."
+			}
 		default:
 			err := tryAddReceipt(update.Message.From.ID, update.Message.Text)
 			responseText = "Added"
@@ -104,6 +110,7 @@ func tryAddReceipt(userId int, messageText string) error {
 	return nil
 }
 
-func register(userId int) {
-	//TODO: store user to DB
+func register(userId int, client backend.Client) error {
+	err := client.Register(strconv.Itoa(userId))
+	return err
 }

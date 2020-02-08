@@ -3,12 +3,12 @@ package backend
 import (
 	"errors"
 	"net/http"
-	"path"
 )
 
-func (client Client) register(userId string) error {
-	registerUrl := path.Join(client.backendUrl, "/api/account")
-	reader, err := getReader(registrationRequest{telegramId: userId})
+func (client Client) Register(userId string) error {
+	registerUrl := client.backendUrl + "/api/account"
+	request := registrationRequest{TelegramId: userId}
+	reader, err := getReader(request)
 	if err != nil {
 		return err
 	}

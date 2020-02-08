@@ -87,6 +87,7 @@ func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controll
 	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler).Methods(http.MethodPost)
 	router.HandleFunc(registrationByTelegramRoute, controller.RegisterHandler).Methods(http.MethodPost)
 	http.Handle(registrationRoute, router)
+	http.Handle(registrationByTelegramRoute, router)
 
 }
 
