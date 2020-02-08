@@ -85,11 +85,11 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 		return
 	}
 }
-func getFromBody(request *http.Request) (string, error) {
+func getFromBody(request *http.Request) (int, error) {
 	registrationRequest := registrationRequest{}
 	err := json.NewDecoder(request.Body).Decode(&registrationRequest)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	return registrationRequest.TelegramId, nil
 }

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (client Client) Register(userId string) error {
+func (client Client) Register(userId int) error {
 	registerUrl := client.backendUrl + "/api/account"
 	request := registrationRequest{TelegramId: userId}
 	reader, err := getReader(request)

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 )
 
 func validateEmpty(value string, emptyErrorMessage string) error {
@@ -90,7 +89,7 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI, c
 				responseText = "You are registered."
 			}
 		default:
-			err := tryAddReceipt(update.Message.From.ID, update.Message.Text)
+			err := tryAddReceipt(update.Message.From.ID, update.Message.Text, client)
 			responseText = "Added"
 			if err != nil {
 				responseText = err.Error()
@@ -105,12 +104,12 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI, c
 	}
 }
 
-func tryAddReceipt(userId int, messageText string) error {
-	//TODO: validate receipt query string and store
-	return nil
+func tryAddReceipt(userId int, messageText string, client backend.Client) error {
+	err := client.AddReceipt(userId, messageText)
+	return err
 }
 
 func register(userId int, client backend.Client) error {
-	err := client.Register(strconv.Itoa(userId))
+	err := client.Register(userId)
 	return err
 }

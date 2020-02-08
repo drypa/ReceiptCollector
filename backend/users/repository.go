@@ -40,7 +40,7 @@ func (repository Repository) GetByLogin(ctx context.Context, login string) (User
 }
 
 //GetByTelegramId returns User by telegram id.
-func (repository Repository) GetByTelegramId(ctx context.Context, telegramId string) (*User, error) {
+func (repository Repository) GetByTelegramId(ctx context.Context, telegramId int) (*User, error) {
 	collection := repository.getCollection()
 
 	var user User
