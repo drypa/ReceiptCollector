@@ -240,6 +240,10 @@ func (controller Controller) trySaveReceipt(ctx context.Context, response []byte
 	}
 }
 
+func (controller Controller) AddReceiptForTelegramUserHandler(writer http.ResponseWriter, request *http.Request) {
+	log.Println("TODO")
+}
+
 func check(err error) {
 	if err != nil {
 		log.Printf("Error occurred %v", err)

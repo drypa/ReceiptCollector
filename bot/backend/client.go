@@ -10,11 +10,6 @@ type Client struct {
 	backendUrl string
 }
 
-//AddReceipt adds receipt for telegram user.
-func (client Client) AddReceipt(userId int, text string) error {
-	return nil
-}
-
 //New constructs new backend client.
 func New(backendUrl string) Client {
 	return Client{backendUrl: backendUrl}
