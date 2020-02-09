@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"receipt_collector/dispose"
 	"receipt_collector/passwords"
 	"time"
 )
@@ -53,6 +54,7 @@ func (controller Controller) LoginHandler(writer http.ResponseWriter, request *h
 
 func (controller Controller) RegisterHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
 	telegramId, err := getFromBody(request)
 	if err != nil {
 		onError(writer, err)

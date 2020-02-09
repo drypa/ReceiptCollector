@@ -241,7 +241,35 @@ func (controller Controller) trySaveReceipt(ctx context.Context, response []byte
 }
 
 func (controller Controller) AddReceiptForTelegramUserHandler(writer http.ResponseWriter, request *http.Request) {
-	log.Println("TODO")
+	ctx := request.Context()
+	defer dispose.Dispose(request.Body.Close, "error while request body close")
+	receiptRequest := addReceiptRequest{}
+	err := getFromBody(request, &receiptRequest)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+	receipt := UsersReceipt{
+		Receipt:         nil,
+		OwnerTelegramId: receiptRequest.TelegramId,
+		QueryString:     receiptRequest.ReceiptString,
+		OdfsRequested:   false,
+		Deleted:         false,
+	}
+	//TODO: need validate and other(as processReceiptQueryString)
+	err = controller.repository.Insert(ctx, receipt)
+	if err != nil {
+		OnError(writer, err)
+		return
+	}
+}
+
+func getFromBody(r *http.Request, result interface{}) error {
+	err := json.NewDecoder(r.Body).Decode(result)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func check(err error) {
