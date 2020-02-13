@@ -29,22 +29,29 @@ func (worker Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 	}
 }
 
-func (worker Worker) getReceipt(ctx context.Context) {
+func (worker Worker) getReceipt(ctx context.Context) error {
 	request, err := worker.repository.FindOneOdfsRequestedWithoutReceipt(ctx)
 	check(err)
 
 	if request == nil {
 		log.Println("No Kkt requests required")
-		return
+		return nil
 	}
 	log.Printf("Kkt request for queryString: %s\n", request.QueryString)
 
 	receiptBytes, err := worker.nalogruClient.SendKktsRequest(request.QueryString)
 	if err != nil {
-		if err.Error() == nalogru.TicketNotFound {
+		switch err.Error() {
+		case nalogru.TicketNotFound:
 			err := worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
-			check(err)
-			return
+			if err != nil {
+				return err
+			}
+		}
+		if err.Error() == nalogru.NotReadyYet {
+			log.Printf("receipt '%s' is not ready yet", request.QueryString)
+			return nil
+
 		}
 		check(err)
 	}
@@ -52,8 +59,11 @@ func (worker Worker) getReceipt(ctx context.Context) {
 	if err != nil {
 		body := string(receiptBytes)
 		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
-		return
+		return err
 	}
 	err = worker.repository.SetReceipt(ctx, request.Id, receipt)
-	check(err)
+	if err != nil {
+		return err
+	}
+	return nil
 }
