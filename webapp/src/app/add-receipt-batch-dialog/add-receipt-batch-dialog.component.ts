@@ -10,7 +10,7 @@ import {CdkTextareaAutosize} from '@angular/cdk/text-field';
   styleUrls: ['./add-receipt-batch-dialog.component.scss']
 })
 export class AddReceiptBatchDialogComponent implements OnInit {
-  @ViewChild('autosize', {static: false}) autosize: CdkTextareaAutosize;
+  @ViewChild('autosize') autosize: CdkTextareaAutosize;
   control = new FormControl('');
   newReceiptForm = new FormGroup({
     barCodeText: this.control

@@ -11,7 +11,10 @@ import {ReceiptDetailsComponent} from './receipt-details/receipt-details.compone
 import {NewMarketComponent} from './new-market/new-market.component';
 import {MarketDetailsComponent} from './market-details/market-details.component';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
-import {MatAutocompleteModule, MatButtonModule, MatFormFieldModule, MatInputModule} from '@angular/material';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import {MatCardModule} from '@angular/material/card';
 import {ReactiveFormsModule} from '@angular/forms';
 import {LoginComponent} from './login/login.component';
