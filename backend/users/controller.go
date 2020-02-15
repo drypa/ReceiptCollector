@@ -35,7 +35,7 @@ func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter,
 			onError(writer, err)
 			return
 		}
-		err = controller.repository.Insert(ctx, user)
+		err = controller.repository.Insert(ctx, &user)
 		if err != nil {
 			onError(writer, err)
 			return
@@ -52,7 +52,7 @@ func (controller Controller) LoginHandler(writer http.ResponseWriter, request *h
 	//Do nothing
 }
 
-func (controller Controller) RegisterHandler(writer http.ResponseWriter, request *http.Request) {
+func (controller Controller) GetUserByTelegramIdHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 	telegramId, err := getFromBody(request)
@@ -63,25 +63,47 @@ func (controller Controller) RegisterHandler(writer http.ResponseWriter, request
 	user, err := controller.repository.GetByTelegramId(ctx, telegramId)
 	if err != nil {
 		onError(writer, err)
+		return
 	}
-	if user == nil {
-		newUser := User{
-			TelegramId: telegramId,
-		}
-		err := controller.repository.Insert(ctx, newUser)
-		if err != nil {
-			onError(writer, err)
-		}
+	if user != nil {
+		response := mapToContract(*user)
+		writeResponse(response, writer)
+		return
 	}
+	newUser := User{
+		TelegramId: telegramId,
+	}
+	err = controller.repository.Insert(ctx, &newUser)
+	if err != nil {
+		onError(writer, err)
+		return
+	}
+	writeResponse(mapToContract(newUser), writer)
 }
 
+func mapToContract(model User) user {
+	return user{
+		UserId:     model.Id.Hex(),
+		TelegramId: model.TelegramId,
+	}
+}
+func mapToContractList(model []User) []user {
+	res := make([]user, len(model))
+	for i, v := range model {
+		res[i] = mapToContract(v)
+	}
+	return res
+}
+
+//GetUsersHandler allow to get all users.
 func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	users, err := controller.repository.GetAll(ctx)
 	if err != nil {
 		onError(writer, err)
 	}
-	writeResponse(users, writer)
+	response := mapToContractList(users)
+	writeResponse(response, writer)
 }
 
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {

@@ -5,10 +5,10 @@ import (
 	"net/http"
 )
 
-//AddReceipt adds receipt for telegram user.
-func (client Client) AddReceipt(userId int, text string) error {
+//AddReceipt adds receipt for user.
+func (client Client) AddReceipt(userId string, text string) error {
 	addReceiptUrl := client.backendUrl + "/internal/receipt"
-	request := addReceiptRequest{ReceiptString: text, TelegramId: userId}
+	request := addReceiptRequest{ReceiptString: text, UserId: userId}
 
 	reader, err := getReader(request)
 	if err != nil {

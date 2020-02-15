@@ -33,17 +33,21 @@ func OnError(writer http.ResponseWriter, err error) {
 
 func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
-
+	ctx := request.Context()
+	userId := ctx.Value(auth.UserId).(string)
 	queryString := request.URL.RawQuery
-	err := controller.processReceiptQueryString(request.Context(), queryString)
+	err := controller.processReceiptQueryString(ctx, queryString, userId)
 	if err != nil {
 		OnError(writer, err)
 		return
 	}
 }
 
-func (controller Controller) processReceiptQueryString(ctx context.Context, queryString string) error {
-	result, err := nalogru.Parse(queryString)
+func (controller Controller) processReceiptQueryString(ctx context.Context,
+	queryString string,
+	userId string) error {
+	receiptString := strings.TrimSpace(queryString)
+	result, err := nalogru.Parse(receiptString)
 	if err != nil {
 		return err
 	}
@@ -53,16 +57,18 @@ func (controller Controller) processReceiptQueryString(ctx context.Context, quer
 		return err
 	}
 
-	err = controller.saveRequest(ctx, queryString)
+	err = controller.saveRequest(ctx, receiptString, userId)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+//BatchAddReceiptHandler allow add many receipts at same time.
 func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 	ctx := request.Context()
+	userId := ctx.Value(auth.UserId).(string)
 	receiptStrings := make([]string, 0, 0)
 
 	decoder := json.NewDecoder(request.Body)
@@ -72,26 +78,23 @@ func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, 
 		return
 	}
 	for _, v := range receiptStrings {
-		receiptString := strings.TrimSpace(v)
-		err := controller.processReceiptQueryString(ctx, receiptString)
+		err := controller.processReceiptQueryString(ctx, v, userId)
 		if err != nil {
-			log.Printf("error processing %s with error %v\n", receiptString, err)
+			log.Printf("error processing %s with error %v\n", v, err)
 			OnError(writer, err)
 			return
 		}
 	}
 }
 
-func (controller Controller) saveRequest(ctx context.Context, queryString string) error {
+func (controller Controller) saveRequest(ctx context.Context, queryString string, userId string) error {
 
-	userId := ctx.Value(auth.UserId)
-
-	id, err := primitive.ObjectIDFromHex(userId.(string))
+	id, err := primitive.ObjectIDFromHex(userId)
 	if err != nil {
 		return err
 	}
 
-	receipt, err := controller.repository.GetByQueryString(ctx, userId.(string), queryString)
+	receipt, err := controller.repository.GetByQueryString(ctx, userId, queryString)
 	if err != nil {
 		return err
 	}
@@ -249,14 +252,7 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
 		OnError(writer, err)
 		return
 	}
-	receipt := UsersReceipt{
-		Receipt:       nil,
-		QueryString:   receiptRequest.ReceiptString,
-		OdfsRequested: false,
-		Deleted:       false,
-	}
-	//TODO: need validate and other(as processReceiptQueryString)
-	err = controller.repository.Insert(ctx, receipt)
+	err = controller.processReceiptQueryString(ctx, receiptRequest.ReceiptString, receiptRequest.UserId)
 	if err != nil {
 		OnError(writer, err)
 		return

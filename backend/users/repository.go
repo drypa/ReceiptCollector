@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -22,11 +23,15 @@ func (repository Repository) getCollection() *mongo.Collection {
 }
 
 //Insert new User.
-func (repository Repository) Insert(ctx context.Context, user User) error {
+func (repository Repository) Insert(ctx context.Context, user *User) error {
 	collection := repository.getCollection()
 
-	_, err := collection.InsertOne(ctx, user)
-	return err
+	document, err := collection.InsertOne(ctx, user)
+	if err != nil {
+		return err
+	}
+	user.Id = document.InsertedID.(primitive.ObjectID)
+	return nil
 }
 
 //GetByLogin returns User by login.

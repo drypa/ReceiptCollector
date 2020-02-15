@@ -1,6 +1,6 @@
 package receipts
 
 type addReceiptRequest struct {
-	TelegramId    int
+	UserId        string
 	ReceiptString string
 }

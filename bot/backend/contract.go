@@ -5,6 +5,11 @@ type registrationRequest struct {
 }
 
 type addReceiptRequest struct {
-	TelegramId    int
+	UserId        string
 	ReceiptString string
+}
+
+type User struct {
+	UserId     string
+	TelegramId int
 }

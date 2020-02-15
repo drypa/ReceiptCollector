@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/drypa/ReceiptCollector/bot/backend"
+	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"net/http"
@@ -28,7 +29,10 @@ func getEnvVar(varName string) string {
 }
 
 func start(options Options, client backend.Client) error {
-
+	provider, err := user.New(client)
+	if err != nil {
+		return err
+	}
 	bot, err := create(options)
 	if err != nil {
 		log.Println("Bot create error")
@@ -44,7 +48,7 @@ func start(options Options, client backend.Client) error {
 		return err
 	}
 
-	processUpdates(updatesChan, bot, client)
+	processUpdates(updatesChan, bot, client, provider)
 	return nil
 }
 
@@ -69,7 +73,10 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 	return tgbotapi.NewBotAPI(options.ApiToken)
 }
 
-func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI, client backend.Client) {
+func processUpdates(updatesChan tgbotapi.UpdatesChannel,
+	bot *tgbotapi.BotAPI,
+	client backend.Client,
+	provider user.Provider) {
 	for update := range updatesChan {
 		log.Printf("%v\n", update)
 		if update.Message == nil {
@@ -82,34 +89,37 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel, bot *tgbotapi.BotAPI, c
 		case "/start":
 			responseText = "I'm a bot to collect Your purchase tickets."
 		case "/register":
-			err := register(update.Message.From.ID, client)
+			err := register(update.Message.From.ID, provider)
 			if err != nil {
 				responseText = err.Error()
 			} else {
 				responseText = "You are registered."
 			}
 		default:
-			err := tryAddReceipt(update.Message.From.ID, update.Message.Text, client)
-			responseText = "Added"
+			id, err := provider.GetUserId(update.Message.From.ID)
+			if err == nil {
+				err = tryAddReceipt(id, update.Message.Text, client)
+			}
 			if err != nil {
 				responseText = err.Error()
+			} else {
+				responseText = "Added"
 			}
 		}
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, responseText)
 		_, err := bot.Send(msg)
 		if err != nil {
-			//TODO: do not return error to user
-			responseText = err.Error()
+			log.Printf("Error while sending response to user %d", update.Message.From.ID)
 		}
 	}
 }
 
-func tryAddReceipt(userId int, messageText string, client backend.Client) error {
+func tryAddReceipt(userId string, messageText string, client backend.Client) error {
 	err := client.AddReceipt(userId, messageText)
 	return err
 }
 
-func register(userId int, client backend.Client) error {
-	err := client.Register(userId)
+func register(userId int, client user.Provider) error {
+	_, err := client.GetUserId(userId)
 	return err
 }
