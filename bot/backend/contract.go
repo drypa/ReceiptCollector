@@ -1,0 +1,15 @@
+package backend
+
+type registrationRequest struct {
+	TelegramId int
+}
+
+type addReceiptRequest struct {
+	UserId        string
+	ReceiptString string
+}
+
+type User struct {
+	UserId     string
+	TelegramId int
+}
