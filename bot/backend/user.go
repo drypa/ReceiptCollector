@@ -8,7 +8,7 @@ import (
 
 func (client Client) GetUser(userId int) (User, error) {
 	u := User{}
-	registerUrl := client.backendUrl + "/api/account"
+	registerUrl := client.backendUrl + "/internal/account"
 	request := registrationRequest{TelegramId: userId}
 	reader, err := getReader(request)
 	if err != nil {
@@ -33,7 +33,7 @@ func getResult(response *http.Response, result interface{}) error {
 }
 
 func (client Client) GetUsers() ([]User, error) {
-	getUsersUrl := client.backendUrl + "/api/account"
+	getUsersUrl := client.backendUrl + "/internal/account"
 	response, err := http.Get(getUsersUrl)
 	if err != nil {
 		return nil, err
