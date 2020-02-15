@@ -22,7 +22,7 @@ func New(repository Repository) Controller {
 }
 
 func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
-	defer request.Body.Close()
+	defer dispose.Dispose(request.Body.Close, "Error while request body close")
 	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
 	if request.Method == http.MethodPost {
 		registrationRequest, err := getUserRequestFromQuery(request)
@@ -73,6 +73,15 @@ func (controller Controller) RegisterHandler(writer http.ResponseWriter, request
 			onError(writer, err)
 		}
 	}
+}
+
+func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	users, err := controller.repository.GetAll(ctx)
+	if err != nil {
+		onError(writer, err)
+	}
+	writeResponse(users, writer)
 }
 
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {

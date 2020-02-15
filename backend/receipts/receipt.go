@@ -35,7 +35,6 @@ type UsersReceipt struct {
 	*Receipt
 	Id                primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Owner             primitive.ObjectID `json:"owner" bson:"owner"`
-	OwnerTelegramId   int                `json:"owner_telegram_id" bson:"owner_telegram_id"`
 	OdfsRequestTime   time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
 	KktRequestTime    time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
 	QueryString       string             `bson:"query_string" json:"queryString"`

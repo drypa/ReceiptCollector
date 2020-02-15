@@ -250,11 +250,10 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
 		return
 	}
 	receipt := UsersReceipt{
-		Receipt:         nil,
-		OwnerTelegramId: receiptRequest.TelegramId,
-		QueryString:     receiptRequest.ReceiptString,
-		OdfsRequested:   false,
-		Deleted:         false,
+		Receipt:       nil,
+		QueryString:   receiptRequest.ReceiptString,
+		OdfsRequested: false,
+		Deleted:       false,
 	}
 	//TODO: need validate and other(as processReceiptQueryString)
 	err = controller.repository.Insert(ctx, receipt)

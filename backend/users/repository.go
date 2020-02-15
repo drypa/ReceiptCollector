@@ -50,3 +50,26 @@ func (repository Repository) GetByTelegramId(ctx context.Context, telegramId int
 	}
 	return &user, err
 }
+
+//GetAll returns all users.
+func (repository Repository) GetAll(ctx context.Context) ([]User, error) {
+	collection := repository.getCollection()
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	return readUsers(cursor, ctx)
+}
+
+func readUsers(cursor *mongo.Cursor, context context.Context) ([]User, error) {
+	var receipts = make([]User, 0, 0)
+	for cursor.Next(context) {
+		var user User
+		err := cursor.Decode(&user)
+		if err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, user)
+	}
+	return receipts, nil
+}

@@ -84,16 +84,17 @@ func startServer(nalogruClient nalogru.Client, receiptRepository receipts.Reposi
 func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller, receiptsController receipts.Controller) {
 	registrationRoute := "/api/user/register"
 	registrationByTelegramRoute := "/api/account"
+	getUsersRoute := "/api/account"
 	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler).Methods(http.MethodPost)
 	router.HandleFunc(registrationByTelegramRoute, controller.RegisterHandler).Methods(http.MethodPost)
+	router.HandleFunc(getUsersRoute, controller.GetUsersHandler).Methods(http.MethodGet)
 
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
 
 	http.Handle(registrationRoute, router)
 	http.Handle(registrationByTelegramRoute, router)
 	http.Handle(addReceiptRoute, router)
-
 }
 
 func check(err error) {
