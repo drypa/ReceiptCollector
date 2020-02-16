@@ -38,7 +38,8 @@ services:
     depends_on:
       - mongo
     environment:
-      - BOT_TOKEN:${BOT_TOKEN}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BACKEND_URL=http://collector:8888
     networks:
       - collector-net
 
