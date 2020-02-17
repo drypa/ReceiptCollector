@@ -3,11 +3,13 @@ package backend
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 )
 
+//GetUser returns user by telegram id.
 func (client Client) GetUser(userId int) (User, error) {
-	u := User{}
+	var u User
 	registerUrl := client.backendUrl + "/internal/account"
 	request := registrationRequest{TelegramId: userId}
 	reader, err := getReader(request)
@@ -16,11 +18,12 @@ func (client Client) GetUser(userId int) (User, error) {
 	}
 	response, err := http.Post(registerUrl, "text/javascript", reader)
 	if err != nil {
+		log.Print("Could not parse backend response as User.")
 		return u, err
 	}
 	switch response.StatusCode {
 	case http.StatusOK:
-		err := getResult(response, u)
+		err := getResult(response, &u)
 		return u, err
 	default:
 		return u, errors.New(response.Status)
@@ -32,6 +35,7 @@ func getResult(response *http.Response, result interface{}) error {
 	return json.NewDecoder(response.Body).Decode(result)
 }
 
+//GetUsers returns all users.
 func (client Client) GetUsers() ([]User, error) {
 	getUsersUrl := client.backendUrl + "/internal/account"
 	response, err := http.Get(getUsersUrl)
@@ -39,7 +43,7 @@ func (client Client) GetUsers() ([]User, error) {
 		return nil, err
 	}
 	if response.StatusCode == http.StatusOK {
-		users := make([]User, 0)
+		var users []User
 		err := getResult(response, &users)
 		return users, err
 	}
