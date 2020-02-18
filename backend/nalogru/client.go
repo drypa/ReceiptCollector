@@ -35,7 +35,7 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	if err != nil {
 		return err
 	}
-	if response.StatusCode != http.StatusOK || response.StatusCode != http.StatusAccepted {
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
 		//406
 		log.Printf("ODFS request status: %d \n", response.StatusCode)
 		return errors.New(response.Status)
