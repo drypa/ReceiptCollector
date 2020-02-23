@@ -41,19 +41,20 @@ func (worker Worker) getReceipt(ctx context.Context) error {
 
 	receiptBytes, err := worker.nalogruClient.SendKktsRequest(request.QueryString)
 	if err != nil {
-		switch err.Error() {
+		switch status := err.Error(); status {
 		case nalogru.TicketNotFound:
 			err := worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
 			if err != nil {
 				return err
 			}
-		}
-		if err.Error() == nalogru.NotReadyYet {
+			return nil
+		case nalogru.NotReadyYet:
 			log.Printf("receipt '%s' is not ready yet", request.QueryString)
 			return nil
-
+		default:
+			log.Printf("receipt '%s' load errror '%s'", request.QueryString, status)
 		}
-		check(err)
+		return err
 	}
 	receipt, err := receipts.ParseReceipt(receiptBytes)
 	if err != nil {
