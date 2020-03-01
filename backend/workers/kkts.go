@@ -66,5 +66,9 @@ func (worker Worker) getReceipt(ctx context.Context) error {
 	}
 	log.Printf("Receipt %s loaded", request.Id)
 	err = worker.repository.SetReceipt(ctx, request.Id, receipt)
+	if err != nil {
+		return err
+	}
+	err = worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.Success)
 	return err
 }
