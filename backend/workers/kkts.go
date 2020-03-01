@@ -43,7 +43,9 @@ func (worker Worker) getReceipt(ctx context.Context) error {
 	if err != nil {
 		switch status := err.Error(); status {
 		case nalogru.TicketNotFound:
-			err := worker.repository.SetKktsRequestStatus(ctx, request.Id.Hex(), receipts.NotFound)
+			id := request.Id.Hex()
+			err := worker.repository.SetKktsRequestStatus(ctx, id, receipts.NotFound)
+			log.Printf("Receipt %s mark as not found", id)
 			if err != nil {
 				return err
 			}
@@ -62,9 +64,7 @@ func (worker Worker) getReceipt(ctx context.Context) error {
 		log.Printf("Can not parse response body.Body: '%s'.Error: %v", body, err)
 		return err
 	}
+	log.Printf("Receipt %s loaded", request.Id)
 	err = worker.repository.SetReceipt(ctx, request.Id, receipt)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
