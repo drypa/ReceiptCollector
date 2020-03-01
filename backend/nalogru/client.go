@@ -69,7 +69,7 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 	}
 
 	all, err := ioutil.ReadAll(response.Body)
-	if response.StatusCode == http.StatusOK && err != nil {
+	if response.StatusCode == http.StatusOK {
 		return all, err
 	}
 	log.Println(response.StatusCode)
