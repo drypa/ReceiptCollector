@@ -125,6 +125,7 @@ func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Cont
 	err := collection.FindOne(ctx, bson.M{"$and": []bson.M{
 		{"$or": []bson.M{{"odfs_request_status": Success}, {"odfs_request_status": Error}}},
 		{"receipt": bson.M{"$eq": nil}},
+		{"$or": []bson.M{{"kkts_request_status": nil}, {"kkts_request_status": Undefined}}},
 		{"$or": []bson.M{{"deleted": nil}, {"deleted": false}}},
 	},
 	}).Decode(&request)
