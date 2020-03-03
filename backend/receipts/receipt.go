@@ -39,8 +39,8 @@ type UsersReceipt struct {
 	KktRequestTime    time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
 	QueryString       string             `bson:"query_string" json:"queryString"`
 	OdfsRequested     bool               `json:"odfsRequested" bson:"odfs_requested"`
-	OdfsRequestStatus RequestStatus      `json:"odfsRequestStatus" bson:"odfs_request_status"`
-	KktsRequestStatus RequestStatus      `json:"kktsRequestStatus" bson:"kkts_request_status"`
+	OdfsRequestStatus RequestStatus      `json:"odfsRequestStatus" bson:"odfs_request_status,omitempty"`
+	KktsRequestStatus RequestStatus      `json:"kktsRequestStatus" bson:"kkts_request_status,omitempty"`
 	Deleted           bool               `json:"deleted" bson:"deleted"`
 }
 
