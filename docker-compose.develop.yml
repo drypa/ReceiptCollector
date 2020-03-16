@@ -7,6 +7,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
     volumes:
       - "./data:/data/db"
+      - ${MONGO_BACKUP}:/backup
     ports:
       - "27017:27017"
   nginx:
