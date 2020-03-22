@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"time"
 )
 
 //Repository provides methods to persist users.
@@ -64,6 +65,11 @@ func (repository Repository) GetAll(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return readUsers(cursor, ctx)
+}
+
+//UpdateLoginLink set one-time unique link to login user.
+func (repository Repository) UpdateLoginLink(ctx context.Context, userId primitive.ObjectID, url string, expiration time.Time) {
+	//TODO: need implement
 }
 
 func readUsers(cursor *mongo.Cursor, context context.Context) ([]User, error) {
