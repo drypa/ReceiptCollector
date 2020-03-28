@@ -52,7 +52,7 @@ func main() {
 }
 
 func getMongoClient() (*mongo.Client, error) {
-	settings := mongo_client.CreateSettings(mongoURL, mongoUser, mongoSecret)
+	settings := mongo_client.NewSettings(mongoURL, mongoUser, mongoSecret)
 	return mongo_client.New(settings)
 }
 
