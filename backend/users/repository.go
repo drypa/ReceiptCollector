@@ -68,8 +68,9 @@ func (repository Repository) GetAll(ctx context.Context) ([]User, error) {
 }
 
 //UpdateLoginLink set one-time unique link to login user.
-func (repository Repository) UpdateLoginLink(ctx context.Context, userId primitive.ObjectID, url string, expiration time.Time) {
+func (repository Repository) UpdateLoginLink(ctx context.Context, userId primitive.ObjectID, url string, expiration time.Time) error {
 	//TODO: need implement
+	return nil
 }
 
 func readUsers(cursor *mongo.Cursor, context context.Context) ([]User, error) {

@@ -2,9 +2,12 @@ package users
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"net/http"
 	"receipt_collector/dispose"
@@ -13,16 +16,19 @@ import (
 	"time"
 )
 
+//Controller of Users.
 type Controller struct {
 	repository Repository
 }
 
+//New creates Controller instance.
 func New(repository Repository) Controller {
 	return Controller{
 		repository: repository,
 	}
 }
 
+//UserRegistrationHandler provides user registration.
 func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "Error while request body close")
 	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
@@ -121,13 +127,25 @@ func (controller Controller) GetLoginUrlHandler(writer http.ResponseWriter, requ
 	}
 	url, err := getRedirectLink(user.Id.Hex())
 	expiration := time.Now().Add(time.Minute * 15)
-	controller.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
+	err = controller.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
+	if err != nil {
+		onError(writer, err)
+		return
+	}
 	http.Redirect(writer, request, url, http.StatusFound)
 }
 
 func getRedirectLink(userId string) (string, error) {
-	//TODO: need implement unique link
-	return "https://receipts.com", nil
+	u := uuid.New().String()
+	hash := getHashOf(u)
+	url := fmt.Sprintf("https://receipts.com/api/auth/%s?u=%s&h=%s", userId, u, hash)
+	return url, nil
+}
+
+func getHashOf(val string) string {
+	hash := sha256.New()
+	hash.Write([]byte(val))
+	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
 }
 
 func getTelegramId(request *http.Request) (int, error) {
