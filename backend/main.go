@@ -95,9 +95,7 @@ func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controll
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
 
 	http.Handle(registrationRoute, router)
-	http.Handle(registrationByTelegramRoute, router)
-	http.Handle(addReceiptRoute, router)
-	http.Handle(getLoginUrlRoute, router)
+	http.Handle("/internal/", router)
 }
 
 func check(err error) {
