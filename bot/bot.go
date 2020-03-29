@@ -95,6 +95,13 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 			} else {
 				responseText = "You are registered."
 			}
+		case "/login":
+			link, err := getLoginLink(update.Message.From.ID)
+			if err != nil {
+				responseText = err.Error()
+			} else {
+				responseText = link
+			}
 		default:
 			id, err := provider.GetUserId(update.Message.From.ID)
 			if err == nil {
@@ -112,6 +119,11 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 			log.Printf("Error while sending response to user %d", update.Message.From.ID)
 		}
 	}
+}
+
+func getLoginLink(userId int) (string, error) {
+	//TODO: need implement
+	return "", errors.New("not implemented")
 }
 
 func tryAddReceipt(userId string, messageText string, client backend.Client) error {
