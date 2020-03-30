@@ -2,12 +2,9 @@ package users
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"net/http"
 	"receipt_collector/dispose"
@@ -18,13 +15,20 @@ import (
 
 //Controller of Users.
 type Controller struct {
-	repository Repository
+	repository    Repository
+	linkGenerator LinkGenerator
+}
+
+//LinkGenerator is interface that allow to generate unique link for user.
+type LinkGenerator interface {
+	GetRedirectLink(userId string) (string, error)
 }
 
 //New creates Controller instance.
-func New(repository Repository) Controller {
+func New(repository Repository, generator LinkGenerator) Controller {
 	return Controller{
-		repository: repository,
+		repository:    repository,
+		linkGenerator: generator,
 	}
 }
 
@@ -125,7 +129,7 @@ func (controller Controller) GetLoginUrlHandler(writer http.ResponseWriter, requ
 		onError(writer, err)
 		return
 	}
-	url, err := getRedirectLink(user.Id.Hex())
+	url, err := controller.linkGenerator.GetRedirectLink(user.Id.Hex())
 	expiration := time.Now().Add(time.Minute * 15)
 	err = controller.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
 	if err != nil {
@@ -133,19 +137,6 @@ func (controller Controller) GetLoginUrlHandler(writer http.ResponseWriter, requ
 		return
 	}
 	http.Redirect(writer, request, url, http.StatusFound)
-}
-
-func getRedirectLink(userId string) (string, error) {
-	u := uuid.New().String()
-	hash := getHashOf(u)
-	url := fmt.Sprintf("https://receipts.com/api/auth/%s?u=%s&h=%s", userId, u, hash)
-	return url, nil
-}
-
-func getHashOf(val string) string {
-	hash := sha256.New()
-	hash.Write([]byte(val))
-	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
 }
 
 func getTelegramId(request *http.Request) (int, error) {
