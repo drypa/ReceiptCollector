@@ -21,7 +21,7 @@ func New(baseAddress string) *Generator {
 func (generator *Generator) GetRedirectLink(userId string) (string, error) {
 	u := uuid.New().String()
 	hash := getHashOf(u)
-	url := fmt.Sprintf("%s/api/auth/link%s?u=%s&h=%s", generator.baseAddress, userId, u, hash)
+	url := fmt.Sprintf("%s/api/auth/link/%s?u=%s&h=%s", generator.baseAddress, userId, u, hash)
 	return url, nil
 }
 
