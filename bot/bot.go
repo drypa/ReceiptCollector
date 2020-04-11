@@ -95,6 +95,13 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 			} else {
 				responseText = "You are registered."
 			}
+		case "/login":
+			link, err := client.GetLoginLink(update.Message.From.ID)
+			if err != nil {
+				responseText = err.Error()
+			} else {
+				responseText = link
+			}
 		default:
 			id, err := provider.GetUserId(update.Message.From.ID)
 			if err == nil {

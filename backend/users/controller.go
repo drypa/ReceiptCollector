@@ -5,22 +5,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
 	"net/http"
 	"receipt_collector/dispose"
 	"receipt_collector/passwords"
+	"strconv"
 	"time"
 )
 
+//Controller of Users.
 type Controller struct {
-	repository Repository
+	repository    Repository
+	linkGenerator LinkGenerator
 }
 
-func New(repository Repository) Controller {
+//LinkGenerator is interface that allow to generate unique link for user.
+type LinkGenerator interface {
+	GetRedirectLink(userId string) (string, error)
+}
+
+//New creates Controller instance.
+func New(repository Repository, generator LinkGenerator) Controller {
 	return Controller{
-		repository: repository,
+		repository:    repository,
+		linkGenerator: generator,
 	}
 }
 
+//UserRegistrationHandler provides user registration.
 func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "Error while request body close")
 	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
@@ -52,6 +64,7 @@ func (controller Controller) LoginHandler(writer http.ResponseWriter, request *h
 	//Do nothing
 }
 
+//GetUserByTelegramIdHandler returns user by telegramId.
 func (controller Controller) GetUserByTelegramIdHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
@@ -106,6 +119,35 @@ func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request
 	writeResponse(response, writer)
 }
 
+//GetLoginUrlHandler allow to get login link.
+func (controller Controller) GetLoginUrlHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+
+	telegramId, err := getTelegramId(request)
+	user, err := controller.repository.GetByTelegramId(ctx, telegramId)
+	if err != nil {
+		onError(writer, err)
+		return
+	}
+	url, err := controller.linkGenerator.GetRedirectLink(user.Id.Hex())
+	expiration := time.Now().Add(time.Minute * 15)
+	err = controller.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
+	if err != nil {
+		onError(writer, err)
+		return
+	}
+	http.Redirect(writer, request, url, http.StatusFound)
+}
+
+func getTelegramId(request *http.Request) (int, error) {
+	err := request.ParseForm()
+	if err != nil {
+		return 0, err
+	}
+	vars := mux.Vars(request)
+	id := vars["id"]
+	return strconv.Atoi(id)
+}
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {
