@@ -1,8 +1,7 @@
 package internal
 
 import (
-	"context"
-	api "github.com/drypa/ReceiptCollector/api/internal"
+	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"log"

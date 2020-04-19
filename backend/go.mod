@@ -3,7 +3,7 @@ module receipt_collector
 go 1.13
 
 require (
-	github.com/drypa/ReceiptCollector/api/internal v0.0.0-20200411141254-249516e8f69e
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20200419133112-b0b7e6839e8d
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/golang/snappy v0.0.1 // indirect

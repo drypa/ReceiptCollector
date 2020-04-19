@@ -5,8 +5,8 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/drypa/ReceiptCollector/api/internal v0.0.0-20200411141254-249516e8f69e h1:O9hOIcQPDO8TOi0qTdm4JV5Wm3eIlrZg6GYRDkBExAM=
-github.com/drypa/ReceiptCollector/api/internal v0.0.0-20200411141254-249516e8f69e/go.mod h1:w/0YHECW2E8q3Zlp542g6Sy7Vxmu6uiOH4OuznSsJXU=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20200419133112-b0b7e6839e8d h1:k/fDEuUoL5SLyOT9tFCi0/oHn7cRz89Stlr3vsQFJUk=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20200419133112-b0b7e6839e8d/go.mod h1:too+hec5IwtqfIulMtG1znfoaRwhcoKN3MeSUJEh5q4=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
