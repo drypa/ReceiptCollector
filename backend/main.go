@@ -4,11 +4,13 @@ import (
 	"context"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net/http"
 	"os"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
+	"receipt_collector/internal"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
@@ -50,6 +52,12 @@ func main() {
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
+
+	creds, err := credentials.NewServerTLSFromFile("../ssl/certificate.crt", "../ssl/private.key")
+	if err != nil {
+		log.Fatalf("failed to load TLS keys: %v", err)
+	}
+	internal.New("", creds, nil)
 
 	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, generator))
 }
