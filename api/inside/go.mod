@@ -1,4 +1,4 @@
-module github.com/drypa/ReceiptCollector/api/internal
+module github.com/drypa/ReceiptCollector/api/inside
 
 go 1.14
 
