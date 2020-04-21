@@ -73,7 +73,7 @@ func (controller Controller) GetUserByTelegramIdHandler(writer http.ResponseWrit
 		onError(writer, err)
 		return
 	}
-	user, err := controller.repository.GetByTelegramId(ctx, telegramId)
+	user, err := controller.repository.GetByTelegramId(ctx, int(telegramId))
 	if err != nil {
 		onError(writer, err)
 		return
@@ -84,7 +84,7 @@ func (controller Controller) GetUserByTelegramIdHandler(writer http.ResponseWrit
 		return
 	}
 	newUser := User{
-		TelegramId: telegramId,
+		TelegramId: int(telegramId),
 	}
 	err = controller.repository.Insert(ctx, &newUser)
 	if err != nil {
@@ -160,7 +160,7 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 		return
 	}
 }
-func getFromBody(request *http.Request) (int, error) {
+func getFromBody(request *http.Request) (int32, error) {
 	registrationRequest := registrationRequest{}
 	err := json.NewDecoder(request.Body).Decode(&registrationRequest)
 	if err != nil {

@@ -1,7 +1,7 @@
 package users
 
 type registrationRequest struct {
-	TelegramId int
+	TelegramId int32
 }
 
 type user struct {
