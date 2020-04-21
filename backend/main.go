@@ -57,9 +57,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var processor internal.Processor = login_url.LoginLinkProcessor{}
-	internal.New("", creds, &processor)
-
+	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
+	internal.Serve(":15000", creds, &processor)
 	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, generator))
 }
 

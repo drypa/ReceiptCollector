@@ -14,7 +14,7 @@ type GRPCReceiptServer struct {
 }
 
 //New constructs Server.
-func New(bindingAddress string, creds credentials.TransportCredentials, processor *Processor) *GRPCReceiptServer {
+func Serve(bindingAddress string, creds credentials.TransportCredentials, processor *Processor) *GRPCReceiptServer {
 	listen, err := net.Listen("tcp", bindingAddress)
 	if err != nil {
 		log.Printf("Error process address: %s, Error: %v", bindingAddress, err)

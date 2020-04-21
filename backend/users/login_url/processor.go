@@ -13,6 +13,11 @@ type LoginLinkProcessor struct {
 	linkGenerator users.LinkGenerator
 }
 
+//NewLoginLinkProcessor constructs LoginLinkProcessor.
+func NewLoginLinkProcessor(repository *users.Repository, linkGenerator users.LinkGenerator) *LoginLinkProcessor {
+	return &LoginLinkProcessor{repository: repository, linkGenerator: linkGenerator}
+}
+
 //GetLoginLink returns login link for user in request.
 func (p LoginLinkProcessor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error) {
 	telegramId := in.TelegramId
