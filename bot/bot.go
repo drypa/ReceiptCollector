@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/drypa/ReceiptCollector/bot/backend"
@@ -28,7 +29,7 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, client backend.Client) error {
+func start(options Options, client backend.Client, grpcClient *backend.GrpcClient) error {
 	provider, err := user.New(client)
 	if err != nil {
 		return err
@@ -48,7 +49,7 @@ func start(options Options, client backend.Client) error {
 		return err
 	}
 
-	processUpdates(updatesChan, bot, client, provider)
+	processUpdates(updatesChan, bot, client, grpcClient, provider)
 	return nil
 }
 
@@ -76,6 +77,7 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	bot *tgbotapi.BotAPI,
 	client backend.Client,
+	grpcClient *backend.GrpcClient,
 	provider user.Provider) {
 	for update := range updatesChan {
 		log.Printf("%v\n", update)
@@ -96,7 +98,7 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 				responseText = "You are registered."
 			}
 		case "/login":
-			link, err := client.GetLoginLink(update.Message.From.ID)
+			link, err := grpcClient.GetLoginLink(context.Background(), update.Message.From.ID)
 			if err != nil {
 				responseText = err.Error()
 			} else {
