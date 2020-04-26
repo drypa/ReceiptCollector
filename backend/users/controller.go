@@ -5,30 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"receipt_collector/dispose"
 	"receipt_collector/passwords"
-	"strconv"
 	"time"
 )
 
 //Controller of Users.
 type Controller struct {
-	repository    Repository
-	linkGenerator LinkGenerator
-}
-
-//LinkGenerator is interface that allow to generate unique link for user.
-type LinkGenerator interface {
-	GetRedirectLink(userId string) (string, error)
+	repository Repository
 }
 
 //New creates Controller instance.
-func New(repository Repository, generator LinkGenerator) Controller {
+func New(repository Repository) Controller {
 	return Controller{
-		repository:    repository,
-		linkGenerator: generator,
+		repository: repository,
 	}
 }
 
@@ -119,35 +110,6 @@ func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request
 	writeResponse(response, writer)
 }
 
-//GetLoginUrlHandler allow to get login link.
-func (controller Controller) GetLoginUrlHandler(writer http.ResponseWriter, request *http.Request) {
-	ctx := request.Context()
-
-	telegramId, err := getTelegramId(request)
-	user, err := controller.repository.GetByTelegramId(ctx, telegramId)
-	if err != nil {
-		onError(writer, err)
-		return
-	}
-	url, err := controller.linkGenerator.GetRedirectLink(user.Id.Hex())
-	expiration := time.Now().Add(time.Minute * 15)
-	err = controller.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
-	if err != nil {
-		onError(writer, err)
-		return
-	}
-	http.Redirect(writer, request, url, http.StatusFound)
-}
-
-func getTelegramId(request *http.Request) (int, error) {
-	err := request.ParseForm()
-	if err != nil {
-		return 0, err
-	}
-	vars := mux.Vars(request)
-	id := vars["id"]
-	return strconv.Atoi(id)
-}
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {

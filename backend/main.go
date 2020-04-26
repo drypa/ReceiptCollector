@@ -60,7 +60,7 @@ func main() {
 	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
 
 	go internal.Serve(":15000", creds, &processor)
-	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, generator))
+	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository))
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -71,13 +71,12 @@ func getMongoClient() (*mongo.Client, error) {
 func startServer(nalogruClient nalogru.Client,
 	receiptRepository receipts.Repository,
 	userRepository users.Repository,
-	marketRepository markets.Repository,
-	generator users.LinkGenerator) error {
+	marketRepository markets.Repository) error {
 
 	marketsController := markets.New(marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
-	usersController := users.New(userRepository, generator)
+	usersController := users.New(userRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
@@ -103,9 +102,7 @@ func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controll
 	registrationByTelegramRoute := "/internal/account"
 	getUsersRoute := "/internal/account"
 	addReceiptRoute := "/internal/receipt"
-	getLoginUrlRoute := "/internal/{id:[0-9]+}/login-link"
 	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler).Methods(http.MethodPost)
-	router.HandleFunc(getLoginUrlRoute, controller.GetLoginUrlHandler).Methods(http.MethodGet)
 	router.HandleFunc(registrationByTelegramRoute, controller.GetUserByTelegramIdHandler).Methods(http.MethodPost)
 	router.HandleFunc(getUsersRoute, controller.GetUsersHandler).Methods(http.MethodGet)
 
