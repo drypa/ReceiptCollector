@@ -79,6 +79,8 @@ func startServer(nalogruClient nalogru.Client,
 	usersController := users.New(userRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
+	registerUnauthenticatedRoutes(router, usersController, receiptsController)
+
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
@@ -90,26 +92,31 @@ func startServer(nalogruClient nalogru.Client,
 	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
-	registerUnauthenticatedRoutes(router, usersController, receiptsController)
 	http.Handle("/", basicAuth.RequireBasicAuth(router))
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	return http.ListenAndServe(address, nil)
 }
 
-func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller, receiptsController receipts.Controller) {
+func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Controller, receiptsController receipts.Controller) {
 	registrationRoute := "/api/user/register"
-	registrationByTelegramRoute := "/internal/account"
-	getUsersRoute := "/internal/account"
-	addReceiptRoute := "/internal/receipt"
-	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler).Methods(http.MethodPost)
-	router.HandleFunc(registrationByTelegramRoute, controller.GetUserByTelegramIdHandler).Methods(http.MethodPost)
-	router.HandleFunc(getUsersRoute, controller.GetUsersHandler).Methods(http.MethodGet)
+	router.HandleFunc(registrationRoute, usersController.UserRegistrationHandler).Methods(http.MethodPost)
 
+	registrationByTelegramRoute := "/internal/account"
+	router.HandleFunc(registrationByTelegramRoute, usersController.GetUserByTelegramIdHandler).Methods(http.MethodPost)
+
+	getUsersRoute := "/internal/account"
+	router.HandleFunc(getUsersRoute, usersController.GetUsersHandler).Methods(http.MethodGet)
+
+	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
+
+	loginByLinkRoute := "/api/auth/link/{id:[a-zA-Z0-9]+}"
+	router.HandleFunc(loginByLinkRoute, usersController.LoginByLinkHandler)
 
 	http.Handle(registrationRoute, router)
 	http.Handle("/internal/", router)
+	http.Handle("/api/auth/link/", router)
 }
 
 func check(err error) {

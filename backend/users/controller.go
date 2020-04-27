@@ -110,6 +110,11 @@ func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request
 	writeResponse(response, writer)
 }
 
+//LoginByLinkHandler allow login through one-time link.
+func (controller Controller) LoginByLinkHandler(writer http.ResponseWriter, request *http.Request) {
+	writeResponse("response", writer)
+}
+
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {
