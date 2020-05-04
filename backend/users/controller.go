@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	"net/http"
 	"receipt_collector/dispose"
 	"receipt_collector/passwords"
@@ -112,7 +115,35 @@ func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request
 
 //LoginByLinkHandler allow login through one-time link.
 func (controller Controller) LoginByLinkHandler(writer http.ResponseWriter, request *http.Request) {
-	writeResponse("response", writer)
+	query := request.URL.RawQuery
+	ctx := request.Context()
+	id, err := getFromQuery("id", request)
+	userId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		log.Printf("Could not parse userId from request: %s. error: %v", id, err)
+		onError(writer, err)
+		return
+	}
+	writeResponse("response: "+query+" userId: "+id, writer)
+	emptyUrl := ""
+	expiration := time.Now().Add(-24 * time.Hour)
+	err = controller.repository.UpdateLoginLink(ctx, userId, emptyUrl, expiration)
+	if err != nil {
+		log.Printf("Failed to reset login link for user %s", id)
+		onError(writer, err)
+		return
+	}
+}
+
+func getFromQuery(paramName string, request *http.Request) (string, error) {
+	//TODO: move to base controller
+	err := request.ParseForm()
+	if err != nil {
+		return "", err
+	}
+	vars := mux.Vars(request)
+	id := vars[paramName]
+	return id, nil
 }
 
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
