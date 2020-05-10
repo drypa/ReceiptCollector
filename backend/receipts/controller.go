@@ -145,14 +145,23 @@ func getUserId(ctx context.Context) string {
 	return userId.(string)
 }
 
-func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
+func getFromQuery(paramName string, request *http.Request) (string, error) {
+	//TODO: move to base controller
 	err := request.ParseForm()
+	if err != nil {
+		return "", err
+	}
+	vars := mux.Vars(request)
+	id := vars[paramName]
+	return id, nil
+}
+
+func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
+	id, err := getFromQuery("id", request)
 	if err != nil {
 		OnError(writer, err)
 		return ""
 	}
-	vars := mux.Vars(request)
-	id := vars["id"]
 	return id
 }
 

@@ -4,11 +4,13 @@ import (
 	"context"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net/http"
 	"os"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
+	"receipt_collector/internal"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
@@ -51,7 +53,14 @@ func main() {
 	go worker.GetReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
 
-	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, generator))
+	creds, err := credentials.NewServerTLSFromFile("../ssl/certificate.crt", "../ssl/private.key")
+	if err != nil {
+		log.Fatalf("failed to load TLS keys: %v", err)
+	}
+	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
+
+	go internal.Serve(":15000", creds, &processor)
+	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository))
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -62,15 +71,16 @@ func getMongoClient() (*mongo.Client, error) {
 func startServer(nalogruClient nalogru.Client,
 	receiptRepository receipts.Repository,
 	userRepository users.Repository,
-	marketRepository markets.Repository,
-	generator users.LinkGenerator) error {
+	marketRepository markets.Repository) error {
 
 	marketsController := markets.New(marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
-	usersController := users.New(userRepository, generator)
+	usersController := users.New(userRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
+	registerUnauthenticatedRoutes(router, usersController, receiptsController)
+
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
@@ -82,28 +92,31 @@ func startServer(nalogruClient nalogru.Client,
 	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
-	registerUnauthenticatedRoutes(router, usersController, receiptsController)
 	http.Handle("/", basicAuth.RequireBasicAuth(router))
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	return http.ListenAndServe(address, nil)
 }
 
-func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller, receiptsController receipts.Controller) {
+func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Controller, receiptsController receipts.Controller) {
 	registrationRoute := "/api/user/register"
-	registrationByTelegramRoute := "/internal/account"
-	getUsersRoute := "/internal/account"
-	addReceiptRoute := "/internal/receipt"
-	getLoginUrlRoute := "/internal/{id:[0-9]+}/login-link"
-	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler).Methods(http.MethodPost)
-	router.HandleFunc(getLoginUrlRoute, controller.GetLoginUrlHandler).Methods(http.MethodGet)
-	router.HandleFunc(registrationByTelegramRoute, controller.GetUserByTelegramIdHandler).Methods(http.MethodPost)
-	router.HandleFunc(getUsersRoute, controller.GetUsersHandler).Methods(http.MethodGet)
+	router.HandleFunc(registrationRoute, usersController.UserRegistrationHandler).Methods(http.MethodPost)
 
+	registrationByTelegramRoute := "/internal/account"
+	router.HandleFunc(registrationByTelegramRoute, usersController.GetUserByTelegramIdHandler).Methods(http.MethodPost)
+
+	getUsersRoute := "/internal/account"
+	router.HandleFunc(getUsersRoute, usersController.GetUsersHandler).Methods(http.MethodGet)
+
+	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
+
+	loginByLinkRoute := "/api/auth/link/{id:[a-zA-Z0-9]+}"
+	router.HandleFunc(loginByLinkRoute, usersController.LoginByLinkHandler)
 
 	http.Handle(registrationRoute, router)
 	http.Handle("/internal/", router)
+	http.Handle("/api/auth/link/", router)
 }
 
 func check(err error) {
