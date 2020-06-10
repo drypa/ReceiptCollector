@@ -42,6 +42,8 @@ services:
       - BACKEND_URL=http://collector:8888
     networks:
       - collector-net
+    volumes:
+      - "${SSL_CERTS_PATH}:/etc/ssl/certs/"
 
   gateway:
     build: webapp
