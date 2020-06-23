@@ -32,7 +32,7 @@ services:
     networks:
       - collector-net
     volumes:
-      - "${SSL_CERTS_PATH}:/etc/ssl/certs/"
+      - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
 
   bot:
     build: bot
@@ -46,7 +46,7 @@ services:
     networks:
       - collector-net
     volumes:
-        - "${SSL_CERTS_PATH}:/etc/ssl/certs/"
+      - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
 
   gateway:
     build: webapp
