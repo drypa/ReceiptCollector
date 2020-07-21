@@ -258,12 +258,12 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
 	receiptRequest := addReceiptRequest{}
 	err := getFromBody(request, &receiptRequest)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	err = controller.processReceiptQueryString(ctx, receiptRequest.ReceiptString, receiptRequest.UserId)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
