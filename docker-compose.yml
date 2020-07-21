@@ -31,6 +31,22 @@ services:
       - WORKER_END_HOUR=5
     networks:
       - collector-net
+    volumes:
+      - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
+
+  bot:
+    build: bot
+    image: drypa/receipt-telegram-bot:latest
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BACKEND_URL=http://collector:8888
+    networks:
+      - collector-net
+    volumes:
+      - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
 
   gateway:
     build: webapp

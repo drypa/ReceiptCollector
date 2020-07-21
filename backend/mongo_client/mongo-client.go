@@ -7,13 +7,15 @@ import (
 	"time"
 )
 
+//Settings - mongo connection settings.
 type Settings struct {
 	url    string
 	user   string
 	secret string
 }
 
-func CreateSettings(url string, user string, secret string) Settings {
+//NewSettings creates Settings.
+func NewSettings(url string, user string, secret string) Settings {
 	return Settings{
 		url:    url,
 		user:   user,
@@ -21,6 +23,7 @@ func CreateSettings(url string, user string, secret string) Settings {
 	}
 }
 
+//New creates initialized mongo client.
 func New(settings Settings) (*mongo.Client, error) {
 	opts := options.Client().ApplyURI(settings.url).SetAuth(options.Credential{Username: settings.user, Password: settings.secret})
 	client, err := mongo.NewClient(opts)

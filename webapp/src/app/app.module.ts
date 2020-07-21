@@ -11,7 +11,10 @@ import {ReceiptDetailsComponent} from './receipt-details/receipt-details.compone
 import {NewMarketComponent} from './new-market/new-market.component';
 import {MarketDetailsComponent} from './market-details/market-details.component';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
-import {MatAutocompleteModule, MatButtonModule, MatFormFieldModule, MatInputModule} from '@angular/material';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import {MatCardModule} from '@angular/material/card';
 import {ReactiveFormsModule} from '@angular/forms';
 import {LoginComponent} from './login/login.component';
@@ -21,7 +24,8 @@ import {MatSnackBarModule} from "@angular/material/snack-bar";
 import {ReceiptItemsComponent} from './receipt-items/receipt-items.component';
 import {MatDialogModule} from "@angular/material/dialog";
 import {RequestResultComponent} from './request-result/request-result.component';
-import {AddReceiptBatchDialogComponent} from './add-receipt-batch-dialog/add-receipt-batch-dialog.component';
+import { AddReceiptBatchDialogComponent } from './add-receipt-batch-dialog/add-receipt-batch-dialog.component';
+import { ConfirmationDialogComponent } from './confirmation-dialog/confirmation-dialog.component';
 
 @NgModule({
   declarations: [
@@ -36,7 +40,8 @@ import {AddReceiptBatchDialogComponent} from './add-receipt-batch-dialog/add-rec
     AuthorizedComponent,
     ReceiptItemsComponent,
     RequestResultComponent,
-    AddReceiptBatchDialogComponent
+    AddReceiptBatchDialogComponent,
+    ConfirmationDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -57,7 +62,10 @@ import {AddReceiptBatchDialogComponent} from './add-receipt-batch-dialog/add-rec
     {provide: HTTP_INTERCEPTORS, useClass: BasicAuthInterceptor, multi: true}
   ],
   bootstrap: [AppComponent],
-  entryComponents: [RequestResultComponent, AddReceiptBatchDialogComponent]
+  entryComponents: [
+    RequestResultComponent,
+    AddReceiptBatchDialogComponent,
+    ConfirmationDialogComponent]
 })
 export class AppModule {
 }

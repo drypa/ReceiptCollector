@@ -4,17 +4,20 @@ import (
 	"context"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net/http"
 	"os"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
+	"receipt_collector/internal"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
 	"receipt_collector/waste"
+	"receipt_collector/users/login_url"
 	"receipt_collector/workers"
 )
 
@@ -22,10 +25,11 @@ var login = os.Getenv("NALOGRU_LOGIN")
 var password = os.Getenv("NALOGRU_PASS")
 var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
 
-var mongoUrl = os.Getenv("MONGO_URL")
+var mongoURL = os.Getenv("MONGO_URL")
 
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
+var openUrl = os.Getenv("OPEN_URL")
 
 func main() {
 	log.SetOutput(os.Stdout)
@@ -51,12 +55,20 @@ func main() {
 	go wasteWorker.Process(ctx, client)
 	go worker.OdfsStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
+	generator := login_url.New(openUrl)
 
+	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.pem", "/usr/share/receipts/ssl/certs/private.key")
+	if err != nil {
+		log.Fatalf("failed to load TLS keys: %v", err)
+	}
+	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
+
+	go internal.Serve(":15000", creds, &processor)
 	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository))
 }
 
 func getMongoClient() (*mongo.Client, error) {
-	settings := mongo_client.CreateSettings(mongoUrl, mongoUser, mongoSecret)
+	settings := mongo_client.NewSettings(mongoURL, mongoUser, mongoSecret)
 	return mongo_client.New(settings)
 }
 
@@ -72,6 +84,8 @@ func startServer(nalogruClient nalogru.Client,
 	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
+	registerUnauthenticatedRoutes(router, usersController, receiptsController)
+
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
 
@@ -87,23 +101,36 @@ func startServer(nalogruClient nalogru.Client,
 
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
-	registerUnauthenticatedRoutes(router, usersController)
 	http.Handle("/", basicAuth.RequireBasicAuth(router))
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	return http.ListenAndServe(address, nil)
 }
 
-func registerUnauthenticatedRoutes(router *mux.Router, controller users.Controller) {
+func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Controller, receiptsController receipts.Controller) {
 	registrationRoute := "/api/user/register"
-	router.HandleFunc(registrationRoute, controller.UserRegistrationHandler)
-	http.Handle(registrationRoute, router)
+	router.HandleFunc(registrationRoute, usersController.UserRegistrationHandler).Methods(http.MethodPost)
 
+	registrationByTelegramRoute := "/internal/account"
+	router.HandleFunc(registrationByTelegramRoute, usersController.GetUserByTelegramIdHandler).Methods(http.MethodPost)
+
+	getUsersRoute := "/internal/account"
+	router.HandleFunc(getUsersRoute, usersController.GetUsersHandler).Methods(http.MethodGet)
+
+	addReceiptRoute := "/internal/receipt"
+	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
+
+	loginByLinkRoute := "/api/auth/link/{id:[a-zA-Z0-9]+}"
+	router.HandleFunc(loginByLinkRoute, usersController.LoginByLinkHandler)
+
+	http.Handle(registrationRoute, router)
+	http.Handle("/internal/", router)
+	http.Handle("/api/auth/link/", router)
 }
 
 func check(err error) {
 	if err != nil {
-		log.Printf("Error occured %v", err)
+		log.Printf("Error occurred %v", err)
 		panic(err)
 	}
 }

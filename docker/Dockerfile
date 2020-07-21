@@ -1,5 +1,5 @@
 FROM alpine:3.9
-RUN apk -U add ca-certificates
+RUN apk -U --no-cache add ca-certificates
 
 COPY receipt_collector /app/receipt_collector
 

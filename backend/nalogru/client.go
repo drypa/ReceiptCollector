@@ -13,7 +13,11 @@ type Client struct {
 	Password    string
 }
 
-const TicketNotFound string = "the ticket was not found"
+const (
+	TicketNotFound    string = "the ticket was not found"
+	DailyLimitReached string = "daily limit reached for the specified user"
+	NotReadyYet       string = "not ready yet"
+)
 
 func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	parseResult, err := Parse(queryString)
@@ -31,7 +35,7 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	if err != nil {
 		return err
 	}
-	if response.StatusCode != http.StatusOK || response.StatusCode != http.StatusAccepted {
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
 		//406
 		log.Printf("ODFS request status: %d \n", response.StatusCode)
 		return errors.New(response.Status)
@@ -60,9 +64,16 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 		return nil, err
 	}
 
-	log.Println(response.StatusCode)
+	if response.StatusCode == http.StatusAccepted {
+		return nil, errors.New(NotReadyYet)
+	}
 
-	return ioutil.ReadAll(response.Body)
+	all, err := ioutil.ReadAll(response.Body)
+	if response.StatusCode == http.StatusOK {
+		return all, err
+	}
+	log.Println(response.StatusCode)
+	return nil, errors.New(string(all))
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {

@@ -46,3 +46,12 @@ func (query Query) Validate() error {
 	_, errFd := strconv.Atoi(query.Fd)
 	return firstError([]error{errN, errFs, errSum, errFd})
 }
+
+func firstError(errors []error) error {
+	for _, err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
