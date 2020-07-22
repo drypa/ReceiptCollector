@@ -26,6 +26,7 @@ import {MatDialogModule} from "@angular/material/dialog";
 import {RequestResultComponent} from './request-result/request-result.component';
 import { AddReceiptBatchDialogComponent } from './add-receipt-batch-dialog/add-receipt-batch-dialog.component';
 import { ConfirmationDialogComponent } from './confirmation-dialog/confirmation-dialog.component';
+import { WastesComponent } from './wastes/wastes.component';
 
 @NgModule({
   declarations: [
@@ -41,7 +42,8 @@ import { ConfirmationDialogComponent } from './confirmation-dialog/confirmation-
     ReceiptItemsComponent,
     RequestResultComponent,
     AddReceiptBatchDialogComponent,
-    ConfirmationDialogComponent
+    ConfirmationDialogComponent,
+    WastesComponent
   ],
   imports: [
     BrowserModule,
