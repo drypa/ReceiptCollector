@@ -4,6 +4,6 @@ import "receipt_collector/markets"
 
 type Place struct {
 	Market      *markets.Market
-	Name        string
-	Description string
+	Name        string `bson:"name" json:"name"`
+	Description string `bson:"description" json:"description"`
 }

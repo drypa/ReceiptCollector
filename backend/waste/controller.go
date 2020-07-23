@@ -7,18 +7,22 @@ import (
 	"time"
 )
 
+//Controller of wastes.
 type Controller struct {
 	repository Repository
 }
 
+//New creates Controller instance.
 func New(repository Repository) Controller {
 	return Controller{
 		repository: repository,
 	}
 }
 
+//GetHandler provides get-wastes api method.
 func (controller Controller) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
+	//TODO: this is GET method without body
 	defer request.Body.Close()
 	filter, err := getFilterFromQuery(request)
 	if err != nil {
@@ -38,8 +42,8 @@ func onError(writer http.ResponseWriter, err error) {
 	writer.WriteHeader(http.StatusInternalServerError)
 }
 
-func getFilterFromQuery(request *http.Request) (WasteFilter, error) {
-	var filter = WasteFilter{}
+func getFilterFromQuery(request *http.Request) (Filter, error) {
+	var filter = Filter{}
 	err := json.NewDecoder(request.Body).Decode(&filter)
 	if err != nil {
 		return filter, err
@@ -60,8 +64,8 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	}
 }
 
-type WasteFilter struct {
-	UserId    string
-	StartDate *time.Time
-	EndDate   *time.Time
+type Filter struct {
+	UserId    string     `json:"user_id"`
+	StartDate *time.Time `json:"start_date"`
+	EndDate   *time.Time `json:"end_date"`
 }

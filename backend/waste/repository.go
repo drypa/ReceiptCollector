@@ -41,7 +41,7 @@ func readWastes(ctx context.Context, cursor *mongo.Cursor) ([]Waste, error) {
 	return wastes, nil
 }
 
-func (repository Repository) GetByFilter(ctx context.Context, filter WasteFilter) ([]Waste, error) {
+func (repository Repository) GetByFilter(ctx context.Context, filter Filter) ([]Waste, error) {
 	collection := repository.getCollection()
 	query := bson.D{{"owner_id", filter.UserId}}
 	if filter.StartDate != nil {
