@@ -1,4 +1,4 @@
-import {Purchase} from "./purchase";
+import { Purchase } from './purchase';
 
 export class Receipt {
   id: string;
@@ -19,8 +19,8 @@ export class Receipt {
 }
 
 export enum RequestStatus {
-  undefined = "undefined",
-  error = "error",
-  success = "success",
-  notFound = "not_found",
+  undefined = 'undefined',
+  error = 'error',
+  success = 'success',
+  notFound = 'not_found',
 }

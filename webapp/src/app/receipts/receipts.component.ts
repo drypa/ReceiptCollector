@@ -3,8 +3,8 @@ import { Receipt, RequestStatus } from '../receipt';
 import { ReceiptService } from '../receipt.service';
 import { first, takeUntil, tap } from 'rxjs/operators';
 import { Subject } from 'rxjs';
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { ConfirmationService } from "../confirmation.service";
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ConfirmationService } from '../confirmation.service';
 
 @Component({
   selector: 'app-receipts',
@@ -36,9 +36,9 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
           first(),
           takeUntil(this.destroy$))
         .subscribe(() => {
-          this.showSnack("Deleted");
+          this.showSnack('Deleted');
           this.loadData();
-        }, err => this.showSnack("Error"));
+        }, () => this.showSnack('Error'));
     });
   }
 
@@ -57,7 +57,7 @@ export class ReceiptsComponent implements OnInit, OnDestroy {
   }
 
   private showSnack(message: string) {
-    this.snackBar.open(message, "OK", {})
+    this.snackBar.open(message, 'OK', {})
   }
 
   isLoaded(receipt: Receipt): boolean {

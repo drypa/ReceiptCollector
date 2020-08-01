@@ -1,7 +1,7 @@
-import {Component, OnInit} from '@angular/core';
-import {NewReceiptComponent} from "../new-receipt/new-receipt.component";
-import {MatDialog} from "@angular/material/dialog";
-import {AddReceiptBatchDialogComponent} from "../add-receipt-batch-dialog/add-receipt-batch-dialog.component";
+import { Component, OnInit } from '@angular/core';
+import { NewReceiptComponent } from '../new-receipt/new-receipt.component';
+import { MatDialog } from '@angular/material/dialog';
+import { AddReceiptBatchDialogComponent } from '../add-receipt-batch-dialog/add-receipt-batch-dialog.component';
 
 @Component({
   selector: 'app-authorized',

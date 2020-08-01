@@ -1,8 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from "rxjs";
-import { WasteService } from "../waste.service";
-import { Waste } from "../waste";
-import { first, takeUntil, tap } from "rxjs/operators";
+import { Subject } from 'rxjs';
+import { WasteService } from '../waste.service';
+import { Waste } from '../waste';
+import { first, takeUntil, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-wastes',

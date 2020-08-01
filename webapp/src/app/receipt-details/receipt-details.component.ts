@@ -1,11 +1,11 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
-import {ActivatedRoute} from "@angular/router";
-import {ReceiptService} from "../receipt.service";
-import {Subject} from "rxjs";
-import {first, flatMap, map, takeUntil, tap} from "rxjs/operators";
-import {Receipt, RequestStatus} from "../receipt";
-import {MatDialog} from "@angular/material/dialog";
-import {RequestResultComponent} from "../request-result/request-result.component";
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { ReceiptService } from '../receipt.service';
+import { Subject } from 'rxjs';
+import { first, flatMap, map, takeUntil, tap } from 'rxjs/operators';
+import { Receipt, RequestStatus } from '../receipt';
+import { MatDialog } from '@angular/material/dialog';
+import { RequestResultComponent } from '../request-result/request-result.component';
 
 @Component({
   selector: 'app-receipt-details',
