@@ -12,7 +12,7 @@
     <td>{{waste.date}}</td>
     <td>{{waste.sum}}</td>
     <td>{{waste.description}}</td>
-    <td>{{waste.place.name}}</td>
+    <td>{{waste.place !== null ? waste.place.name : 'Undefined'}}</td>
   </tr>
   </tbody>
 </table>

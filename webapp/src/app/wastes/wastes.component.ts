@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { WasteService } from '../waste.service';
+import { Filter, WasteService } from '../waste.service';
 import { Waste } from '../waste';
 import { first, takeUntil, tap } from 'rxjs/operators';
 
@@ -26,7 +26,7 @@ export class WastesComponent implements OnInit, OnDestroy {
   }
 
   private loadData() {
-    this.wasteService.getAll()
+    this.wasteService.getAll(<Filter>{ from: Date.UTC(2020, 1, 1), to: Date.UTC(2021, 1, 1) })
       .pipe(
         first(),
         tap(wastes => this.wastes = wastes),

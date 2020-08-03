@@ -11,7 +11,14 @@ export class WasteService {
   constructor(private http: HttpClient) {
   }
 
-  getAll(): Observable<Waste[]> {
-    return this.http.get<Waste[]>('/api/waste');
+  getAll(filter: Filter): Observable<Waste[]> {
+    const url = `/api/waste?from=${filter.from}&to=${filter.to}`
+    return this.http.get<Waste[]>(url);
   }
+}
+
+
+export class Filter {
+  from: number;
+  to: number;
 }

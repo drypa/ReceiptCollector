@@ -4,6 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"receipt_collector/auth"
 )
 
 type Repository struct {
@@ -43,19 +44,29 @@ func readWastes(ctx context.Context, cursor *mongo.Cursor) ([]Waste, error) {
 
 func (repository Repository) GetByFilter(ctx context.Context, filter Filter) ([]Waste, error) {
 	collection := repository.getCollection()
-	query := bson.D{{"owner_id", filter.UserId}}
-	if filter.StartDate != nil {
-		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: filter.StartDate}})
-	}
-	if filter.EndDate != nil {
-		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: filter.EndDate}})
-	}
+	//TODO: move user get from context and date transformation out of repository
+	userId := getUserId(ctx)
+	query := bson.D{{"owner_id", userId}}
+
+	//if filter.From != 0 {
+	//	from := time.Unix( 0,filter.From * int64(time.Millisecond))
+	//	query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: from}})
+	//}
+	//if filter.To != 0 {
+	//	to := time.Unix( 0,filter.To * int64(time.Millisecond))
+	//	query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: to}})
+	//}
 	cursor, err := collection.Find(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	wastes, err := readWastes(ctx, cursor)
 	return wastes, err
+}
+
+func getUserId(ctx context.Context) string {
+	userId := ctx.Value(auth.UserId)
+	return userId.(string)
 }
 
 func (repository Repository) Add(ctx context.Context, waste Waste) error {

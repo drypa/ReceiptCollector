@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
+	"strconv"
 )
 
 //Controller of wastes.
@@ -22,8 +22,6 @@ func New(repository Repository) Controller {
 //GetHandler provides get-wastes api method.
 func (controller Controller) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	//TODO: this is GET method without body
-	defer request.Body.Close()
 	filter, err := getFilterFromQuery(request)
 	if err != nil {
 		onError(writer, err)
@@ -44,10 +42,19 @@ func onError(writer http.ResponseWriter, err error) {
 
 func getFilterFromQuery(request *http.Request) (Filter, error) {
 	var filter = Filter{}
-	err := json.NewDecoder(request.Body).Decode(&filter)
+	query := request.URL.Query()
+	from, err := strconv.ParseInt(query.Get("from"), 10, 64)
 	if err != nil {
 		return filter, err
 	}
+	filter.From = from
+
+	to, err := strconv.ParseInt(query.Get("to"), 10, 64)
+	if err != nil {
+		return filter, err
+	}
+	filter.To = to
+
 	return filter, nil
 }
 
@@ -65,7 +72,6 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 }
 
 type Filter struct {
-	UserId    string     `json:"user_id"`
-	StartDate *time.Time `json:"start_date"`
-	EndDate   *time.Time `json:"end_date"`
+	From int64
+	To   int64
 }
