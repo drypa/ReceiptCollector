@@ -1,10 +1,13 @@
 package waste
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"receipt_collector/auth"
 	"strconv"
+	"time"
 )
 
 //Controller of wastes.
@@ -27,12 +30,31 @@ func (controller Controller) GetHandler(writer http.ResponseWriter, request *htt
 		onError(writer, err)
 		return
 	}
-	receipts, err := controller.repository.GetByFilter(ctx, filter)
+	query := mapFilter(ctx, filter)
+	receipts, err := controller.repository.GetByFilter(ctx, query)
 	if err != nil {
 		onError(writer, err)
 		return
 	}
 	writeResponse(receipts, writer)
+}
+func getUserId(ctx context.Context) string {
+	userId := ctx.Value(auth.UserId)
+	return userId.(string)
+}
+
+func mapFilter(ctx context.Context, filter Filter) QueryFilter {
+	result := QueryFilter{UserId: getUserId(ctx)}
+	if filter.From != 0 {
+		from := time.Unix(0, filter.From*int64(time.Millisecond))
+		result.From = &from
+	}
+
+	if filter.To != 0 {
+		to := time.Unix(0, filter.To*int64(time.Millisecond))
+		result.To = &to
+	}
+	return result
 }
 
 func onError(writer http.ResponseWriter, err error) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"receipt_collector/auth"
+	"time"
 )
 
 type Repository struct {
@@ -14,6 +14,13 @@ type Repository struct {
 func NewRepository(client *mongo.Client) Repository {
 	repository := Repository{client: client}
 	return repository
+}
+
+//QueryFilter specifies query parameters to get wastes.
+type QueryFilter struct {
+	UserId string
+	From   *time.Time
+	To     *time.Time
 }
 
 func (repository Repository) GetForUser(ctx context.Context, ownerId string) ([]Waste, error) {
@@ -42,31 +49,22 @@ func readWastes(ctx context.Context, cursor *mongo.Cursor) ([]Waste, error) {
 	return wastes, nil
 }
 
-func (repository Repository) GetByFilter(ctx context.Context, filter Filter) ([]Waste, error) {
+func (repository Repository) GetByFilter(ctx context.Context, filter QueryFilter) ([]Waste, error) {
 	collection := repository.getCollection()
-	//TODO: move user get from context and date transformation out of repository
-	userId := getUserId(ctx)
-	query := bson.D{{"owner_id", userId}}
+	query := bson.D{{"owner_id", filter.UserId}}
 
-	//if filter.From != 0 {
-	//	from := time.Unix( 0,filter.From * int64(time.Millisecond))
-	//	query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: from}})
-	//}
-	//if filter.To != 0 {
-	//	to := time.Unix( 0,filter.To * int64(time.Millisecond))
-	//	query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: to}})
-	//}
+	if filter.From != nil {
+		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: filter.From}})
+	}
+	if filter.To != nil {
+		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: filter.To}})
+	}
 	cursor, err := collection.Find(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	wastes, err := readWastes(ctx, cursor)
 	return wastes, err
-}
-
-func getUserId(ctx context.Context) string {
-	userId := ctx.Value(auth.UserId)
-	return userId.(string)
 }
 
 func (repository Repository) Add(ctx context.Context, waste Waste) error {
