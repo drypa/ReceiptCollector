@@ -16,8 +16,8 @@ import (
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
-	"receipt_collector/waste"
 	"receipt_collector/users/login_url"
+	"receipt_collector/waste"
 	"receipt_collector/workers"
 )
 

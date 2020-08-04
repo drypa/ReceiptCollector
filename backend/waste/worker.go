@@ -6,15 +6,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
+	"receipt_collector/receipts"
 	"sync"
+	"time"
 )
 
 type Worker struct {
 }
 type User struct {
-	Id primitive.ObjectID `bson:"_id,omitempty"`
-}
-type UsersReceipt struct {
 	Id primitive.ObjectID `bson:"_id,omitempty"`
 }
 
@@ -49,7 +48,7 @@ func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg
 		return err
 	}
 	for cursor.Next(ctx) {
-		receipt := UsersReceipt{}
+		receipt := receipts.UsersReceipt{}
 		err := cursor.Decode(&receipt)
 		if err != nil {
 			return err
@@ -62,7 +61,7 @@ func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg
 	return nil
 }
 
-func createWasteIfNeeded(ctx context.Context, user User, receipt UsersReceipt, client *mongo.Client) error {
+func createWasteIfNeeded(ctx context.Context, user User, receipt receipts.UsersReceipt, client *mongo.Client) error {
 	repository := NewRepository(client)
 	wastes, err := repository.GetForUser(ctx, user.Id.Hex())
 	if err != nil {
@@ -76,6 +75,14 @@ func createWasteIfNeeded(ctx context.Context, user User, receipt UsersReceipt, c
 		waste := Waste{
 			ReceiptId: receipt.Id.Hex(),
 			OwnerId:   user.Id.Hex(),
+		}
+		if receipt.Receipt != nil {
+			waste.Sum = float32(receipt.Receipt.TotalSum / 100)
+			t, err := time.Parse("2006-01-02T15:04:05", receipt.Receipt.DateTime)
+			if err != nil {
+				log.Printf("Error parsing Time: %s", receipt.Receipt.DateTime)
+			}
+			waste.Date = t
 		}
 		err := repository.Add(ctx, waste)
 		if err != nil {
