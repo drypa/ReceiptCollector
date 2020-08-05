@@ -54,10 +54,10 @@ func (repository Repository) GetByFilter(ctx context.Context, filter QueryFilter
 	query := bson.D{{"owner_id", filter.UserId}}
 
 	if filter.From != nil {
-		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$gte", Value: filter.From}})
+		query = append(query, bson.E{Key: "date", Value: bson.M{"$gte": filter.From}})
 	}
 	if filter.To != nil {
-		query = append(query, bson.E{Key: "date", Value: bson.E{Key: "$lte", Value: filter.To}})
+		query = append(query, bson.E{Key: "date", Value: bson.M{"$lte": filter.To}})
 	}
 	cursor, err := collection.Find(ctx, query)
 	if err != nil {
