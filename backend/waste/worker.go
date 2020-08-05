@@ -17,6 +17,7 @@ type User struct {
 	Id primitive.ObjectID `bson:"_id,omitempty"`
 }
 
+//NewWorker constructs worker.
 func NewWorker() Worker {
 	return Worker{}
 }
@@ -35,6 +36,7 @@ func (worker Worker) Process(ctx context.Context, mongoClient *mongo.Client) err
 			return err
 		}
 		wg.Add(1)
+		//TODO: possible error in createWasteForUser handling(wg error handling)
 		go createWasteForUser(ctx, user, mongoClient, wg)
 	}
 	wg.Wait()
@@ -53,7 +55,10 @@ func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg
 		if err != nil {
 			return err
 		}
-		createWasteIfNeeded(ctx, user, receipt, client)
+		err = createWasteIfNeeded(ctx, user, receipt, client)
+		if err != nil {
+			return err
+		}
 		log.Printf("User %s processing is done\n", user.Id.Hex())
 	}
 
@@ -77,12 +82,13 @@ func createWasteIfNeeded(ctx context.Context, user User, receipt receipts.UsersR
 			OwnerId:   user.Id.Hex(),
 		}
 		if receipt.Receipt != nil {
-			waste.Sum = float32(receipt.Receipt.TotalSum / 100)
+			waste.Sum = float32(receipt.Receipt.TotalSum) / 100.0
 			t, err := time.Parse("2006-01-02T15:04:05", receipt.Receipt.DateTime)
 			if err != nil {
 				log.Printf("Error parsing Time: %s", receipt.Receipt.DateTime)
 			}
 			waste.Date = t
+
 		}
 		err := repository.Add(ctx, waste)
 		if err != nil {
