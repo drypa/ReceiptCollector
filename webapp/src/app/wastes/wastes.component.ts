@@ -3,6 +3,8 @@ import { Subject } from 'rxjs';
 import { Filter, WasteService } from '../waste.service';
 import { Waste } from '../waste';
 import { first, takeUntil, tap } from 'rxjs/operators';
+import { MatDialog } from '@angular/material/dialog';
+import { WasteDetailsComponent } from '../waste-details/waste-details.component';
 
 @Component({
   selector: 'app-wastes',
@@ -13,7 +15,8 @@ export class WastesComponent implements OnInit, OnDestroy {
   wastes: Waste[];
   private destroy$ = new Subject<boolean>();
 
-  constructor(private wasteService: WasteService) {
+  constructor(private wasteService: WasteService,
+              private dialog: MatDialog) {
   }
 
   ngOnInit(): void {
@@ -25,13 +28,29 @@ export class WastesComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  onEdit(id: string) {
+    this.wasteService.get(id).pipe(
+      first(),
+      tap(x => {
+        this.dialog.open(WasteDetailsComponent, {
+          width: '700px',
+          data: x
+        });
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe();
+
+  }
+
   private loadData() {
-    this.wasteService.getAll(<Filter>{ from: Date.UTC(2020, 1, 1), to: Date.UTC(2021, 1, 1) })
+    this.wasteService.getAll(<Filter>{
+      from: Date.UTC(2016, 1, 1),
+      to: Date.UTC(2021, 1, 1)
+    })
       .pipe(
         first(),
         tap(wastes => this.wastes = wastes),
         takeUntil(this.destroy$)
       ).subscribe();
   }
-
 }

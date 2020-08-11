@@ -27,6 +27,7 @@ import { RequestResultComponent } from './request-result/request-result.componen
 import { AddReceiptBatchDialogComponent } from './add-receipt-batch-dialog/add-receipt-batch-dialog.component';
 import { ConfirmationDialogComponent } from './confirmation-dialog/confirmation-dialog.component';
 import { WastesComponent } from './wastes/wastes.component';
+import { WasteDetailsComponent } from './waste-details/waste-details.component';
 
 @NgModule({
   declarations: [
@@ -43,7 +44,8 @@ import { WastesComponent } from './wastes/wastes.component';
     RequestResultComponent,
     AddReceiptBatchDialogComponent,
     ConfirmationDialogComponent,
-    WastesComponent
+    WastesComponent,
+    WasteDetailsComponent
   ],
   imports: [
     BrowserModule,

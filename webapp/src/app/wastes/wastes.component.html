@@ -5,6 +5,7 @@
     <th>Total sum</th>
     <th>Description</th>
     <th>Market</th>
+    <th>Actions</th>
   </tr>
   </thead>
   <tbody>
@@ -13,6 +14,12 @@
     <td>{{waste.sum}}</td>
     <td>{{waste.description}}</td>
     <td>{{waste.place !== null ? waste.place.name : 'Undefined'}}</td>
+    <td>
+      <button mat-raised-button
+              color="primary"
+              (click)="onEdit(waste.id)">Edit
+      </button>
+    </td>
   </tr>
   </tbody>
 </table>

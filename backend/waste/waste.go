@@ -1,12 +1,15 @@
 package waste
 
 import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
 type Category string
 
 type Waste struct {
+	// Id of waste.
+	Id primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	// Waste date.
 	Date time.Time `bson:"date" json:"date"`
 	// ReceiptId if exists.
@@ -21,12 +24,6 @@ type Waste struct {
 	OwnerId string `bson:"owner_id" json:"owner_id"`
 	// Waste category. Defined by market type.
 	Category *Category `bson:"category" json:"category"`
-	// Waste category from Category(id defined) or set manually.
-	CategoryName string `bson:"category_name" json:"category_name"`
-}
-
-type Query struct {
-	Sum float32
 }
 
 func MapByReceipt(wastes []Waste) map[string]*Waste {

@@ -1,6 +1,7 @@
 import { Place } from './place';
 
 export class Waste {
+  id: string;
   date: Date;
   receipt_id: string;
   place: Place;
@@ -8,5 +9,4 @@ export class Waste {
   description: string;
   owner_id: string;
   category: string;
-  categoryName: string;
 }
