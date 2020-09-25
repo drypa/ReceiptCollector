@@ -43,6 +43,28 @@ func (nalogruClient Client) SendOdfsRequest(queryString string) error {
 	return nil
 }
 
+//CheckReceiptExist send request to check receipt exist in Nalog.ru api.
+func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
+	client := &http.Client{}
+	url, err := buildCheckReceiptUrl(nalogruClient.BaseAddress, queryString)
+	if err != nil {
+		log.Printf("Could't build url for %s", queryString)
+		return false, err
+	}
+	log.Printf("Check Request: %s", url)
+	resp, err := client.Get(url)
+	if err != nil {
+		log.Printf("Could't check receipt %s", url)
+		return false, err
+	}
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
+		log.Println("Check passed")
+		return true, nil
+	}
+	log.Printf("Receipt is invalid? %s", url)
+	return false, nil
+}
+
 func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
 	client := &http.Client{}
 	parseResult, err := Parse(queryString)
