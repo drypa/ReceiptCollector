@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const checkStatus = "check_request_status"
+
 type Repository struct {
 	client *mongo.Client
 }
@@ -152,6 +154,7 @@ func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, rec
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
 }
+
 func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId string, status RequestStatus) error {
 	collection := repository.getCollection()
 
@@ -186,6 +189,38 @@ func (repository Repository) UpdateOdfsStatus(ctx context.Context, receipt Users
 	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
+}
+
+func (repository Repository) UpdateCheckStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
+	collection := repository.getCollection()
+
+	update := bson.M{
+		"$set": bson.M{
+			checkStatus:          status,
+			"check_request_time": time.Now().UTC(),
+		},
+	}
+	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}
+	_, err := collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+//GetWithoutCheckRequest returns first receipt without check performed.
+func (repository Repository) GetWithoutCheckRequest(ctx context.Context) (*UsersReceipt, error) {
+	collection := repository.getCollection()
+
+	usersReceipt := UsersReceipt{}
+	query := bson.M{"$or": []bson.M{
+		{checkStatus: Undefined},
+		{checkStatus: nil},
+		{checkStatus: ""}}}
+
+	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &usersReceipt, err
 }
 
 func (repository Repository) GetWithoutOdfsRequest(ctx context.Context) (*UsersReceipt, error) {
