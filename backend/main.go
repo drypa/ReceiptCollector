@@ -39,7 +39,7 @@ func main() {
 	log.Printf("Worker settings %v \n", settings)
 
 	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	client, err := getMongoClient()
 	if err != nil {
 		check(err)
@@ -54,7 +54,12 @@ func main() {
 	worker := workers.New(nalogruClient, receiptRepository)
 
 	wasteWorker := waste.NewWorker()
-	go wasteWorker.Process(ctx, client)
+	go func() {
+		var err = wasteWorker.Process(ctx, client)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	//go worker.OdfsStart(ctx, settings)
 	//go worker.GetReceiptStart(ctx, settings)
 	go worker.CheckReceiptStart(ctx, settings)
@@ -76,8 +81,10 @@ func main() {
 	sig := <-sigChan
 
 	log.Printf("Service is shutting down... %s\n,", sig)
-	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
+	cancelFunc()
+	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
 	err = server.Shutdown(ctx)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +99,7 @@ func startServer(nalogruClient nalogru.Client,
 	receiptRepository receipts.Repository,
 	userRepository users.Repository,
 	marketRepository markets.Repository,
-	wasteRepository waste.Repository) error {
+	wasteRepository waste.Repository) *http.Server {
 	marketsController := markets.New(marketRepository)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
