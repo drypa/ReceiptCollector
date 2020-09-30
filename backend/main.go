@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
 	"receipt_collector/internal"
@@ -19,6 +20,7 @@ import (
 	"receipt_collector/users/login_url"
 	"receipt_collector/waste"
 	"receipt_collector/workers"
+	"time"
 )
 
 var login = os.Getenv("NALOGRU_LOGIN")
@@ -65,7 +67,20 @@ func main() {
 	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
 
 	go internal.Serve(":15000", creds, &processor)
-	log.Println(startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository))
+
+	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository)
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Kill)
+	signal.Notify(sigChan, os.Interrupt)
+
+	sig := <-sigChan
+
+	log.Printf("Service is shutting down... %s\n,", sig)
+	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
+	err = server.Shutdown(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -105,7 +120,18 @@ func startServer(nalogruClient nalogru.Client,
 	http.Handle("/", basicAuth.RequireBasicAuth(router))
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
-	return http.ListenAndServe(address, nil)
+	s := &http.Server{
+		Addr:    address,
+		Handler: router,
+	}
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return s
 }
 
 func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Controller, receiptsController receipts.Controller) {
