@@ -26,7 +26,7 @@ services:
       - NALOGRU_LOGIN=${NALOGRU_LOGIN}
       - NALOGRU_PASS=${NALOGRU_PASS}
       - GET_RECEIPT_WORKER_INTERVAL=5m
-      - NALOGRU_BASE_ADDR=https://proverkacheka.nalog.ru:9999
+      - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
       - WORKER_START_HOUR=20
       - WORKER_END_HOUR=5
     networks:
