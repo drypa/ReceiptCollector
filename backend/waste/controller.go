@@ -81,12 +81,8 @@ func getFilterFromQuery(request *http.Request) (Filter, error) {
 }
 
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
-	resp, err := json.Marshal(responseObject)
-	if err != nil {
-		onError(writer, err)
-		return
-	}
-	_, err = writer.Write(resp)
+	e := json.NewEncoder(writer)
+	err := e.Encode(responseObject)
 	if err != nil {
 		onError(writer, err)
 		return

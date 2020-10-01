@@ -147,17 +147,14 @@ func getFromQuery(paramName string, request *http.Request) (string, error) {
 }
 
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
-	resp, err := json.Marshal(responseObject)
-	if err != nil {
-		onError(writer, err)
-		return
-	}
-	_, err = writer.Write(resp)
+	e := json.NewEncoder(writer)
+	err := e.Encode(responseObject)
 	if err != nil {
 		onError(writer, err)
 		return
 	}
 }
+
 func getFromBody(request *http.Request) (int32, error) {
 	registrationRequest := registrationRequest{}
 	err := json.NewDecoder(request.Body).Decode(&registrationRequest)
