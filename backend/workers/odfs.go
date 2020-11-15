@@ -9,11 +9,11 @@ import (
 )
 
 type Worker struct {
-	nalogruClient nalogru.Client
+	nalogruClient *nalogru.Client
 	repository    receipts.Repository
 }
 
-func New(nalogruClient nalogru.Client, repository receipts.Repository) Worker {
+func New(nalogruClient *nalogru.Client, repository receipts.Repository) Worker {
 	return Worker{
 		nalogruClient: nalogruClient,
 		repository:    repository,

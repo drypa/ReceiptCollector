@@ -22,12 +22,13 @@ import (
 	"time"
 )
 
-var login = os.Getenv("NALOGRU_LOGIN")
-var password = os.Getenv("NALOGRU_PASS")
 var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
+var clientSecret = os.Getenv("CLIENT_SECRET")
+var sessionId = os.Getenv("SESSION_ID")
+var refreshToken = os.Getenv("REFRESH_TOKEN")
+var deviceId = os.Getenv("DEVICE_ID")
 
 var mongoURL = os.Getenv("MONGO_URL")
-
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
 var openUrl = os.Getenv("OPEN_URL")
@@ -37,7 +38,7 @@ func main() {
 	settings := workers.ReadFromEnvironment()
 	log.Printf("Worker settings %v \n", settings)
 
-	nalogruClient := nalogru.Client{BaseAddress: baseAddress, Login: login, Password: password}
+	nalogruClient := nalogru.NewClient(baseAddress, clientSecret, sessionId, refreshToken, deviceId)
 	ctx := context.Background()
 	client, err := getMongoClient()
 	if err != nil {
@@ -85,7 +86,7 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient nalogru.Client,
+func startServer(nalogruClient *nalogru.Client,
 	receiptRepository receipts.Repository,
 	userRepository users.Repository,
 	marketRepository markets.Repository) *http.Server {

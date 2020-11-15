@@ -17,10 +17,10 @@ import (
 
 type Controller struct {
 	repository    Repository
-	nalogruClient nalogru.Client
+	nalogruClient *nalogru.Client
 }
 
-func New(repository Repository, nalogruClient nalogru.Client) Controller {
+func New(repository Repository, nalogruClient *nalogru.Client) Controller {
 	return Controller{
 		repository:    repository,
 		nalogruClient: nalogruClient,

@@ -8,9 +8,22 @@ import (
 )
 
 type Client struct {
-	BaseAddress string
-	Login       string
-	Password    string
+	BaseAddress  string
+	ClientSecret string
+	SessionId    string
+	RefreshToken string
+	DeviceId     string
+}
+
+//NewClient - creates instance of Client.
+func NewClient(baseAddress string, clientSecret string, sessionId string, refreshToken string, deviceId string) *Client {
+	return &Client{
+		BaseAddress:  baseAddress,
+		ClientSecret: clientSecret,
+		SessionId:    sessionId,
+		RefreshToken: refreshToken,
+		DeviceId:     deviceId,
+	}
 }
 
 const (
@@ -78,7 +91,7 @@ func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	addAuth(request, nalogruClient.Login, nalogruClient.Password)
+	addAuth(request, nalogruClient.SessionId, nalogruClient.DeviceId)
 	response, err := sendRequest(request, client)
 
 	if err != nil {
@@ -108,15 +121,16 @@ func createRequest(url string) (*http.Request, error) {
 	return request, nil
 }
 
-func addAuth(request *http.Request, login string, password string) {
-	request.SetBasicAuth(login, password)
+func addAuth(request *http.Request, sessionId string, deviceId string) {
+	request.Header.Add("Device-Id", deviceId)
+	request.Header.Add("sessionId", sessionId)
 }
 
 func addHeaders(request *http.Request) {
-	request.Header.Add("Device-OS", "Adnroid 6.0.1") //not my misspell. is is from traffic dump
+	request.Header.Add("Device-OS", "Android")
 	request.Header.Add("Version", "2")
-	request.Header.Add("ClientVersion", "1.4.4.4")
-	request.Header.Add("Device-Id", "123456")
+	request.Header.Add("ClientVersion", "2.9.0")
 	request.Header.Add("Connection", "Keep-Alive")
-	request.Header.Add("User-Agent", "okhttp/3.0.1")
+	request.Header.Add("User-Agent", "okhttp/4.2.2")
+	request.Header.Add("Content-Type", "application/json; charset=utf-8")
 }
