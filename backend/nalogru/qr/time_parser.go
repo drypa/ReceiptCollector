@@ -1,4 +1,4 @@
-package nalogru
+package qr
 
 import (
 	"time"

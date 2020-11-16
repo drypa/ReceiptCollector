@@ -2,10 +2,11 @@ package nalogru
 
 import (
 	"fmt"
+	"receipt_collector/nalogru/qr"
 	"strings"
 )
 
-func buildOfdsUrl(baseAddress string, parameters Query) string {
+func buildOfdsUrl(baseAddress string, parameters qr.Query) string {
 	timeString := parameters.Time.Format("2006-01-02T15:04:05")
 	return fmt.Sprintf("%s/v1/ofds/*/inns/*/fss/%s/operations/%s/tickets/%s?fiscalSign=%s&date=%s&sum=%s",
 		baseAddress,
@@ -18,7 +19,7 @@ func buildOfdsUrl(baseAddress string, parameters Query) string {
 }
 
 func buildCheckReceiptUrl(baseAddress string, queryString string) (string, error) {
-	parse, err := Parse(queryString)
+	parse, err := qr.Parse(queryString)
 	if err != nil {
 		return "", err
 	}

@@ -3,7 +3,6 @@ package nalogru
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -33,30 +32,6 @@ const (
 	DailyLimitReached string = "daily limit reached for the specified user"
 	NotReadyYet       string = "not ready yet"
 )
-
-func (nalogruClient Client) SendOdfsRequest(queryString string) error {
-	parseResult, err := Parse(queryString)
-	if err != nil {
-		return err
-	}
-	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
-	client := &http.Client{}
-	request, err := createRequest(ofdsUrl)
-
-	if err != nil {
-		return err
-	}
-	response, err := sendRequest(request, client)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
-		//406
-		log.Printf("ODFS request status: %d \n", response.StatusCode)
-		return errors.New(response.Status)
-	}
-	return nil
-}
 
 //CheckReceiptExist send request to check receipt exist in Nalog.ru api.
 func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
@@ -129,37 +104,30 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	return ticketIdResp.Id, nil
 }
 
-func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
+func (nalogruClient *Client) GetTicketById(id string) (string, error) {
 	client := &http.Client{}
-	parseResult, err := Parse(queryString)
-	if err != nil {
-		return nil, err
-	}
 
-	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
-	log.Printf("Kkt URL: %s\n", kktsUrl)
-	request, err := createRequest(kktsUrl)
-	if err != nil {
-		return nil, err
-	}
+	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	addHeaders(request)
 	addAuth(request, nalogruClient.SessionId, nalogruClient.DeviceId)
-	response, err := sendRequest(request, client)
-
+	res, err := sendRequest(request, client)
 	if err != nil {
-		log.Printf("KKTs request error %v.", err)
-		return nil, err
+		log.Printf("Can't GET %s\n", url)
+		return "", err
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Printf("GET receipt error: %d\n", res.StatusCode)
+		return "", err
+	}
+	response, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Can't read http response body")
+		return "", err
 	}
 
-	if response.StatusCode == http.StatusAccepted {
-		return nil, errors.New(NotReadyYet)
-	}
-
-	all, err := ioutil.ReadAll(response.Body)
-	if response.StatusCode == http.StatusOK {
-		return all, err
-	}
-	log.Println(response.StatusCode)
-	return nil, errors.New(string(all))
+	ioutil.WriteFile("/home/drypa/"+id+".receipt", response, 0644)
+	return url, nil
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {

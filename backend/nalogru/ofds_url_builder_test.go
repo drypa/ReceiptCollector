@@ -1,13 +1,14 @@
 package nalogru
 
 import (
+	"receipt_collector/nalogru/qr"
 	"testing"
 	"time"
 )
 
 func TestOfdsUrlBuilder(t *testing.T) {
 	baseAddress := "https://example.com"
-	parsedReceipt := Query{
+	parsedReceipt := qr.Query{
 		FiscalSign: "4245472848",
 		Fd:         "9251440300012362",
 		Fp:         "30813",
