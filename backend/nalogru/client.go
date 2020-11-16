@@ -1,6 +1,8 @@
 package nalogru
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"log"
@@ -76,6 +78,55 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 	}
 	log.Printf("Receipt is invalid? %s", url)
 	return false, nil
+}
+
+//TicketIdRequest is request object to get Ticket id.
+type TicketIdRequest struct {
+	Qr string `json:"qr"`
+}
+
+//TicketIdResponse - response on TicketIdRequest.
+type TicketIdResponse struct {
+	Kind   string `json:"kind"`
+	Id     string `json:"id"`
+	Status int    `json:"status"`
+}
+
+//GetTicketId - send ticket id request to nalog.ru API.
+func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
+	client := &http.Client{}
+	payload := TicketIdRequest{Qr: queryString}
+
+	resp, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	reader := bytes.NewReader(resp)
+	url := nalogruClient.BaseAddress + "/v2/ticket"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request)
+	addAuth(request, nalogruClient.SessionId, nalogruClient.DeviceId)
+	res, err := sendRequest(request, client)
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return "", err
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Printf("POST error: %d\n", res.StatusCode)
+		return "", err
+	}
+	response, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Can't read http response body")
+		return "", err
+	}
+	ticketIdResp := &TicketIdResponse{}
+	err = json.Unmarshal(response, ticketIdResp)
+	if err != nil {
+		log.Println("Can't unmarshal response")
+		return "", err
+	}
+	return ticketIdResp.Id, nil
 }
 
 func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
