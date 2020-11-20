@@ -10,8 +10,6 @@ var sessionId = "INSERT SESSION ID HERE"
 var deviceId = "12345"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
-	sessionId := "INSERT SESSION ID HERE"
-	deviceId := "12345"
 	client := NewClient(baseAddress, "", sessionId, "", deviceId)
 	queryString := "INSERT BARCODE TEST HERE"
 
@@ -43,4 +41,28 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 		log.Println("Got nil result")
 		t.Fail()
 	}
+	log.Printf("%+v\n", details)
+}
+
+func TestClient_RefreshSession(t *testing.T) {
+	secret := "PASS CLIENT SECRET HERE"
+	refreshToken := "PASS REFRESH TOKEN HERE"
+	client := NewClient(baseAddress, secret, sessionId, refreshToken, deviceId)
+
+	err := client.RefreshSession()
+
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+	}
+
+	if client.SessionId == sessionId {
+		log.Println("Session was not refreshed")
+		t.Fail()
+	}
+	if client.RefreshToken == "" {
+		log.Println("Refresh token is empty")
+		t.Fail()
+	}
+
 }

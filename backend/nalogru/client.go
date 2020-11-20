@@ -79,8 +79,8 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(resp)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request)
-	addAuth(request, nalogruClient.SessionId, nalogruClient.DeviceId)
+	addHeaders(request, nalogruClient.DeviceId)
+	addAuth(request, nalogruClient.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -109,8 +109,8 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request)
-	addAuth(request, nalogruClient.SessionId, nalogruClient.DeviceId)
+	addHeaders(request, nalogruClient.DeviceId)
+	addAuth(request, nalogruClient.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
@@ -132,26 +132,69 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	return details, nil
 }
 
+type RefreshRequest struct {
+	ClientSecret string `json:"client_secret"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshResponse struct {
+	SessionId    string `json:"sessionId"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (nalogruClient *Client) RefreshSession() error {
+	client := &http.Client{}
+
+	payload := RefreshRequest{
+		ClientSecret: nalogruClient.ClientSecret,
+		RefreshToken: nalogruClient.RefreshToken,
+	}
+
+	resp, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(resp)
+
+	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, nalogruClient.DeviceId)
+	res, err := sendRequest(request, client)
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return err
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Printf("POST error: %d\n", res.StatusCode)
+		return err
+	}
+
+	response := &RefreshResponse{}
+	err = json.NewDecoder(res.Body).Decode(response)
+	if err != nil {
+		log.Println("Can't decode response body")
+		return err
+	}
+	log.Printf("%+v\n", response)
+	nalogruClient.RefreshToken = response.RefreshToken
+	nalogruClient.SessionId = response.SessionId
+	return nil
+}
+
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
 	return client.Do(request)
 }
 
-func createRequest(url string) (*http.Request, error) {
-	request, _ := http.NewRequest("GET", url, nil)
-	addHeaders(request)
-	return request, nil
-}
-
-func addAuth(request *http.Request, sessionId string, deviceId string) {
-	request.Header.Add("Device-Id", deviceId)
+func addAuth(request *http.Request, sessionId string) {
 	request.Header.Add("sessionId", sessionId)
 }
 
-func addHeaders(request *http.Request) {
+func addHeaders(request *http.Request, deviceId string) {
 	request.Header.Add("Device-OS", "Android")
 	request.Header.Add("Version", "2")
 	request.Header.Add("ClientVersion", "2.9.0")
 	request.Header.Add("Connection", "Keep-Alive")
 	request.Header.Add("User-Agent", "okhttp/4.2.2")
 	request.Header.Add("Content-Type", "application/json; charset=utf-8")
+	request.Header.Add("Device-Id", deviceId)
 }
