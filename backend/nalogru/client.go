@@ -104,7 +104,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	return ticketIdResp.Id, nil
 }
 
-func (nalogruClient *Client) GetTicketById(id string) (string, error) {
+func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	client := &http.Client{}
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
@@ -114,20 +114,22 @@ func (nalogruClient *Client) GetTicketById(id string) (string, error) {
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
-		return "", err
+		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
 		log.Printf("GET receipt error: %d\n", res.StatusCode)
-		return "", err
-	}
-	response, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println("Can't read http response body")
-		return "", err
+		return nil, err
 	}
 
-	ioutil.WriteFile("/home/drypa/"+id+".receipt", response, 0644)
-	return url, nil
+	details := &TicketDetails{}
+
+	err = json.NewDecoder(res.Body).Decode(details)
+	if err != nil {
+		log.Println("Can't decode response body")
+		return nil, err
+	}
+
+	return details, nil
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {

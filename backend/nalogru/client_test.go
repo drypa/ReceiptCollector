@@ -5,39 +5,42 @@ import (
 	"testing"
 )
 
-func TestClient_GetTicketId(t *testing.T) {
-	baseAddress := "https://irkkt-mobile.nalog.ru:8888"
-	sessionId := "5fb27661d47a9ac25731773a:3f2f9d45-c736-4fce-b390-f22f8570156a"
-	deviceId := "c21NX6WnGtQ"
+var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
+var sessionId = "INSERT SESSION ID HERE"
+var deviceId = "12345"
+
+func IgnoreTestClient_GetTicketId(t *testing.T) {
+	sessionId := "INSERT SESSION ID HERE"
+	deviceId := "12345"
 	client := NewClient(baseAddress, "", sessionId, "", deviceId)
-	queryString := "t=20201104T1448&s=387.01&fn=9280440300804942&i=46469&fp=1158670860&n=1"
+	queryString := "INSERT BARCODE TEST HERE"
 
 	id, err := client.GetTicketId(queryString)
 
 	if err != nil {
+		log.Println(err)
 		t.Fail()
 	}
 	if id == "" {
+		log.Println("Got empty id")
 		t.Fail()
 	}
-	log.Println(id) //5fb2ad0e77016167fb9f7e21
+	log.Println(id)
 
 }
 
-func TestClient_GetTicketById(t *testing.T) {
-	baseAddress := "https://irkkt-mobile.nalog.ru:8888"
-	sessionId := "5fb27661d47a9ac25731773a:3f2f9d45-c736-4fce-b390-f22f8570156a"
-	deviceId := "c21NX6WnGtQ"
+func IgnoreTestClient_GetTicketById(t *testing.T) {
 	client := NewClient(baseAddress, "", sessionId, "", deviceId)
 
-	id, err := client.GetTicketById("5fb2b7ba77016167fb9f8ca8")
+	ticketId := "INSERT TICKET ID HERE"
+	details, err := client.GetTicketById(ticketId)
 
 	if err != nil {
+		log.Println(err)
 		t.Fail()
 	}
-	if id == "" {
+	if details == nil {
+		log.Println("Got nil result")
 		t.Fail()
 	}
-	log.Println(id) //5fb2ad0e77016167fb9f7e21
-
 }
