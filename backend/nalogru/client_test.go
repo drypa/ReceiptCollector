@@ -44,7 +44,7 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 	log.Printf("%+v\n", details)
 }
 
-func TestClient_RefreshSession(t *testing.T) {
+func IgnoreTestClient_RefreshSession(t *testing.T) {
 	secret := "PASS CLIENT SECRET HERE"
 	refreshToken := "PASS REFRESH TOKEN HERE"
 	client := NewClient(baseAddress, secret, sessionId, refreshToken, deviceId)
