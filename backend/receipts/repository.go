@@ -6,6 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"receipt_collector/dispose"
+	"receipt_collector/nalogru"
 	"time"
 )
 
@@ -23,11 +24,23 @@ func NewRepository(client *mongo.Client) Repository {
 func (repository Repository) getCollection() *mongo.Collection {
 	return repository.client.Database("receipt_collection").Collection("receipt_requests")
 }
+func (repository Repository) getRawTicketCollection() *mongo.Collection {
+	return repository.client.
+		Database("receipt_collection").
+		Collection("raw_tickets")
+}
 
 func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) error {
 	collection := repository.getCollection()
 
 	_, err := collection.InsertOne(ctx, receipt)
+	return err
+}
+
+func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalogru.TicketDetails) error {
+	collection := repository.getRawTicketCollection()
+
+	_, err := collection.InsertOne(ctx, details)
 	return err
 }
 
@@ -223,11 +236,12 @@ func (repository Repository) GetWithoutCheckRequest(ctx context.Context) (*Users
 	return &usersReceipt, err
 }
 
-func (repository Repository) GetWithoutOdfsRequest(ctx context.Context) (*UsersReceipt, error) {
+//GetWithoutTicket returns first user request without requested ticket.
+func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
 	usersReceipt := UsersReceipt{}
-	query := bson.M{"$or": []bson.M{{"odfs_request_status": Undefined}, {"odfs_request_status": nil}, {"odfs_request_status": ""}}}
+	query := bson.D{{checkStatus, Success}}
 
 	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
 
@@ -235,4 +249,19 @@ func (repository Repository) GetWithoutOdfsRequest(ctx context.Context) (*UsersR
 		return nil, nil
 	}
 	return &usersReceipt, err
+}
+
+func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersReceipt, ticketId string) error {
+	collection := repository.getCollection()
+
+	update := bson.M{
+		"$set": bson.M{
+			checkStatus: Requested,
+			"ticket_id": ticketId,
+		},
+	}
+	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}
+	_, err := collection.UpdateOne(ctx, filter, update)
+	return err
+
 }

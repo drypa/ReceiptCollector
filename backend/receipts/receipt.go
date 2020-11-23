@@ -36,6 +36,7 @@ type UsersReceipt struct {
 	OdfsRequestStatus RequestStatus      `json:"odfsRequestStatus" bson:"odfs_request_status,omitempty"`
 	KktsRequestStatus RequestStatus      `json:"kktsRequestStatus" bson:"kkts_request_status,omitempty"`
 	Deleted           bool               `json:"deleted" bson:"deleted"`
+	TicketId          string             `json:"ticket_id" bson:"ticket_id"`
 }
 
 //RequestStatus - get receipt from nalog.ru API status.
@@ -45,6 +46,7 @@ const (
 	Undefined = RequestStatus("undefined")
 	Error     = RequestStatus("error")
 	Success   = RequestStatus("success")
+	Requested = RequestStatus("requested")
 	NotFound  = RequestStatus("not_found")
 )
 

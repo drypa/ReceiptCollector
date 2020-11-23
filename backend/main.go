@@ -52,9 +52,8 @@ func main() {
 	marketRepository := markets.NewRepository(client)
 	worker := workers.New(nalogruClient, receiptRepository)
 
-	//go worker.OdfsStart(ctx, settings)
-	//go worker.GetReceiptStart(ctx, settings)
 	go worker.CheckReceiptStart(ctx, settings)
+	go worker.GetReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.pem", "/usr/share/receipts/ssl/certs/private.key")
