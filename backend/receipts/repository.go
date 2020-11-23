@@ -134,40 +134,6 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
-func (repository Repository) FindOneOdfsRequestedWithoutReceipt(ctx context.Context) (*UsersReceipt, error) {
-	collection := repository.getCollection()
-	request := UsersReceipt{}
-	err := collection.FindOne(ctx, bson.M{"$and": []bson.M{
-		{"$or": []bson.M{{"odfs_request_status": Success}, {"odfs_request_status": Error}}},
-		{"receipt": bson.M{"$eq": nil}},
-		{"$or": []bson.M{{"kkts_request_status": nil}, {"kkts_request_status": ""}, {"kkts_request_status": Undefined}}},
-		{"$or": []bson.M{{"deleted": nil}, {"deleted": false}}},
-	},
-	}).Decode(&request)
-
-	if err == mongo.ErrNoDocuments {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return &request, nil
-}
-
-func (repository Repository) ResetOdfsRequestForReceipt(ctx context.Context, receiptId string) error {
-	collection := repository.getCollection()
-	//TODO: do not reset odfs status but set kkts status
-	id, err := primitive.ObjectIDFromHex(receiptId)
-	if err != nil {
-		return err
-	}
-	filter := bson.M{"_id": bson.M{"$eq": id}}
-	update := bson.M{"$set": bson.M{"odfs_request_status": Undefined}}
-	_, err = collection.UpdateOne(ctx, filter, update)
-	return err
-}
-
 func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId string, status RequestStatus) error {
 	collection := repository.getCollection()
 
@@ -186,20 +152,6 @@ func (repository Repository) SetReceipt(ctx context.Context, id primitive.Object
 
 	filter := bson.M{"_id": id}
 	update := bson.M{"$set": bson.M{"receipt": receipt}}
-	_, err := collection.UpdateOne(ctx, filter, update)
-	return err
-}
-
-func (repository Repository) UpdateOdfsStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
-	collection := repository.getCollection()
-
-	update := bson.M{
-		"$set": bson.M{
-			"odfs_request_status": status,
-			"odfs_request_time":   time.Now(),
-		},
-	}
-	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
 }
