@@ -6,24 +6,19 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"receipt_collector/nalogru/device"
 )
 
 type Client struct {
-	BaseAddress  string
-	ClientSecret string
-	SessionId    string
-	RefreshToken string
-	DeviceId     string
+	BaseAddress string
+	device      *device.Device
 }
 
 //NewClient - creates instance of Client.
-func NewClient(baseAddress string, clientSecret string, sessionId string, refreshToken string, deviceId string) *Client {
+func NewClient(baseAddress string, device *device.Device) *Client {
 	return &Client{
-		BaseAddress:  baseAddress,
-		ClientSecret: clientSecret,
-		SessionId:    sessionId,
-		RefreshToken: refreshToken,
-		DeviceId:     deviceId,
+		BaseAddress: baseAddress,
+		device:      device,
 	}
 }
 
@@ -79,8 +74,8 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(resp)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.DeviceId)
-	addAuth(request, nalogruClient.SessionId)
+	addHeaders(request, nalogruClient.device.Id)
+	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -109,8 +104,8 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request, nalogruClient.DeviceId)
-	addAuth(request, nalogruClient.SessionId)
+	addHeaders(request, nalogruClient.device.Id)
+	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
@@ -146,8 +141,8 @@ func (nalogruClient *Client) RefreshSession() error {
 	client := &http.Client{}
 
 	payload := RefreshRequest{
-		ClientSecret: nalogruClient.ClientSecret,
-		RefreshToken: nalogruClient.RefreshToken,
+		ClientSecret: nalogruClient.device.ClientSecret,
+		RefreshToken: nalogruClient.device.RefreshToken,
 	}
 
 	resp, err := json.Marshal(payload)
@@ -158,7 +153,7 @@ func (nalogruClient *Client) RefreshSession() error {
 
 	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.DeviceId)
+	addHeaders(request, nalogruClient.device.Id)
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -176,8 +171,8 @@ func (nalogruClient *Client) RefreshSession() error {
 		return err
 	}
 	log.Printf("%+v\n", response)
-	nalogruClient.RefreshToken = response.RefreshToken
-	nalogruClient.SessionId = response.SessionId
+	nalogruClient.device.RefreshToken = response.RefreshToken
+	nalogruClient.device.SessionId = response.SessionId
 	return nil
 }
 

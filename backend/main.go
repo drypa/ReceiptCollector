@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"receipt_collector/auth"
+	"receipt_collector/device"
 	"receipt_collector/dispose"
 	"receipt_collector/internal"
 	"receipt_collector/markets"
@@ -38,7 +39,6 @@ func main() {
 	settings := workers.ReadFromEnvironment()
 	log.Printf("Worker settings %v \n", settings)
 
-	nalogruClient := nalogru.NewClient(baseAddress, clientSecret, sessionId, refreshToken, deviceId)
 	ctx := context.Background()
 	client, err := getMongoClient()
 	if err != nil {
@@ -47,10 +47,19 @@ func main() {
 	defer dispose.Dispose(func() error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
+	deviceRepository := device.NewRepository(client)
+	deviceService := device.NewService(deviceRepository)
+
+	device, err := deviceService.RentDevice(ctx)
+	if err != nil {
+		log.Println("Failed to rent device")
+		return
+	}
+	nalogruClient := nalogru.NewClient(baseAddress, device)
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
-	worker := workers.New(nalogruClient, receiptRepository)
+	worker := workers.New(nalogruClient, receiptRepository, deviceRepository)
 
 	go worker.CheckReceiptStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
