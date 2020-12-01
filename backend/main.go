@@ -24,10 +24,6 @@ import (
 )
 
 var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
-var clientSecret = os.Getenv("CLIENT_SECRET")
-var sessionId = os.Getenv("SESSION_ID")
-var refreshToken = os.Getenv("REFRESH_TOKEN")
-var deviceId = os.Getenv("DEVICE_ID")
 
 var mongoURL = os.Getenv("MONGO_URL")
 var mongoUser = os.Getenv("MONGO_LOGIN")
@@ -50,7 +46,7 @@ func main() {
 	deviceRepository := device.NewRepository(client)
 	deviceService := device.NewService(deviceRepository)
 
-	device, err := deviceService.RentDevice(ctx)
+	device, err := deviceService.Rent(ctx)
 	if err != nil {
 		log.Println("Failed to rent device")
 		return

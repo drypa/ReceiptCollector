@@ -13,22 +13,22 @@ func NewService(r *Repository) *Service {
 	return &Service{r: r}
 }
 
-func (s Service) Add(d device.Device, ctx context.Context) error {
+func (s *Service) Add(ctx context.Context, d device.Device) error {
+	return s.r.Add(ctx, d)
+}
+
+func (s *Service) Count(ctx context.Context) (int, error) {
 	panic("implement me")
 }
 
-func (s Service) Count(ctx context.Context) (int, error) {
+func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	panic("implement me")
 }
 
-func (s Service) RentDevice(ctx context.Context) (*device.Device, error) {
+func (s *Service) Update(ctx context.Context, sessionId string, refreshToken string) error {
 	panic("implement me")
 }
 
-func (s Service) UpdateDevice(sessionId string, refreshToken string, ctx context.Context) error {
-	panic("implement me")
-}
-
-func (s Service) FreeDevice(device *device.Device, ctx context.Context) error {
+func (s *Service) Free(ctx context.Context, device *device.Device) error {
 	panic("implement me")
 }

@@ -6,9 +6,9 @@ import (
 )
 
 type Devices interface {
-	Add(d device.Device, ctx context.Context) error
+	Add(ctx context.Context, d device.Device) error
 	Count(ctx context.Context) (int, error)
-	RentDevice(ctx context.Context) (*device.Device, error)
-	UpdateDevice(sessionId string, refreshToken string, ctx context.Context) error
-	FreeDevice(device *device.Device, ctx context.Context) error
+	Rent(ctx context.Context) (*device.Device, error)
+	Update(ctx context.Context, sessionId string, refreshToken string) error
+	Free(ctx context.Context, device *device.Device) error
 }
