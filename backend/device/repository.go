@@ -2,7 +2,9 @@ package device
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
 )
 
@@ -21,6 +23,32 @@ func (r *Repository) Add(ctx context.Context, d device.Device) error {
 	return err
 }
 
+//All returns all devices.
+func (r *Repository) All(ctx context.Context) ([]device.Device, error) {
+	collection := r.getCollection()
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer dispose.Dispose(func() error { return cursor.Close(ctx) }, "Cursor close error")
+	return readDevices(cursor, ctx)
+
+}
+
 func (r *Repository) getCollection() *mongo.Collection {
 	return r.m.Database("receipt_collection").Collection("devices")
+}
+
+func readDevices(cursor *mongo.Cursor, ctx context.Context) ([]device.Device, error) {
+	var devices = make([]device.Device, 0, 0)
+	for cursor.Next(ctx) {
+		var device = device.Device{}
+		err := cursor.Decode(&device)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+	return devices, nil
+
 }
