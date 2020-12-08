@@ -44,7 +44,11 @@ func main() {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
 	deviceRepository := device.NewRepository(client)
-	deviceService := device.NewService(deviceRepository)
+	deviceService, err := device.NewService(ctx, deviceRepository)
+	if err != nil {
+		log.Println("Failed to create device service")
+		return
+	}
 
 	device, err := deviceService.Rent(ctx)
 	if err != nil {

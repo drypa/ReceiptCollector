@@ -2,15 +2,31 @@ package device
 
 import (
 	"context"
+	"errors"
 	"receipt_collector/nalogru/device"
 )
 
 type Service struct {
-	r *Repository
+	r       *Repository
+	devices []DeviceForRent
 }
 
-func NewService(r *Repository) *Service {
-	return &Service{r: r}
+func NewService(ctx context.Context, r *Repository) (*Service, error) {
+	all, err := r.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s := &Service{r: r}
+	s.devices = make([]DeviceForRent, len(all))
+
+	for i, v := range all {
+		s.devices[i] = DeviceForRent{
+			Device: v,
+			IsRent: false,
+		}
+	}
+
+	return s, nil
 }
 
 func (s *Service) Add(ctx context.Context, d device.Device) error {
@@ -18,11 +34,17 @@ func (s *Service) Add(ctx context.Context, d device.Device) error {
 }
 
 func (s *Service) Count(ctx context.Context) (int, error) {
-	panic("implement me")
+	return len(s.devices), nil
 }
 
 func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
-	panic("implement me")
+	for _, v := range s.devices {
+		if v.IsRent == false {
+			v.IsRent = true
+			return &v.Device, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *Service) Update(ctx context.Context, sessionId string, refreshToken string) error {
@@ -30,5 +52,11 @@ func (s *Service) Update(ctx context.Context, sessionId string, refreshToken str
 }
 
 func (s *Service) Free(ctx context.Context, device *device.Device) error {
-	panic("implement me")
+	for _, v := range s.devices {
+		if device.Id == v.Id {
+			v.IsRent = false
+			return nil
+		}
+	}
+	return errors.New("device not found")
 }
