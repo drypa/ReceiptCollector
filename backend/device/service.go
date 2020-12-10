@@ -47,8 +47,8 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	return nil, nil
 }
 
-func (s *Service) Update(ctx context.Context, sessionId string, refreshToken string) error {
-	panic("implement me")
+func (s *Service) Update(ctx context.Context, device *device.Device) error {
+	return s.r.Update(ctx, device)
 }
 
 func (s *Service) Free(ctx context.Context, device *device.Device) error {
