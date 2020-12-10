@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"receipt_collector/auth"
 	"receipt_collector/device"
+	"receipt_collector/device/repository"
 	"receipt_collector/dispose"
 	"receipt_collector/internal"
 	"receipt_collector/markets"
@@ -43,7 +44,7 @@ func main() {
 	defer dispose.Dispose(func() error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
-	deviceRepository := device.NewRepository(client)
+	deviceRepository := repository.NewRepository(client)
 	deviceService, err := device.NewService(ctx, deviceRepository)
 	if err != nil {
 		log.Println("Failed to create device service")

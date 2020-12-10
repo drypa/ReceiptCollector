@@ -3,15 +3,16 @@ package device
 import (
 	"context"
 	"errors"
+	"receipt_collector/device/repository"
 	"receipt_collector/nalogru/device"
 )
 
 type Service struct {
-	r       *Repository
+	r       *repository.Repository
 	devices []DeviceForRent
 }
 
-func NewService(ctx context.Context, r *Repository) (*Service, error) {
+func NewService(ctx context.Context, r *repository.Repository) (*Service, error) {
 	all, err := r.All(ctx)
 	if err != nil {
 		return nil, err

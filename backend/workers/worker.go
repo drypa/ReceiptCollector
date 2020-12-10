@@ -1,7 +1,7 @@
 package workers
 
 import (
-	"receipt_collector/device"
+	repository2 "receipt_collector/device/repository"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 )
@@ -9,13 +9,13 @@ import (
 type Worker struct {
 	nalogruClient    *nalogru.Client
 	repository       receipts.Repository
-	deviceRepository *device.Repository
+	deviceRepository *repository2.Repository
 }
 
 //New constructs Worker.
 func New(nalogruClient *nalogru.Client,
 	repository receipts.Repository,
-	deviceRepository *device.Repository) Worker {
+	deviceRepository *repository2.Repository) Worker {
 	return Worker{
 		nalogruClient:    nalogruClient,
 		repository:       repository,
