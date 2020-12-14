@@ -51,16 +51,17 @@ func main() {
 		return
 	}
 
-	device, err := deviceService.Rent(ctx)
+	d, err := deviceService.Rent(ctx)
 	if err != nil {
 		log.Println("Failed to rent device")
 		return
 	}
-	nalogruClient := nalogru.NewClient(baseAddress, device)
+	nalogruClient := nalogru.NewClient(baseAddress, d)
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
-	worker := workers.New(nalogruClient, receiptRepository, deviceRepository)
+
+	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, deviceService)
 
 	go worker.CheckReceiptStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
@@ -82,9 +83,10 @@ func main() {
 	sig := <-sigChan
 
 	log.Printf("Service is shutting down... %s\n,", sig)
-	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	err = server.Shutdown(ctx)
 	if err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 
