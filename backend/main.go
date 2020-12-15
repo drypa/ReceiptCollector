@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"receipt_collector/auth"
 	"receipt_collector/device"
+	"receipt_collector/device/controller"
 	"receipt_collector/device/repository"
 	"receipt_collector/dispose"
 	"receipt_collector/internal"
@@ -56,6 +57,7 @@ func main() {
 		log.Println("Failed to rent device")
 		return
 	}
+
 	nalogruClient := nalogru.NewClient(baseAddress, d)
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
@@ -75,7 +77,7 @@ func main() {
 
 	go internal.Serve(":15000", creds, &processor)
 
-	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository)
+	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, deviceService)
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Kill)
 	signal.Notify(sigChan, os.Interrupt)
@@ -97,12 +99,10 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient *nalogru.Client,
-	receiptRepository receipts.Repository,
-	userRepository users.Repository,
-	marketRepository markets.Repository) *http.Server {
+func startServer(nalogruClient *nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository, marketRepository markets.Repository, devices nalogru.Devices) *http.Server {
 
 	marketsController := markets.New(marketRepository)
+	deviceController := controller.NewController(devices)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
@@ -117,6 +117,9 @@ func startServer(nalogruClient *nalogru.Client,
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
 	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
+
+	router.HandleFunc("/api/device", deviceController.AddDeviceHandler).Methods(http.MethodPost)
+
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
 	http.Handle("/", basicAuth.RequireBasicAuth(router))

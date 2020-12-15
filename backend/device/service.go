@@ -7,11 +7,13 @@ import (
 	"receipt_collector/nalogru/device"
 )
 
+//Service to manage devices.
 type Service struct {
 	r       *repository.Repository
 	devices []ForRent
 }
 
+//NewService creates instance of Service.
 func NewService(ctx context.Context, r *repository.Repository) (*Service, error) {
 	all, err := r.All(ctx)
 	if err != nil {
@@ -30,6 +32,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 	return s, nil
 }
 
+//Add adds new device.
 func (s *Service) Add(ctx context.Context, d device.Device) error {
 	for _, v := range s.devices {
 		if v.ClientSecret == d.ClientSecret {
@@ -39,10 +42,12 @@ func (s *Service) Add(ctx context.Context, d device.Device) error {
 	return s.r.Add(ctx, d)
 }
 
+//Count returns devices count.
 func (s *Service) Count(ctx context.Context) (int, error) {
 	return len(s.devices), nil
 }
 
+//Rent device.
 func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	for _, v := range s.devices {
 		if v.IsRent == false {
@@ -50,7 +55,7 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 			return &v.Device, nil
 		}
 	}
-	return nil, nil
+	return nil, errors.New("no available devices found")
 }
 
 func (s *Service) Update(ctx context.Context, device *device.Device) error {

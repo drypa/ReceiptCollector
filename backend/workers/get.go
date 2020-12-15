@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+//GetReceiptStart starts get receipt worker.
 func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
