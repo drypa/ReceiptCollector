@@ -48,14 +48,14 @@ func main() {
 	deviceRepository := repository.NewRepository(client)
 	deviceService, err := device.NewService(ctx, deviceRepository)
 	if err != nil {
-		log.Println("Failed to create device service")
+		log.Printf("Failed to create device service: %v\n", err)
 		return
 	}
 
 	d, err := deviceService.Rent(ctx)
 	if err != nil {
 		log.Println("Failed to rent device")
-		return
+		//return
 	}
 
 	nalogruClient := nalogru.NewClient(baseAddress, d)

@@ -74,7 +74,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(resp)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id)
+	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
@@ -104,7 +104,7 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request, nalogruClient.device.Id)
+	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
 	if err != nil {
@@ -153,7 +153,7 @@ func (nalogruClient *Client) RefreshSession() error {
 
 	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id)
+	addHeaders(request, nalogruClient.device.Id.Hex())
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
