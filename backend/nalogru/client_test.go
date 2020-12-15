@@ -1,7 +1,9 @@
 package nalogru
 
 import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
+	"receipt_collector/nalogru/device"
 	"testing"
 )
 
@@ -10,7 +12,13 @@ var sessionId = "INSERT SESSION ID HERE"
 var deviceId = "12345"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
-	client := NewClient(baseAddress, "", sessionId, "", deviceId)
+	d, err := createDevice(t, "", "")
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress, d)
 	queryString := "INSERT BARCODE TEST HERE"
 
 	id, err := client.GetTicketId(queryString)
@@ -18,17 +26,39 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 		t.Fail()
+		return
 	}
 	if id == "" {
 		log.Println("Got empty id")
 		t.Fail()
+		return
 	}
 	log.Println(id)
 
 }
 
+func createDevice(t *testing.T, secret string, token string) (*device.Device, error) {
+	id, err := primitive.ObjectIDFromHex(deviceId)
+	if err != nil {
+		return nil, err
+	}
+	d := &device.Device{
+		SessionId:    sessionId,
+		Id:           id,
+		ClientSecret: secret,
+		RefreshToken: token,
+	}
+	return d, err
+}
+
 func IgnoreTestClient_GetTicketById(t *testing.T) {
-	client := NewClient(baseAddress, "", sessionId, "", deviceId)
+	d, err := createDevice(t, "", "")
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress, d)
 
 	ticketId := "INSERT TICKET ID HERE"
 	details, err := client.GetTicketById(ticketId)
@@ -47,20 +77,26 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 func IgnoreTestClient_RefreshSession(t *testing.T) {
 	secret := "PASS CLIENT SECRET HERE"
 	refreshToken := "PASS REFRESH TOKEN HERE"
-	client := NewClient(baseAddress, secret, sessionId, refreshToken, deviceId)
+	d, err := createDevice(t, secret, refreshToken)
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress, d)
 
-	err := client.RefreshSession()
+	d, err = client.RefreshSession()
 
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 	}
 
-	if client.SessionId == sessionId {
+	if d.SessionId == sessionId {
 		log.Println("Session was not refreshed")
 		t.Fail()
 	}
-	if client.RefreshToken == "" {
+	if d.RefreshToken == "" {
 		log.Println("Refresh token is empty")
 		t.Fail()
 	}

@@ -3,6 +3,7 @@ package nalogru
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,6 +14,9 @@ type Client struct {
 	BaseAddress string
 	device      *device.Device
 }
+
+var AuthError = errors.New("auth failed")
+var InternalError = errors.New("internal failed")
 
 //NewClient - creates instance of Client.
 func NewClient(baseAddress string, device *device.Device) *Client {
@@ -83,6 +87,13 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	}
 	if res.StatusCode != http.StatusOK {
 		log.Printf("POST error: %d\n", res.StatusCode)
+
+		if res.StatusCode == http.StatusUnauthorized {
+			err = AuthError
+		} else {
+			err = InternalError
+		}
+
 		return "", err
 	}
 	response, err := ioutil.ReadAll(res.Body)
@@ -137,7 +148,7 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (nalogruClient *Client) RefreshSession() error {
+func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 	client := &http.Client{}
 
 	payload := RefreshRequest{
@@ -147,7 +158,7 @@ func (nalogruClient *Client) RefreshSession() error {
 
 	resp, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	reader := bytes.NewReader(resp)
 
@@ -157,23 +168,23 @@ func (nalogruClient *Client) RefreshSession() error {
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
-		return err
+		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
 		log.Printf("POST error: %d\n", res.StatusCode)
-		return err
+		return nil, err
 	}
 
 	response := &RefreshResponse{}
 	err = json.NewDecoder(res.Body).Decode(response)
 	if err != nil {
 		log.Println("Can't decode response body")
-		return err
+		return nil, err
 	}
 	log.Printf("%+v\n", response)
 	nalogruClient.device.RefreshToken = response.RefreshToken
 	nalogruClient.device.SessionId = response.SessionId
-	return nil
+	return nalogruClient.device, nil
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
@@ -185,11 +196,11 @@ func addAuth(request *http.Request, sessionId string) {
 }
 
 func addHeaders(request *http.Request, deviceId string) {
-	request.Header.Add("Device-OS", "Android")
+	request.Header.Add("device-OS", "Android")
 	request.Header.Add("Version", "2")
 	request.Header.Add("ClientVersion", "2.9.0")
 	request.Header.Add("Connection", "Keep-Alive")
 	request.Header.Add("User-Agent", "okhttp/4.2.2")
 	request.Header.Add("Content-Type", "application/json; charset=utf-8")
-	request.Header.Add("Device-Id", deviceId)
+	request.Header.Add("device-Id", deviceId)
 }
