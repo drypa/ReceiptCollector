@@ -9,7 +9,7 @@ import (
 
 type Service struct {
 	r       *repository.Repository
-	devices []DeviceForRent
+	devices []ForRent
 }
 
 func NewService(ctx context.Context, r *repository.Repository) (*Service, error) {
@@ -18,10 +18,10 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 		return nil, err
 	}
 	s := &Service{r: r}
-	s.devices = make([]DeviceForRent, len(all))
+	s.devices = make([]ForRent, len(all))
 
 	for i, v := range all {
-		s.devices[i] = DeviceForRent{
+		s.devices[i] = ForRent{
 			Device: v,
 			IsRent: false,
 		}
@@ -31,6 +31,11 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 }
 
 func (s *Service) Add(ctx context.Context, d device.Device) error {
+	for _, v := range s.devices {
+		if v.ClientSecret == d.ClientSecret {
+			return errors.New("that device already added")
+		}
+	}
 	return s.r.Add(ctx, d)
 }
 

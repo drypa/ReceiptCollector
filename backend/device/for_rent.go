@@ -2,7 +2,7 @@ package device
 
 import "receipt_collector/nalogru/device"
 
-type DeviceForRent struct {
+type ForRent struct {
 	device.Device
 	IsRent bool
 }
