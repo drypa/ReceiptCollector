@@ -1,11 +1,11 @@
 package nalogru
 
 type TicketDetails struct {
-	Status    int    `json:"status"`
-	Id        string `json:"id"`
-	Kind      string `json:"kind"`
-	CreatedAt string `json:"createdAt"`
-	Qr        string
+	Status    int       `json:"status"`
+	Id        string    `json:"id"`
+	Kind      string    `json:"kind"`
+	CreatedAt string    `json:"createdAt"`
+	Qr        string    `json:"qr"`
 	Operation Operation `json:"operation"`
 	Query     Query     `json:"query"`
 	Ticket    *Ticket   `json:"ticket"`
@@ -41,31 +41,30 @@ type Document struct {
 }
 
 type Receipt struct {
-	DateTime                int64  `json:"dateTime"`
-	CashTotalSum            int    `json:"cashTotalSum"`
-	Code                    int    `json:"code"`
-	CreditSum               int    `json:"creditSum"`
-	EcashTotalSum           int    `json:"ecashTotalSum"`
-	FiscalDocumentFormatVer int    `json:"fiscalDocumentFormatVer"`
-	FiscalDocumentNumber    int    `json:"fiscalDocumentNumber"`
-	FiscalDriveNumber       int64  `json:"fiscalDriveNumber"`
-	FiscalSign              int64  `json:"fiscalSign"`
-	FnsUrl                  string `json:"fnsUrl"`
-	Items                   []Item `json:"items"`
-	KktRegId                string `json:"kktRegId"`
-	Nds10                   int64  `json:"nds10"`
-	Nds18                   int64  `json:"nd18"`
-	OperationType           int    `json:"operationType"`
-	Operator                string `json:"operator"`
-	PrepaidSum              int64  `json:"prepaidSum"`
-	ProvisionSum            int64  `json:"provisionSum"`
-	RequestNumber           int    `json:"requestNumber"`
-	RetailPlace             string `json:"retailPlace"`
-	RetailPlaceAddress      string `json:"retailPlaceAddress"`
-	ShiftNumber             int    `json:"shiftNumber"`
-	TotalSum                int64  `json:"totalSum"`
-	User                    string `json:"user"`
-	UserInn                 string `json:"userInn"`
+	DateTime             int64  `json:"dateTime"`
+	CashTotalSum         int64  `json:"cashTotalSum"`
+	Code                 int    `json:"code"`
+	CreditSum            int64  `json:"creditSum"`
+	EcashTotalSum        int64  `json:"ecashTotalSum"`
+	FiscalDocumentNumber int    `json:"fiscalDocumentNumber"`
+	FiscalDriveNumber    string `json:"fiscalDriveNumber"`
+	FiscalSign           int64  `json:"fiscalSign"`
+	FnsUrl               string `json:"fnsUrl"`
+	Items                []Item `json:"items"`
+	KktRegId             string `json:"kktRegId"`
+	Nds10                int64  `json:"nds10"`
+	Nds18                int64  `json:"nd18"`
+	OperationType        int    `json:"operationType"`
+	Operator             string `json:"operator"`
+	PrepaidSum           int64  `json:"prepaidSum"`
+	ProvisionSum         int64  `json:"provisionSum"`
+	RequestNumber        int    `json:"requestNumber"`
+	RetailPlace          string `json:"retailPlace"`
+	RetailPlaceAddress   string `json:"retailPlaceAddress"`
+	ShiftNumber          int    `json:"shiftNumber"`
+	TotalSum             int64  `json:"totalSum"`
+	User                 string `json:"user"`
+	UserInn              string `json:"userInn"`
 }
 
 type Item struct {
