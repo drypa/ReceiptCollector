@@ -42,19 +42,19 @@ func (r *Repository) getCollection() *mongo.Collection {
 func (r *Repository) Update(ctx context.Context, d *device.Device) error {
 	collection := r.getCollection()
 	filter := bson.M{"id": d.Id}
-	_, err := collection.UpdateOne(ctx, filter, d)
+	_, err := collection.ReplaceOne(ctx, filter, d)
 	return err
 }
 
 func readDevices(cursor *mongo.Cursor, ctx context.Context) ([]device.Device, error) {
 	var devices = make([]device.Device, 0, 0)
 	for cursor.Next(ctx) {
-		var device = device.Device{}
-		err := cursor.Decode(&device)
+		var d = device.Device{}
+		err := cursor.Decode(&d)
 		if err != nil {
 			return nil, err
 		}
-		devices = append(devices, device)
+		devices = append(devices, d)
 	}
 	return devices, nil
 
