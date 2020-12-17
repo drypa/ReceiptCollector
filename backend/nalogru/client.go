@@ -129,7 +129,7 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	details := &TicketDetails{}
 	all, err := ioutil.ReadAll(res.Body)
-	err = ioutil.WriteFile("/home/drypa/receipts/"+id+".json", all, 0644)
+	err = ioutil.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
 
 	err = json.Unmarshal(all, details)
 	if err != nil {
