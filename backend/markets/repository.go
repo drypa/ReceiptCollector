@@ -32,16 +32,16 @@ func (repository Repository) GetAll(ctx context.Context) ([]Market, error) {
 }
 
 func readMarkets(cursor *mongo.Cursor, context context.Context) ([]Market, error) {
-	var receipts = make([]Market, 0, 0)
+	var markets = make([]Market, 0, 0)
 	for cursor.Next(context) {
 		var receipt Market
 		err := cursor.Decode(&receipt)
 		if err != nil {
 			return nil, err
 		}
-		receipts = append(receipts, receipt)
+		markets = append(markets, receipt)
 	}
-	return receipts, nil
+	return markets, nil
 }
 
 func (repository Repository) Insert(ctx context.Context, market Market) error {
