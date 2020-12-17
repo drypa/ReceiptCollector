@@ -30,7 +30,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 		case <-ticker.C:
 			err := worker.getReceipt(ctx, client)
 			if err != nil {
-				log.Println("Get receipt error")
+				log.Printf("Get receipt error: %v\n", err)
 			}
 		}
 	}
@@ -39,6 +39,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) error {
 	receipt, err := worker.repository.GetWithoutTicket(ctx)
 	if err != nil {
+		log.Printf("failed to get tickets to process: %v", err)
 		return err
 	}
 
@@ -66,11 +67,13 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 	err = worker.repository.SetTicketId(ctx, receipt, id)
 	if err != nil {
+		log.Printf("set ticket id failed: %v", err)
 		return err
 	}
 
 	details, err := client.GetTicketById(id)
 	if err != nil {
+		log.Printf("get ticket by id %s failed: %v", id, err)
 		return err
 	}
 
