@@ -6,5 +6,5 @@ type Device struct {
 	ClientSecret string             `bson:"client_secret"`
 	SessionId    string             `bson:"session_id"`
 	RefreshToken string             `bson:"refresh_token"`
-	Id           primitive.ObjectID `bson:"_id"`
+	Id           primitive.ObjectID `bson:"_id,omitempty"`
 }
