@@ -77,5 +77,7 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 		return err
 	}
 
-	return worker.repository.InsertRawTicket(ctx, details)
+	err = worker.repository.InsertRawTicket(ctx, details)
+	log.Printf("raw ticket %v saved\n", id)
+	return err
 }

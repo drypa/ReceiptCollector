@@ -41,7 +41,7 @@ func (r *Repository) getCollection() *mongo.Collection {
 
 func (r *Repository) Update(ctx context.Context, d *device.Device) error {
 	collection := r.getCollection()
-	filter := bson.M{"id": d.Id}
+	filter := bson.M{"_id": d.Id}
 	_, err := collection.ReplaceOne(ctx, filter, d)
 	return err
 }
