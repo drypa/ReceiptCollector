@@ -51,20 +51,15 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	id, err := client.GetTicketId(receipt.QueryString)
 	if err != nil {
 		if err == nalogru.AuthError {
-			d, err := client.RefreshSession()
-			if err != nil {
-				log.Printf("failed to refresh session: %v", err)
-				return err
-			}
-			err = worker.devices.Update(ctx, d)
-			if err != nil {
-				log.Printf("failed to update device: %v", err)
-				return err
+			refreshErr := worker.refreshSession(ctx, client)
+			if refreshErr != nil {
+				return refreshErr
 			}
 		}
 
 		return err
 	}
+
 	err = worker.repository.SetTicketId(ctx, receipt, id)
 	if err != nil {
 		log.Printf("set ticket id failed: %v", err)
@@ -80,4 +75,18 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	err = worker.repository.InsertRawTicket(ctx, details)
 	log.Printf("raw ticket %v saved\n", id)
 	return err
+}
+
+func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client) error {
+	d, err := client.RefreshSession()
+	if err != nil {
+		log.Printf("failed to refresh session: %v", err)
+		return err
+	}
+	err = worker.devices.Update(ctx, d)
+	if err != nil {
+		log.Printf("failed to update device: %v", err)
+		return err
+	}
+	return nil
 }
