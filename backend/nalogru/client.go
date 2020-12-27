@@ -71,11 +71,11 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	client := &http.Client{}
 	payload := TicketIdRequest{Qr: queryString}
 
-	resp, err := json.Marshal(payload)
+	req, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
-	reader := bytes.NewReader(resp)
+	reader := bytes.NewReader(req)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, nalogruClient.device.Id.Hex())
@@ -85,8 +85,26 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
+
+	response, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Can't read http response body")
+		return "", err
+	}
+
 	if res.StatusCode != http.StatusOK {
-		log.Printf("POST error: %d\n", res.StatusCode)
+		log.Printf("Get ticket id error: %d\n", res.StatusCode)
+		file, err := ioutil.TempFile("/var/lib/receipts/error/", "*.err")
+		if err != nil {
+			log.Println("failed to create error response file")
+			return "", err
+		}
+		defer file.Close()
+		_, err = file.Write(response)
+		if err != nil {
+			log.Println("failed to write response to file")
+			return "", err
+		}
 
 		if res.StatusCode == http.StatusUnauthorized {
 			err = AuthError
@@ -96,11 +114,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 
 		return "", err
 	}
-	response, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println("Can't read http response body")
-		return "", err
-	}
+
 	ticketIdResp := &TicketIdResponse{}
 	err = json.Unmarshal(response, ticketIdResp)
 	if err != nil {
@@ -181,7 +195,7 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		log.Printf("POST error: %d\n", res.StatusCode)
+		log.Printf("Refresh session error: %d\n", res.StatusCode)
 		return nil, err
 	}
 
