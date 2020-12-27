@@ -122,13 +122,20 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
+		return nil, err
+	}
+
 	if res.StatusCode != http.StatusOK {
 		log.Printf("GET receipt error: %d\n", res.StatusCode)
+		err = ioutil.WriteFile("/var/lib/receipts/error/"+id+".json", all, 0644)
 		return nil, err
 	}
 
 	details := &TicketDetails{}
-	all, err := ioutil.ReadAll(res.Body)
+
 	err = ioutil.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
 
 	err = json.Unmarshal(all, details)
