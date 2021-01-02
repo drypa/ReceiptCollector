@@ -21,13 +21,14 @@ type Controller struct {
 	nalogruClient *nalogru.Client
 }
 
+//New creates controller.
 func New(repository Repository, nalogruClient *nalogru.Client) Controller {
 	return Controller{
 		repository:    repository,
 		nalogruClient: nalogruClient,
 	}
 }
-func OnError(writer http.ResponseWriter, err error) {
+func onError(writer http.ResponseWriter, err error) {
 	log.Printf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
@@ -39,7 +40,7 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	queryString := request.URL.RawQuery
 	err := controller.processReceiptQueryString(ctx, queryString, userId)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
@@ -58,7 +59,7 @@ func (controller Controller) processReceiptQueryString(ctx context.Context,
 		return err
 	}
 
-	err = controller.saveRequest(ctx, receiptString, userId)
+	err = controller.saveRequest(ctx, result.ToString(), userId)
 	if err != nil {
 		return err
 	}
@@ -75,14 +76,14 @@ func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, 
 	decoder := json.NewDecoder(request.Body)
 	err := decoder.Decode(&receiptStrings)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	for _, v := range receiptStrings {
 		err := controller.processReceiptQueryString(ctx, v, userId)
 		if err != nil {
 			log.Printf("error processing %s with error %v\n", v, err)
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 	}
@@ -120,7 +121,7 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 	userId := ctx.Value(auth.UserId)
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	writeResponse(receipts, writer)
@@ -135,7 +136,7 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 	userId := getUserId(ctx)
 	receipt, err := controller.getReceiptById(ctx, userId, id)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	writeResponse(receipt, writer)
@@ -160,7 +161,7 @@ func getFromQuery(paramName string, request *http.Request) (string, error) {
 func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 	id, err := getFromQuery("id", request)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return ""
 	}
 	return id
@@ -176,19 +177,19 @@ func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, re
 	userId := ctx.Value(auth.UserId)
 	err := controller.repository.Delete(ctx, userId.(string), id)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
 func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	resp, err := json.Marshal(responseObject)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	_, err = writer.Write(resp)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }
@@ -221,12 +222,12 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
 	receiptRequest := addReceiptRequest{}
 	err := getFromBody(request, &receiptRequest)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 	err = controller.processReceiptQueryString(ctx, receiptRequest.ReceiptString, receiptRequest.UserId)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return
 	}
 }

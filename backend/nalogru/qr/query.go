@@ -1,6 +1,7 @@
 package qr
 
 import (
+	"fmt"
 	"html/template"
 	"net/url"
 	"strconv"
@@ -16,6 +17,7 @@ type Query struct {
 	N          string
 }
 
+//Parse converts query string from bar code to Query structure.
 func Parse(queryString string) (Query, error) {
 	form, err := url.ParseQuery(queryString)
 	res := Query{}
@@ -39,11 +41,17 @@ func Parse(queryString string) (Query, error) {
 	}, nil
 }
 
-func (query Query) Validate() error {
-	_, errN := strconv.Atoi(query.N)
-	_, errFs := strconv.Atoi(query.FiscalSign)
-	_, errSum := strconv.ParseFloat(query.Sum, 64)
-	_, errFd := strconv.Atoi(query.Fd)
+//ToString returns normalized representation of Query.
+func (q *Query) ToString() string {
+	t := q.Time.Format("20060102T1504")
+	return fmt.Sprintf("t=%s&s=%s&fn=%s&i=%s&fp=%s&n=%s", t, q.Sum, q.Fd, q.Fp, q.FiscalSign, q.N)
+}
+
+func (q Query) Validate() error {
+	_, errN := strconv.Atoi(q.N)
+	_, errFs := strconv.Atoi(q.FiscalSign)
+	_, errSum := strconv.ParseFloat(q.Sum, 64)
+	_, errFd := strconv.Atoi(q.Fd)
 	return firstError([]error{errN, errFs, errSum, errFd})
 }
 
