@@ -49,14 +49,17 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 
 	id, err := client.GetTicketId(receipt.QueryString)
-	if err != nil {
-		if err == nalogru.AuthError {
-			refreshErr := worker.refreshSession(ctx, client)
-			if refreshErr != nil {
-				return refreshErr
-			}
-		}
 
+	if err == nalogru.AuthError {
+		err = worker.refreshSession(ctx, client)
+		if err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return err
+		}
+		id, err = client.GetTicketId(receipt.QueryString)
+	}
+
+	if err != nil {
 		return err
 	}
 
