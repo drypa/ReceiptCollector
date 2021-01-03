@@ -33,6 +33,8 @@ services:
       - collector-net
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
+      - "${RAW_TICKET_DUMP_PATH}:/var/lib/receipts/raw/"
+      - "${GET_TICKET_ERROR_PATH}:/var/lib/receipts/error/"
 
   bot:
     build: bot

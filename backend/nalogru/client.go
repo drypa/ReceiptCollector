@@ -1,16 +1,29 @@
 package nalogru
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"receipt_collector/nalogru/device"
 )
 
 type Client struct {
 	BaseAddress string
-	Login       string
-	Password    string
+	device      *device.Device
+}
+
+var AuthError = errors.New("auth failed")
+var InternalError = errors.New("internal failed")
+
+//NewClient - creates instance of Client.
+func NewClient(baseAddress string, device *device.Device) *Client {
+	return &Client{
+		BaseAddress: baseAddress,
+		device:      device,
+	}
 }
 
 const (
@@ -18,30 +31,6 @@ const (
 	DailyLimitReached string = "daily limit reached for the specified user"
 	NotReadyYet       string = "not ready yet"
 )
-
-func (nalogruClient Client) SendOdfsRequest(queryString string) error {
-	parseResult, err := Parse(queryString)
-	if err != nil {
-		return err
-	}
-	ofdsUrl := buildOfdsUrl(nalogruClient.BaseAddress, parseResult)
-	client := &http.Client{}
-	request, err := createRequest(ofdsUrl)
-
-	if err != nil {
-		return err
-	}
-	response, err := sendRequest(request, client)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
-		//406
-		log.Printf("ODFS request status: %d \n", response.StatusCode)
-		return errors.New(response.Status)
-	}
-	return nil
-}
 
 //CheckReceiptExist send request to check receipt exist in Nalog.ru api.
 func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
@@ -65,58 +54,177 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 	return false, nil
 }
 
-func (nalogruClient Client) SendKktsRequest(queryString string) ([]byte, error) {
+//TicketIdRequest is request object to get Ticket id.
+type TicketIdRequest struct {
+	Qr string `json:"qr"`
+}
+
+//TicketIdResponse - response on TicketIdRequest.
+type TicketIdResponse struct {
+	Kind   string `json:"kind"`
+	Id     string `json:"id"`
+	Status int    `json:"status"`
+}
+
+//GetTicketId - send ticket id request to nalog.ru API.
+func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	client := &http.Client{}
-	parseResult, err := Parse(queryString)
+	payload := TicketIdRequest{Qr: queryString}
+
+	req, err := json.Marshal(payload)
 	if err != nil {
+		return "", err
+	}
+	reader := bytes.NewReader(req)
+	url := nalogruClient.BaseAddress + "/v2/ticket"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, nalogruClient.device.Id.Hex())
+	addAuth(request, nalogruClient.device.SessionId)
+	res, err := sendRequest(request, client)
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return "", err
+	}
+
+	response, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Can't read http response body")
+		return "", err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		log.Printf("Get ticket id error: %d\n", res.StatusCode)
+		file, err := ioutil.TempFile("/var/lib/receipts/error/", "*.err")
+		if err != nil {
+			log.Println("failed to create error response file")
+			return "", err
+		}
+		defer file.Close()
+		_, err = file.Write(response)
+		if err != nil {
+			log.Println("failed to write response to file")
+			return "", err
+		}
+
+		if res.StatusCode == http.StatusUnauthorized {
+			err = AuthError
+		} else {
+			err = InternalError
+		}
+
+		return "", err
+	}
+
+	ticketIdResp := &TicketIdResponse{}
+	err = json.Unmarshal(response, ticketIdResp)
+	if err != nil {
+		log.Println("Can't unmarshal response")
+		return "", err
+	}
+	return ticketIdResp.Id, nil
+}
+
+func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
+	client := &http.Client{}
+
+	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	addHeaders(request, nalogruClient.device.Id.Hex())
+	addAuth(request, nalogruClient.device.SessionId)
+	res, err := sendRequest(request, client)
+	if err != nil {
+		log.Printf("Can't GET %s\n", url)
+		return nil, err
+	}
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
 		return nil, err
 	}
 
-	kktsUrl := BuildKktsUrl(nalogruClient.BaseAddress, parseResult)
-	log.Printf("Kkt URL: %s\n", kktsUrl)
-	request, err := createRequest(kktsUrl)
-	if err != nil {
-		return nil, err
-	}
-	addAuth(request, nalogruClient.Login, nalogruClient.Password)
-	response, err := sendRequest(request, client)
-
-	if err != nil {
-		log.Printf("KKTs request error %v.", err)
+	if res.StatusCode != http.StatusOK {
+		log.Printf("GET receipt error: %d\n", res.StatusCode)
+		err = ioutil.WriteFile("/var/lib/receipts/error/"+id+".json", all, 0644)
 		return nil, err
 	}
 
-	if response.StatusCode == http.StatusAccepted {
-		return nil, errors.New(NotReadyYet)
+	details := &TicketDetails{}
+
+	err = ioutil.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
+
+	err = json.Unmarshal(all, details)
+	if err != nil {
+		log.Println("Can't decode response body")
+
+		return nil, err
 	}
 
-	all, err := ioutil.ReadAll(response.Body)
-	if response.StatusCode == http.StatusOK {
-		return all, err
+	return details, nil
+}
+
+type RefreshRequest struct {
+	ClientSecret string `json:"client_secret"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshResponse struct {
+	SessionId    string `json:"sessionId"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
+	client := &http.Client{}
+
+	payload := RefreshRequest{
+		ClientSecret: nalogruClient.device.ClientSecret,
+		RefreshToken: nalogruClient.device.RefreshToken,
 	}
-	log.Println(response.StatusCode)
-	return nil, errors.New(string(all))
+
+	resp, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(resp)
+
+	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, nalogruClient.device.Id.Hex())
+	res, err := sendRequest(request, client)
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Printf("Refresh session error: %d\n", res.StatusCode)
+		return nil, err
+	}
+
+	response := &RefreshResponse{}
+	err = json.NewDecoder(res.Body).Decode(response)
+	if err != nil {
+		log.Println("Can't decode response body")
+		return nil, err
+	}
+	log.Printf("%+v\n", response)
+	nalogruClient.device.RefreshToken = response.RefreshToken
+	nalogruClient.device.SessionId = response.SessionId
+	return nalogruClient.device, nil
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
 	return client.Do(request)
 }
 
-func createRequest(url string) (*http.Request, error) {
-	request, _ := http.NewRequest("GET", url, nil)
-	addHeaders(request)
-	return request, nil
+func addAuth(request *http.Request, sessionId string) {
+	request.Header.Add("sessionId", sessionId)
 }
 
-func addAuth(request *http.Request, login string, password string) {
-	request.SetBasicAuth(login, password)
-}
-
-func addHeaders(request *http.Request) {
-	request.Header.Add("Device-OS", "Adnroid 6.0.1") //not my misspell. is is from traffic dump
+func addHeaders(request *http.Request, deviceId string) {
+	request.Header.Add("device-OS", "Android")
 	request.Header.Add("Version", "2")
-	request.Header.Add("ClientVersion", "1.4.4.4")
-	request.Header.Add("Device-Id", "123456")
+	request.Header.Add("ClientVersion", "2.9.0")
 	request.Header.Add("Connection", "Keep-Alive")
-	request.Header.Add("User-Agent", "okhttp/3.0.1")
+	request.Header.Add("User-Agent", "okhttp/4.2.2")
+	request.Header.Add("Content-Type", "application/json; charset=utf-8")
+	request.Header.Add("device-Id", deviceId)
 }
