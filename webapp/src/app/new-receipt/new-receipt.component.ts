@@ -27,11 +27,11 @@ export class NewReceiptComponent implements OnInit {
     this.receiptService.addReceiptByBarCode(this.control.value)
       .subscribe(() => {
         this.control.setValue('');
-        this.showSnack("Added")
-      }, err => this.showSnack("Error"));
+        this.showSnack('Added')
+      }, () => this.showSnack('Error'));
   }
 
   private showSnack(message: string) {
-    this.snackBar.open(message, "OK", {})
+    this.snackBar.open(message, 'OK', {})
   }
 }

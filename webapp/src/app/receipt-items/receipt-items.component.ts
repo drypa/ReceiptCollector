@@ -1,6 +1,5 @@
-import {Component, Input, OnInit} from '@angular/core';
-import {Receipt} from "../receipt";
-import {Purchase} from "../purchase";
+import { Component, Input, OnInit } from '@angular/core';
+import { Purchase } from '../purchase';
 
 @Component({
   selector: 'app-receipt-items',

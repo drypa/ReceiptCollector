@@ -1,8 +1,8 @@
-import {Component, OnInit, ViewChild} from '@angular/core';
-import {FormControl, FormGroup} from "@angular/forms";
-import {ReceiptService} from "../receipt.service";
-import {MatSnackBar} from "@angular/material/snack-bar";
-import {CdkTextareaAutosize} from '@angular/cdk/text-field';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { FormControl, FormGroup } from '@angular/forms';
+import { ReceiptService } from '../receipt.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 
 @Component({
   selector: 'app-add-receipt-batch-dialog',
@@ -33,11 +33,11 @@ export class AddReceiptBatchDialogComponent implements OnInit {
     this.receiptService.batchAdd(receipts)
       .subscribe(() => {
         this.control.setValue('');
-        this.showSnack("Added")
-      }, err => this.showSnack("Error"));
+        this.showSnack('Added')
+      }, () => this.showSnack('Error'));
   }
 
   private showSnack(message: string) {
-    this.snackBar.open(message, "OK", {})
+    this.snackBar.open(message, 'OK', {})
   }
 }

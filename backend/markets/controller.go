@@ -21,21 +21,21 @@ func (controller Controller) MarketsBaseHandler(writer http.ResponseWriter, requ
 	if request.Method == http.MethodGet {
 		err := controller.getMarketsHandler(writer, request)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 	}
 	if request.Method == http.MethodPost {
 		err := controller.addMarketHandler(writer, request)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
 	}
 
 	writer.WriteHeader(http.StatusNotFound)
 }
-func OnError(writer http.ResponseWriter, err error) {
+func onError(writer http.ResponseWriter, err error) {
 	_ = fmt.Errorf("Error: %v", err)
 	writer.WriteHeader(http.StatusInternalServerError)
 }
@@ -44,23 +44,27 @@ func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, r
 	if request.Method == http.MethodGet {
 		market, err := controller.getMarketHandler(writer, request)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
-		bytes, err := json.Marshal(market)
-		if err != nil {
-			OnError(writer, err)
-			return
-		}
-		writer.Write(bytes)
+		writeResponse(market, writer)
 		return
 	}
 	if request.Method == http.MethodPut {
 		err := controller.updateMarketHandler(writer, request)
 		if err != nil {
-			OnError(writer, err)
+			onError(writer, err)
 			return
 		}
+		return
+	}
+}
+
+func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
+	e := json.NewEncoder(writer)
+	err := e.Encode(responseObject)
+	if err != nil {
+		onError(writer, err)
 		return
 	}
 }
@@ -86,7 +90,7 @@ func (controller Controller) getMarketsHandler(writer http.ResponseWriter, reque
 	ctx := request.Context()
 	markets, err := controller.repository.GetAll(ctx)
 	if err != nil {
-		OnError(writer, err)
+		onError(writer, err)
 		return err
 	}
 	resp, err := json.Marshal(markets)

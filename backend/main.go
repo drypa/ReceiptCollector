@@ -21,6 +21,7 @@ import (
 	"receipt_collector/receipts"
 	"receipt_collector/users"
 	"receipt_collector/users/login_url"
+	"receipt_collector/waste"
 	"receipt_collector/workers"
 	"time"
 )
@@ -37,7 +38,7 @@ func main() {
 	settings := workers.ReadFromEnvironment()
 	log.Printf("Worker settings %v \n", settings)
 
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	client, err := getMongoClient()
 	if err != nil {
 		check(err)
@@ -62,9 +63,17 @@ func main() {
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
+	wasteRepository := waste.NewRepository(client)
 
-	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, deviceService)
+	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, &wasteRepository, deviceService)
 
+	wasteWorker := waste.NewWorker()
+	go func() {
+		var err = wasteWorker.Process(ctx, client)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	go worker.CheckReceiptStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
@@ -77,7 +86,8 @@ func main() {
 
 	go internal.Serve(":15000", creds, &processor)
 
-	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, deviceService)
+	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
+
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Kill)
 	signal.Notify(sigChan, os.Interrupt)
@@ -85,13 +95,14 @@ func main() {
 	sig := <-sigChan
 
 	log.Printf("Service is shutting down... %s\n,", sig)
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	cancelFunc()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	err = server.Shutdown(ctx)
+
 	if err != nil {
 		cancel()
 		log.Fatal(err)
 	}
-
 }
 
 func getMongoClient() (*mongo.Client, error) {
@@ -99,19 +110,25 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient *nalogru.Client, receiptRepository receipts.Repository, userRepository users.Repository, marketRepository markets.Repository, devices nalogru.Devices) *http.Server {
-
+func startServer(nalogruClient *nalogru.Client,
+	receiptRepository receipts.Repository,
+	userRepository users.Repository,
+	marketRepository markets.Repository,
+	wasteRepository waste.Repository,
+	devices nalogru.Devices) *http.Server {
 	marketsController := markets.New(marketRepository)
 	deviceController := controller.NewController(devices)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
+	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
 	registerUnauthenticatedRoutes(router, usersController, receiptsController)
 
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
 	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
+
 	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.GetReceiptDetailsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
@@ -119,6 +136,8 @@ func startServer(nalogruClient *nalogru.Client, receiptRepository receipts.Repos
 	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
 
 	router.HandleFunc("/api/device", deviceController.AddDeviceHandler).Methods(http.MethodPost)
+
+	router.HandleFunc("/api/waste", wasteController.GetHandler).Methods(http.MethodGet)
 
 	loginRoute := "/api/login"
 	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
