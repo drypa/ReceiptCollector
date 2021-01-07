@@ -67,13 +67,13 @@ func main() {
 
 	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, &wasteRepository, deviceService)
 
-	wasteWorker := waste.NewWorker()
-	go func() {
-		var err = wasteWorker.Process(ctx, client)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	//wasteWorker := waste.NewWorker()
+	//go func() {
+	//	var err = wasteWorker.Process(ctx, client)
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
+	//}()
 	go worker.CheckReceiptStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
