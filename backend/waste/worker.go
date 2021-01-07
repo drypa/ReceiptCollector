@@ -37,13 +37,13 @@ func (worker Worker) Process(ctx context.Context, mongoClient *mongo.Client) err
 		}
 		wg.Add(1)
 		//TODO: possible error in createWasteForUser handling(wg error handling)
-		go createWasteForUser(ctx, user, mongoClient, wg)
+		go createWasteForUser(ctx, user, mongoClient, &wg)
 	}
 	wg.Wait()
 	return nil
 }
 
-func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg sync.WaitGroup) error {
+func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg *sync.WaitGroup) error {
 	collection := getReceiptsCollection(client)
 	cursor, err := collection.Find(ctx, bson.D{{"owner", user.Id}})
 	if err != nil {
