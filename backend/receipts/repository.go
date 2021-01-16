@@ -134,7 +134,7 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
-func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId string, status RequestStatus) error {
+func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId string, status RequestStatus) error {
 	collection := repository.getCollection()
 
 	id, err := primitive.ObjectIDFromHex(receiptId)
@@ -142,7 +142,7 @@ func (repository Repository) SetKktsRequestStatus(ctx context.Context, receiptId
 		return err
 	}
 	filter := bson.M{"_id": bson.M{"$eq": id}}
-	update := bson.M{"$set": bson.M{"kkts_request_status": status}}
+	update := bson.M{"$set": bson.M{checkStatus: status}}
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
 }

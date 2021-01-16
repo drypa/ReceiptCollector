@@ -201,7 +201,9 @@ func (controller Controller) trySaveReceipt(ctx context.Context, response []byte
 	if err != nil {
 		body := string(response)
 		if body == nalogru.TicketNotFound {
-			controller.repository.SetKktsRequestStatus(ctx, receipt.Id.Hex(), NotFound)
+			id := receipt.Id.Hex()
+			err := controller.repository.SetReceiptStatus(ctx, id, NotFound)
+			log.Printf("failed to set status for receipt %s with %v\n", id, err)
 			return
 		}
 		result := fmt.Sprintf("Can not parse response body.Body: '%s'.Error: %v", body, err)

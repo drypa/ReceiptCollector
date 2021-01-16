@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"receipt_collector/nalogru"
+	"receipt_collector/receipts"
 	"time"
 )
 
@@ -48,6 +49,7 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 		return nil
 	}
 
+	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
 	id, err := client.GetTicketId(receipt.QueryString)
 
 	if err == nalogru.AuthError {
@@ -60,6 +62,8 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 
 	if err != nil {
+		log.Printf("failed get receipt id %v\n", err)
+		err := worker.repository.SetReceiptStatus(ctx, receipt.Id.Hex(), receipts.Error)
 		return err
 	}
 
