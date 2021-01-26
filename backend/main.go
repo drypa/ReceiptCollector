@@ -124,7 +124,6 @@ func startServer(nalogruClient *nalogru.Client,
 	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)
 	router := mux.NewRouter()
-	router.Use(basicAuth.RequireBasicAuth)
 	registerUnauthenticatedRoutes(router, usersController, receiptsController)
 
 	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
