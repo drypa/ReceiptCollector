@@ -2,6 +2,7 @@ version: '2'
 
 services:
   mongo:
+    container_name: receipt-mongo
     image: mongo:4.1
     restart: always
     environment:
@@ -14,6 +15,7 @@ services:
       - collector-net
 
   collector:
+    container_name: receipt-collector
     build: backend
     image: drypa/receipt-collector:latest
     restart: always
@@ -27,8 +29,6 @@ services:
       - NALOGRU_PASS=${NALOGRU_PASS}
       - GET_RECEIPT_WORKER_INTERVAL=5m
       - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
-      - WORKER_START_HOUR=20
-      - WORKER_END_HOUR=5
     networks:
       - collector-net
     volumes:
@@ -37,6 +37,7 @@ services:
       - "${GET_TICKET_ERROR_PATH}:/var/lib/receipts/error/"
 
   bot:
+    container_name: receipt-bot
     build: bot
     image: drypa/receipt-telegram-bot:latest
     restart: always
@@ -51,6 +52,7 @@ services:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
 
   gateway:
+    container_name: receipt-webapp
     build: webapp
     image: drypa/receipt-frontend:latest
     restart: always
