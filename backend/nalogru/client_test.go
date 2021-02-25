@@ -9,7 +9,7 @@ import (
 
 var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
 var sessionId = "INSERT SESSION ID HERE"
-var deviceId = "12345"
+var deviceId = primitive.NewObjectID().Hex()
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
 	d, err := createDevice(t, "", "")
@@ -99,6 +99,31 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 	if d.RefreshToken == "" {
 		log.Println("Refresh token is empty")
 		t.Fail()
+	}
+
+}
+
+func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
+	queryString := "INSERT VALID QUERY STRING HERE"
+	d, err := createDevice(t, "", "")
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress, d)
+	exist, err := client.CheckReceiptExist(queryString)
+
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+
+	if exist == false {
+		log.Println("bar code is invalid")
+		t.Fail()
+		return
 	}
 
 }

@@ -41,7 +41,14 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 		return false, err
 	}
 	log.Printf("Check Request: %s", url)
-	resp, err := client.Get(url)
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Printf("Could't not create request for %s", url)
+		return false, err
+	}
+	addHeaders(request, nalogruClient.device.Id.Hex())
+	resp, err := client.Do(request)
 	if err != nil {
 		log.Printf("Could't check receipt %s", url)
 		return false, err
@@ -220,11 +227,11 @@ func addAuth(request *http.Request, sessionId string) {
 }
 
 func addHeaders(request *http.Request, deviceId string) {
-	request.Header.Add("device-OS", "Android")
-	request.Header.Add("Version", "2")
-	request.Header.Add("ClientVersion", "2.9.0")
+	request.Header.Add("ClientVersion", "2.13.0")
+	request.Header.Add("Device-Id", deviceId)
+	request.Header.Add("Device-OS", "Android")
 	request.Header.Add("Connection", "Keep-Alive")
-	request.Header.Add("User-Agent", "okhttp/4.2.2")
+	request.Header.Add("Accept-Encoding", "gzip")
+	request.Header.Add("User-Agent", "okhttp/4.9.0")
 	request.Header.Add("Content-Type", "application/json; charset=utf-8")
-	request.Header.Add("device-Id", deviceId)
 }
