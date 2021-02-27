@@ -29,9 +29,7 @@ func NewClient(baseAddress string, device *device.Device) *Client {
 }
 
 const (
-	TicketNotFound    string = "the ticket was not found"
-	DailyLimitReached string = "daily limit reached for the specified user"
-	NotReadyYet       string = "not ready yet"
+	TicketNotFound string = "the ticket was not found"
 )
 
 //CheckReceiptExist send request to check receipt exist in Nalog.ru api.
