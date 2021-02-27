@@ -133,9 +133,10 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 func readBody(res *http.Response) ([]byte, error) {
 	defer res.Body.Close()
 	var bodyReader io.ReadCloser
+	var err error
 	switch res.Header.Get("Content-Encoding") {
 	case "gzip":
-		bodyReader, err := gzip.NewReader(res.Body)
+		bodyReader, err = gzip.NewReader(res.Body)
 		if err != nil {
 			log.Printf("Can't create gzip reader \n")
 			return nil, err
