@@ -2,8 +2,10 @@ package nalogru
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -92,8 +94,22 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
+	defer res.Body.Close()
 
-	response, err := ioutil.ReadAll(res.Body)
+	var bodyReader io.ReadCloser
+	switch res.Header.Get("Content-Encoding") {
+	case "gzip":
+		bodyReader, err = gzip.NewReader(res.Body)
+		if err != nil {
+			log.Printf("Can't create gzip reader \n")
+			return "", err
+		}
+		defer bodyReader.Close()
+	default:
+		bodyReader = res.Body
+	}
+
+	response, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
 		log.Println("Can't read http response body")
 		return "", err
