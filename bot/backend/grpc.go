@@ -2,7 +2,7 @@ package backend
 
 import (
 	"context"
-	"github.com/drypa/ReceiptCollector/api/inside"
+	inside "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"log"
