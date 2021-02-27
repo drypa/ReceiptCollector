@@ -92,24 +92,9 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
-	defer res.Body.Close()
 
-	var bodyReader io.ReadCloser
-	switch res.Header.Get("Content-Encoding") {
-	case "gzip":
-		bodyReader, err = gzip.NewReader(res.Body)
-		if err != nil {
-			log.Printf("Can't create gzip reader \n")
-			return "", err
-		}
-		defer bodyReader.Close()
-	default:
-		bodyReader = res.Body
-	}
-
-	response, err := ioutil.ReadAll(bodyReader)
+	body, err := readBody(res)
 	if err != nil {
-		log.Println("Can't read http response body")
 		return "", err
 	}
 
@@ -121,7 +106,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 			return "", err
 		}
 		defer file.Close()
-		_, err = file.Write(response)
+		_, err = file.Write(body)
 		if err != nil {
 			log.Println("failed to write response to file")
 			return "", err
@@ -137,12 +122,30 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	}
 
 	ticketIdResp := &TicketIdResponse{}
-	err = json.Unmarshal(response, ticketIdResp)
+	err = json.Unmarshal(body, ticketIdResp)
 	if err != nil {
 		log.Println("Can't unmarshal response")
 		return "", err
 	}
 	return ticketIdResp.Id, nil
+}
+
+func readBody(res *http.Response) ([]byte, error) {
+	defer res.Body.Close()
+	var bodyReader io.ReadCloser
+	switch res.Header.Get("Content-Encoding") {
+	case "gzip":
+		bodyReader, err := gzip.NewReader(res.Body)
+		if err != nil {
+			log.Printf("Can't create gzip reader \n")
+			return nil, err
+		}
+		defer bodyReader.Close()
+	default:
+		bodyReader = res.Body
+	}
+
+	return ioutil.ReadAll(bodyReader)
 }
 
 func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
@@ -157,7 +160,8 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
-	all, err := ioutil.ReadAll(res.Body)
+
+	all, err := readBody(res)
 	if err != nil {
 		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
 		return nil, err
