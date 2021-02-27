@@ -45,7 +45,7 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 
 	if receipt == nil {
-		log.Println("No new requests")
+		//No new requests
 		return nil
 	}
 

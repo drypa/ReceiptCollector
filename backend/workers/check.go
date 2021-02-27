@@ -32,7 +32,7 @@ func (worker Worker) checkReceipt(ctx context.Context) error {
 		return err
 	}
 	if receipt == nil {
-		log.Println("No unchecked receipts")
+		//No unchecked receipts
 		return nil
 	}
 	status := receipts.Success
