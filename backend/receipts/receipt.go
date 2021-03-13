@@ -1,7 +1,6 @@
 package receipts
 
 import (
-	"encoding/json"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"receipt_collector/receipts/purchase"
 	"time"
@@ -49,14 +48,3 @@ const (
 	Requested = RequestStatus("requested")
 	NotFound  = RequestStatus("not_found")
 )
-
-//ParseReceipt parse API response as Receipt.
-func ParseReceipt(bytes []byte) (Receipt, error) {
-	var receipt map[string]map[string]Receipt
-	err := json.Unmarshal(bytes, &receipt)
-	if err != nil {
-		return Receipt{}, err
-	}
-	res := receipt["document"]["receipt"]
-	return res, nil
-}

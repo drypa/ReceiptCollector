@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
@@ -194,26 +193,6 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 
 func (controller Controller) getReceiptById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	return controller.repository.GetById(ctx, userId, receiptId)
-}
-
-func (controller Controller) trySaveReceipt(ctx context.Context, response []byte, writer http.ResponseWriter, receipt UsersReceipt) {
-	receiptFromApi, err := ParseReceipt(response)
-	if err != nil {
-		body := string(response)
-		if body == nalogru.TicketNotFound {
-			id := receipt.Id.Hex()
-			err := controller.repository.SetReceiptStatus(ctx, id, NotFound)
-			log.Printf("failed to set status for receipt %s with %v\n", id, err)
-			return
-		}
-		result := fmt.Sprintf("Can not parse response body.Body: '%s'.Error: %v", body, err)
-		writeResponse(result, writer)
-		return
-	}
-	err = controller.repository.SetReceipt(ctx, receipt.Id, receiptFromApi)
-	if err != nil {
-		writeResponse(err.Error(), writer)
-	}
 }
 
 func (controller Controller) AddReceiptForTelegramUserHandler(writer http.ResponseWriter, request *http.Request) {
