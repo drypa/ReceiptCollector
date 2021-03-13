@@ -82,7 +82,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var processor internal.Processor = login_url.NewLoginLinkProcessor(&userRepository, generator)
+	var processor internal.AccountProcessor = login_url.NewLoginLinkProcessor(&userRepository, generator)
 
 	go internal.Serve(":15000", creds, &processor)
 

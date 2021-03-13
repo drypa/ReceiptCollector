@@ -32,3 +32,19 @@ func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, 
 	}
 	return link.Url, nil
 }
+
+//AddReceipt adds new receipt by bar code.
+func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (statusMessage string, e error) {
+	client := c.client
+	in := inside.AddReceiptRequest{
+		UserId:    userId,
+		ReceiptQr: qr,
+	}
+	result, err := (*client).AddReceipt(ctx, &in)
+	if err != nil {
+		log.Printf("Add receipt error: %v\n", err)
+		return "Failed to add new receipt", err
+	}
+	return result.Error, err
+
+}

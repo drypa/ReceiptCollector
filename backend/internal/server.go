@@ -7,10 +7,10 @@ import (
 
 type server struct {
 	api.UnimplementedInternalApiServer
-	processor *Processor
+	processor *AccountProcessor
 }
 
-func newServer(p *Processor) server {
+func newServer(p *AccountProcessor) server {
 	return server{processor: p}
 }
 
