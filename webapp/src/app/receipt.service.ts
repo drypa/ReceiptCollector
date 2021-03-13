@@ -1,7 +1,7 @@
-import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
-import {Receipt} from './receipt';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { Receipt } from './receipt';
 
 @Injectable({
   providedIn: 'root'
@@ -33,11 +33,4 @@ export class ReceiptService {
 
   }
 
-  odfsRequest(id: string): Observable<string> {
-    return this.http.post<string>(`/api/receipt/${id}/odfs`, null);
-  }
-
-  kktsRequest(id: string): Observable<string> {
-    return this.http.post(`/api/receipt/${id}/kkts`, null, {responseType: 'text'});
-  }
 }

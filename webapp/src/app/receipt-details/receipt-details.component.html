@@ -6,10 +6,6 @@
       <mat-chip *ngIf="needShowKktsStatus(receipt)">{{receipt.kktsRequestStatus}}</mat-chip>
     </mat-chip-list>
   </p>
-  <div *ngIf="!receipt.isLoaded">
-    <button mat-raised-button (click)="sendOdfsRequest()">send ADFS request</button>
-    <button mat-raised-button (click)="sendKktsRequest()">send KKT request</button>
-  </div>
   <p>
     {{receipt.queryString}}
   </p>

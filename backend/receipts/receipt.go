@@ -3,7 +3,6 @@ package receipts
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"receipt_collector/receipts/purchase"
-	"time"
 )
 
 type Receipt struct {
@@ -26,16 +25,11 @@ type Receipt struct {
 //UsersReceipt is Receipt linked to user.
 type UsersReceipt struct {
 	*Receipt
-	Id                primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Owner             primitive.ObjectID `json:"owner" bson:"owner"`
-	OdfsRequestTime   time.Time          `json:"odfsRequestTime" bson:"odfs_request_time"`
-	KktRequestTime    time.Time          `json:"kktRequestTime" bson:"kkt_request_time"`
-	QueryString       string             `bson:"query_string" json:"queryString"`
-	OdfsRequested     bool               `json:"odfsRequested" bson:"odfs_requested"`
-	OdfsRequestStatus RequestStatus      `json:"odfsRequestStatus" bson:"odfs_request_status,omitempty"`
-	KktsRequestStatus RequestStatus      `json:"kktsRequestStatus" bson:"kkts_request_status,omitempty"`
-	Deleted           bool               `json:"deleted" bson:"deleted"`
-	TicketId          string             `json:"ticket_id" bson:"ticket_id"`
+	Id          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Owner       primitive.ObjectID `json:"owner" bson:"owner"`
+	QueryString string             `bson:"query_string" json:"queryString"`
+	Deleted     bool               `json:"deleted" bson:"deleted"`
+	TicketId    string             `json:"ticket_id" bson:"ticket_id"`
 }
 
 //RequestStatus - get receipt from nalog.ru API status.

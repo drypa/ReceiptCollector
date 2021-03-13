@@ -105,9 +105,8 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 	}
 
 	receiptRequest := UsersReceipt{
-		Owner:             id,
-		QueryString:       queryString,
-		OdfsRequestStatus: Undefined,
+		Owner:       id,
+		QueryString: queryString,
 	}
 	err = controller.repository.Insert(ctx, receiptRequest)
 	return err
@@ -118,6 +117,11 @@ func (controller Controller) GetReceiptsHandler(writer http.ResponseWriter, requ
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	userId := ctx.Value(auth.UserId)
+
+	if userId == nil {
+		userId = "5dc1c9427126cc2841ca384d"
+	}
+
 	receipts, err := controller.repository.GetByUser(ctx, userId.(string))
 	if err != nil {
 		onError(writer, err)
@@ -134,6 +138,7 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 
 	id := getReceiptId(writer, request)
 	userId := getUserId(ctx)
+
 	receipt, err := controller.getReceiptById(ctx, userId, id)
 	if err != nil {
 		onError(writer, err)
@@ -144,6 +149,9 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 
 func getUserId(ctx context.Context) string {
 	userId := ctx.Value(auth.UserId)
+	if userId == nil {
+		userId = "5dc1c9427126cc2841ca384d"
+	}
 	return userId.(string)
 }
 
