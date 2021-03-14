@@ -46,6 +46,7 @@ services:
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - BACKEND_URL=http://collector:8888
+      - BACKEND_GRPC_ADDR=collector:15000
     networks:
       - collector-net
     volumes:
