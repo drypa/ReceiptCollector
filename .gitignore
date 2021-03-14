@@ -20,3 +20,5 @@
 vendor
 receipt_collector
 ssl
+
+.run

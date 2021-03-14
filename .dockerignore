@@ -5,3 +5,4 @@
 .dockerignore
 *.key
 *.pem
+.run
