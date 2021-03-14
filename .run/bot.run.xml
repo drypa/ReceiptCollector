@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="bot" type="GoApplicationRunConfiguration" factoryName="Go Application">
+        <module name="receipt_collector"/>
+        <working_directory value="$PROJECT_DIR$/bot"/>
+        <envs>
+            <env name="BACKEND_URL" value="http://localhost"/>
+            <env name="BACKEND_GRPC_ADDR" value=":15000"/>
+        </envs>
+        <kind value="PACKAGE"/>
+        <filePath value="$PROJECT_DIR$/bot/main.go"/>
+        <package value="github.com/drypa/ReceiptCollector/bot"/>
+        <directory value="$PROJECT_DIR$"/>
+        <method v="2"/>
+    </configuration>
+</component>

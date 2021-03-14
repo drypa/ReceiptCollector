@@ -1,16 +1,20 @@
 package user
 
-import "github.com/drypa/ReceiptCollector/bot/backend"
+import (
+	"context"
+	"github.com/drypa/ReceiptCollector/bot/backend"
+)
 
 //Provider provides telegramId to userId mapping.
 type Provider struct {
 	telegramIdUserIdMap map[int]string
 	client              backend.Client
+	grpc                *backend.GrpcClient
 }
 
 //New constructs Provider instance.
-func New(client backend.Client) (Provider, error) {
-	users, err := client.GetUsers()
+func New(client backend.Client, grpc *backend.GrpcClient) (Provider, error) {
+	users, err := grpc.GetUsers(context.Background())
 	if err != nil {
 		return Provider{}, err
 	}

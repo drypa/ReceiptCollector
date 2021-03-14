@@ -102,17 +102,6 @@ func mapToContractList(model []User) []user {
 	return res
 }
 
-//GetUsersHandler allow to get all users.
-func (controller Controller) GetUsersHandler(writer http.ResponseWriter, request *http.Request) {
-	ctx := request.Context()
-	users, err := controller.repository.GetAll(ctx)
-	if err != nil {
-		onError(writer, err)
-	}
-	response := mapToContractList(users)
-	writeResponse(response, writer)
-}
-
 //LoginByLinkHandler allow login through one-time link.
 func (controller Controller) LoginByLinkHandler(writer http.ResponseWriter, request *http.Request) {
 	query := request.URL.RawQuery

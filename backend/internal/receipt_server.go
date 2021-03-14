@@ -14,7 +14,7 @@ type GRPCReceiptServer struct {
 }
 
 //New constructs Server.
-func Serve(bindingAddress string, creds credentials.TransportCredentials, processor *AccountProcessor) *GRPCReceiptServer {
+func Serve(bindingAddress string, creds credentials.TransportCredentials, accountProcessor *AccountProcessor, receiptProcessor *ReceiptProcessor) *GRPCReceiptServer {
 	listen, err := net.Listen("tcp", bindingAddress)
 	if err != nil {
 		log.Printf("Error process address: %s, Error: %v", bindingAddress, err)
@@ -22,8 +22,9 @@ func Serve(bindingAddress string, creds credentials.TransportCredentials, proces
 	}
 	opts := []grpc.ServerOption{grpc.Creds(creds)}
 	grpcServer := grpc.NewServer(opts...)
-	s := newServer(processor)
+	s := newServer(accountProcessor, receiptProcessor)
 	api.RegisterInternalApiServer(grpcServer, &s)
+
 	err = grpcServer.Serve(listen)
 	if err != nil {
 		log.Printf("Filed to serve %v", err)

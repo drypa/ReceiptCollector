@@ -51,19 +51,3 @@ func (client Client) GetLoginLink(userId int) (string, error) {
 func getResult(response *http.Response, result interface{}) error {
 	return json.NewDecoder(response.Body).Decode(result)
 }
-
-//GetUsers returns all users.
-func (client Client) GetUsers() ([]User, error) {
-	getUsersUrl := client.backendUrl + "/internal/account"
-	response, err := http.Get(getUsersUrl)
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode == http.StatusOK {
-		var users []User
-		err := getResult(response, &users)
-		return users, err
-	}
-	return nil, errors.New(response.Status)
-
-}

@@ -6,11 +6,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-//AccountProcessor is an interface for Process bot requests.
+//AccountProcessor is an interface for Process account requests.
 type AccountProcessor interface {
 	GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error)
+	GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUsersResponse, error)
 }
 
+//ReceiptProcessor is an interface for process receipt requests.
 type ReceiptProcessor interface {
 	AddReceipt(ctx context.Context, in *api.AddReceiptRequest, opts ...grpc.CallOption) (*api.AddReceiptResponse, error)
 }

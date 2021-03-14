@@ -48,3 +48,23 @@ func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (
 	return result.Error, err
 
 }
+
+//GetUsers returns all users.
+func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
+	client := c.client
+
+	resp, err := (*client).GetUsers(ctx, &inside.NoParams{})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]User, len(resp.Users))
+	for i, v := range resp.Users {
+		result[i] = User{
+			UserId:     v.UserId,
+			TelegramId: int(v.TelegramId),
+		}
+	}
+
+	return result, nil
+
+}

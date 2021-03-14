@@ -83,9 +83,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var processor internal.AccountProcessor = login_url.NewLoginLinkProcessor(&userRepository, generator)
+	var accountProcessor internal.AccountProcessor = login_url.NewProcessor(&userRepository, generator)
+	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository)
 
-	go internal.Serve(":15000", creds, &processor)
+	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
 
 	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
@@ -165,9 +166,6 @@ func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Con
 
 	registrationByTelegramRoute := "/internal/account"
 	router.HandleFunc(registrationByTelegramRoute, usersController.GetUserByTelegramIdHandler).Methods(http.MethodPost)
-
-	getUsersRoute := "/internal/account"
-	router.HandleFunc(getUsersRoute, usersController.GetUsersHandler).Methods(http.MethodGet)
 
 	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)

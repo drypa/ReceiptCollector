@@ -37,14 +37,15 @@ func (controller Controller) AddReceiptHandler(writer http.ResponseWriter, reque
 	ctx := request.Context()
 	userId := ctx.Value(auth.UserId).(string)
 	queryString := request.URL.RawQuery
-	err := controller.processReceiptQueryString(ctx, queryString, userId)
+	err := processReceiptQueryString(ctx, &controller.repository, queryString, userId)
 	if err != nil {
 		onError(writer, err)
 		return
 	}
 }
 
-func (controller Controller) processReceiptQueryString(ctx context.Context,
+func processReceiptQueryString(ctx context.Context,
+	r *Repository,
 	queryString string,
 	userId string) error {
 	receiptString := strings.TrimSpace(queryString)
@@ -58,7 +59,7 @@ func (controller Controller) processReceiptQueryString(ctx context.Context,
 		return err
 	}
 
-	err = controller.saveRequest(ctx, result.ToString(), userId)
+	err = saveRequest(ctx, r, result.ToString(), userId)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, 
 		return
 	}
 	for _, v := range receiptStrings {
-		err := controller.processReceiptQueryString(ctx, v, userId)
+		err := processReceiptQueryString(ctx, &controller.repository, v, userId)
 		if err != nil {
 			log.Printf("error processing %s with error %v\n", v, err)
 			onError(writer, err)
@@ -88,14 +89,14 @@ func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, 
 	}
 }
 
-func (controller Controller) saveRequest(ctx context.Context, queryString string, userId string) error {
+func saveRequest(ctx context.Context, r *Repository, queryString string, userId string) error {
 
 	id, err := primitive.ObjectIDFromHex(userId)
 	if err != nil {
 		return err
 	}
 
-	receipt, err := controller.repository.GetByQueryString(ctx, userId, queryString)
+	receipt, err := r.GetByQueryString(ctx, userId, queryString)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (controller Controller) saveRequest(ctx context.Context, queryString string
 		Owner:       id,
 		QueryString: queryString,
 	}
-	err = controller.repository.Insert(ctx, receiptRequest)
+	err = r.Insert(ctx, receiptRequest)
 	return err
 }
 
@@ -212,7 +213,7 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
 		onError(writer, err)
 		return
 	}
-	err = controller.processReceiptQueryString(ctx, receiptRequest.ReceiptString, receiptRequest.UserId)
+	err = processReceiptQueryString(ctx, &controller.repository, receiptRequest.ReceiptString, receiptRequest.UserId)
 	if err != nil {
 		onError(writer, err)
 		return

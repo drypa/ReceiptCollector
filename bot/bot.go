@@ -30,7 +30,7 @@ func getEnvVar(varName string) string {
 }
 
 func start(options Options, client backend.Client, grpcClient *backend.GrpcClient) error {
-	provider, err := user.New(client)
+	provider, err := user.New(client, grpcClient)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 		default:
 			id, err := provider.GetUserId(update.Message.From.ID)
 			if err == nil {
-				err = tryAddReceipt(id, update.Message.Text, client)
+				err = tryAddReceipt(id, update.Message.Text, grpcClient)
 			}
 			if err != nil {
 				responseText = err.Error()
@@ -123,9 +123,15 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	}
 }
 
-func tryAddReceipt(userId string, messageText string, client backend.Client) error {
-	err := client.AddReceipt(userId, messageText)
-	return err
+func tryAddReceipt(userId string, messageText string, grpc *backend.GrpcClient) error {
+	responseMessage, err := grpc.AddReceipt(context.Background(), userId, messageText)
+	if err != nil {
+		return err
+	}
+	if responseMessage != "" {
+		return errors.New(responseMessage)
+	}
+	return nil
 }
 
 func register(userId int, client user.Provider) error {
