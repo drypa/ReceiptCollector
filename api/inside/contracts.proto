@@ -15,12 +15,19 @@ service InternalApi {
     rpc GetUsers (NoParams) returns (GetUsersResponse) {
     }
 
+    rpc GetUser (GetUserRequest) returns (GetUserResponse) {
+    }
+
     rpc RegisterUser (UserRegistrationRequest) returns (UserRegistrationResponse) {
 
     }
 }
 
 message GetLoginLinkRequest {
+    int32 telegramId = 1;
+}
+
+message GetUserRequest {
     int32 telegramId = 1;
 }
 
@@ -45,6 +52,10 @@ message NoParams {
 message User {
     string userId = 1;
     int32 telegramId = 2;
+}
+
+message GetUserResponse {
+    User user = 1;
 }
 
 message GetUsersResponse {
