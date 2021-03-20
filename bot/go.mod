@@ -3,7 +3,7 @@ module github.com/drypa/ReceiptCollector/bot
 go 1.13
 
 require (
-	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210128195844-4e257feb6239
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210320202536-b226c1d61b9e
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.4 // indirect

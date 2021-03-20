@@ -8,6 +8,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/drypa/ReceiptCollector v0.0.0-20210227140122-6db16e8cf978 h1:iXVsry+79ahRNqMYTezNGDZegNZBfmRRbgFZ9k6h3z4=
 github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210128195844-4e257feb6239 h1:iPnPk+m77KAPJAOSDBJR3YYugowbD4gXeOAGmE+4ldc=
 github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210128195844-4e257feb6239/go.mod h1:too+hec5IwtqfIulMtG1znfoaRwhcoKN3MeSUJEh5q4=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210320202536-b226c1d61b9e h1:k7jGDoxtkJmZFwrvajxiO51lcMEotTD3Rsr6ayka354=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210320202536-b226c1d61b9e/go.mod h1:too+hec5IwtqfIulMtG1znfoaRwhcoKN3MeSUJEh5q4=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=

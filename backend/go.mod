@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.37.1 // indirect
-	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210227214539-21bb37988d33
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210320202536-b226c1d61b9e
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/golang/snappy v0.0.2 // indirect
