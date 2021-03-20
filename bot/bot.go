@@ -49,7 +49,7 @@ func start(options Options, client backend.Client, grpcClient *backend.GrpcClien
 		return err
 	}
 
-	processUpdates(updatesChan, bot, client, grpcClient, provider)
+	processUpdates(updatesChan, bot, grpcClient, provider)
 	return nil
 }
 
@@ -60,13 +60,13 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 		return nil, err
 	}
 	if options.HttpProxyUrl != "" {
-		url, err := url.Parse(options.HttpProxyUrl)
+		proxyUrl, err := url.Parse(options.HttpProxyUrl)
 		if err != nil {
 			log.Println("Proxy url invalid")
 			return nil, err
 		}
 
-		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(url)}}
+		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
 
 		return tgbotapi.NewBotAPIWithClient(options.ApiToken, client)
 	}
@@ -76,7 +76,6 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 
 func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	bot *tgbotapi.BotAPI,
-	client backend.Client,
 	grpcClient *backend.GrpcClient,
 	provider user.Provider) {
 	for update := range updatesChan {
