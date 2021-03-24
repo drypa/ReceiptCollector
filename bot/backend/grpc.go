@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	inside "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -67,4 +68,29 @@ func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
 
 	return result, nil
 
+}
+
+//GetUser returns user by telegramId.
+func (c *GrpcClient) GetUser(ctx context.Context, telegramId int) (*User, error) {
+	client := c.client
+
+	in := inside.GetUserRequest{
+		TelegramId: int32(telegramId),
+	}
+	resp, err := (*client).GetUser(ctx, &in)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.User == nil {
+		log.Printf("User with id %d  not found\n", telegramId)
+		return nil, errors.New("not_found")
+	}
+
+	user := User{
+		UserId:     resp.User.UserId,
+		TelegramId: int(resp.User.TelegramId),
+	}
+	return &user, err
 }

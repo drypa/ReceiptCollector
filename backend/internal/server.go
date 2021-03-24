@@ -27,7 +27,14 @@ func (s *server) GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUsers
 	return processor.GetUsers(ctx, req)
 }
 
+//AddReceipt add receipt.
 func (s *server) AddReceipt(ctx context.Context, req *api.AddReceiptRequest) (*api.AddReceiptResponse, error) {
 	processor := *(s.receiptProcessor)
 	return processor.AddReceipt(ctx, req)
+}
+
+//GetUser get user by telegramId.
+func (s *server) GetUser(ctx context.Context, in *api.GetUserRequest) (*api.GetUserResponse, error) {
+	processor := *(s.accountProcessor)
+	return processor.GetUser(ctx, in)
 }

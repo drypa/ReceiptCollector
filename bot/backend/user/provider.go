@@ -8,12 +8,11 @@ import (
 //Provider provides telegramId to userId mapping.
 type Provider struct {
 	telegramIdUserIdMap map[int]string
-	client              backend.Client
 	grpc                *backend.GrpcClient
 }
 
 //New constructs Provider instance.
-func New(client backend.Client, grpc *backend.GrpcClient) (Provider, error) {
+func New(grpc *backend.GrpcClient) (Provider, error) {
 	users, err := grpc.GetUsers(context.Background())
 	if err != nil {
 		return Provider{}, err
@@ -22,16 +21,16 @@ func New(client backend.Client, grpc *backend.GrpcClient) (Provider, error) {
 	for _, u := range users {
 		userIdMap[u.TelegramId] = u.UserId
 	}
-	return Provider{client: client, telegramIdUserIdMap: userIdMap}, nil
+	return Provider{telegramIdUserIdMap: userIdMap}, nil
 }
 
 //GetUserId returns userId by telegramId.
-func (provider Provider) GetUserId(telegramId int) (string, error) {
+func (provider *Provider) GetUserId(telegramId int) (string, error) {
 	id, ok := provider.telegramIdUserIdMap[telegramId]
 	if ok == true {
 		return id, nil
 	}
-	user, err := provider.client.GetUser(telegramId)
+	user, err := provider.grpc.GetUser(context.Background(), telegramId) //TODO: pass correct context
 	if err != nil {
 		return "", err
 	}

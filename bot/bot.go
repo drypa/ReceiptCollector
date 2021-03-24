@@ -29,8 +29,8 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, client backend.Client, grpcClient *backend.GrpcClient) error {
-	provider, err := user.New(client, grpcClient)
+func start(options Options, grpcClient *backend.GrpcClient) error {
+	provider, err := user.New(grpcClient)
 	if err != nil {
 		return err
 	}

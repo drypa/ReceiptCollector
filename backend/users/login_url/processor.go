@@ -3,6 +3,7 @@ package login_url
 import (
 	"context"
 	api "github.com/drypa/ReceiptCollector/api/inside"
+	"google.golang.org/grpc"
 	"receipt_collector/users"
 	"time"
 )
@@ -42,17 +43,32 @@ func (p Processor) GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUse
 	if err != nil {
 		return nil, err
 	}
-	users := make([]*api.User, len(all))
+	usersList := make([]*api.User, len(all))
 
 	for i, v := range all {
-		users[i] = &api.User{
+		usersList[i] = &api.User{
 			UserId:     v.Id.Hex(),
 			TelegramId: int32(v.TelegramId),
 		}
 	}
 
 	resp := api.GetUsersResponse{
-		Users: users,
+		Users: usersList,
 	}
 	return &resp, err
+}
+
+//GetUser get user by telegramId.
+func (p Processor) GetUser(ctx context.Context, in *api.GetUserRequest, opts ...grpc.CallOption) (*api.GetUserResponse, error) {
+	user, err := p.repository.GetByTelegramId(ctx, int(in.TelegramId))
+	if err != nil {
+		return nil, err
+	}
+	response := api.GetUserResponse{
+		User: &api.User{
+			UserId:     user.Id.Hex(),
+			TelegramId: int32(user.TelegramId),
+		},
+	}
+	return &response, err
 }
