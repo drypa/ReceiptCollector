@@ -1,6 +1,6 @@
 module github.com/drypa/ReceiptCollector/bot
 
-go 1.13
+go 1.16
 
 require (
 	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210320202536-b226c1d61b9e
