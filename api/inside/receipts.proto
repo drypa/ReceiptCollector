@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package inside_api;
+
+message AddReceiptRequest {
+    string userId = 1;
+    string receiptQr = 2;
+}
+
+message AddReceiptResponse {
+    string error = 1;
+}

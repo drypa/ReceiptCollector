@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package inside_api;
+
+message GetLoginLinkRequest {
+    int32 telegramId = 1;
+}
+
+message GetUserRequest {
+    int32 telegramId = 1;
+}
+
+message LoginLinkResponse {
+    string url = 1;
+    int64 expiration = 2;
+}
+
+message User {
+    string userId = 1;
+    int32 telegramId = 2;
+}
+
+message GetUserResponse {
+    User user = 1;
+}
+
+message GetUsersResponse {
+    repeated User users = 1;
+}
+
+message UserRegistrationRequest {
+    int32 telegramId = 1;
+}
+
+message UserRegistrationResponse {
+    string userId = 1;
+}
