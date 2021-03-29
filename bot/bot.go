@@ -83,43 +83,54 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 		if update.Message == nil {
 			continue
 		}
-		var responseText string
-		switch update.Message.Text {
-		case "":
-			responseText = "Please enter a command."
-		case "/start":
-			responseText = "I'm a bot to collect Your purchase tickets."
-		case "/register":
-			err := register(update.Message.From.ID, provider)
-			if err != nil {
-				responseText = err.Error()
-			} else {
-				responseText = "You are registered."
-			}
-		case "/login":
-			link, err := grpcClient.GetLoginLink(context.Background(), update.Message.From.ID)
-			if err != nil {
-				responseText = err.Error()
-			} else {
-				responseText = link
-			}
-		default:
-			id, err := provider.GetUserId(update.Message.From.ID)
-			if err == nil {
-				err = tryAddReceipt(id, update.Message.Text, grpcClient)
-			}
-			if err != nil {
-				responseText = err.Error()
-			} else {
-				responseText = "Added"
-			}
-		}
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, responseText)
-		_, err := bot.Send(msg)
-		if err != nil {
-			log.Printf("Error while sending response to user %d", update.Message.From.ID)
-		}
+		processMessage(update, bot, provider, grpcClient)
 	}
+}
+
+func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.Provider, grpcClient *backend.GrpcClient) {
+	var err error
+	switch update.Message.Text {
+	case "":
+		_, err = sendTextMessage(update.Message.Chat.ID, bot, "Please enter a command.")
+	case "/start":
+		_, err = sendTextMessage(update.Message.Chat.ID, bot, "I'm a bot to collect Your purchase tickets.")
+	case "/register":
+		err := register(update.Message.From.ID, provider)
+		responseText := "You are registered."
+		if err != nil {
+			responseText = err.Error()
+		}
+		_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+	case "/login":
+		link, err := grpcClient.GetLoginLink(context.Background(), update.Message.From.ID)
+		responseText := link
+		if err != nil {
+			responseText = err.Error()
+		}
+		_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+	default:
+		_, err = addReceipt(update, bot, provider, grpcClient)
+	}
+	if err != nil {
+		log.Printf("Error while sending response to user %d", update.Message.From.ID)
+	}
+}
+
+func addReceipt(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.Provider, grpcClient *backend.GrpcClient) (tgbotapi.Message, error) {
+	id, err := provider.GetUserId(update.Message.From.ID)
+	if err == nil {
+		err = tryAddReceipt(id, update.Message.Text, grpcClient)
+	}
+	responseText := "Added"
+	if err != nil {
+		responseText = err.Error()
+	}
+	return sendTextMessage(update.Message.Chat.ID, bot, responseText)
+}
+
+func sendTextMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string) (tgbotapi.Message, error) {
+	msg := tgbotapi.NewMessage(chatId, responseText)
+	return bot.Send(msg)
 }
 
 func tryAddReceipt(userId string, messageText string, grpc *backend.GrpcClient) error {
