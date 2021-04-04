@@ -10,3 +10,39 @@ message AddReceiptRequest {
 message AddReceiptResponse {
     string error = 1;
 }
+
+
+message Receipt {
+    int64 DateTime = 1;
+    int64 CashTotalSum = 2;
+    int32 Code = 3;
+    int64 CreditSum = 4;
+    int64 EcashTotalSum = 5;
+    int32 FiscalDocumentNumber = 6;
+    string FnsUrl = 9;
+    repeated Item Items = 10;
+    string UserInn = 11;
+    int64 Nds10 = 12;
+    int64 Nds18 = 13;
+    int32 OperationType = 14;
+    string Operator = 15;
+    int64 PrepaidSum = 16;
+    int64 ProvisionSum = 17;
+    int32 RequestNumber = 18;
+    string RetailPlace = 19;
+    string RetailPlaceAddress = 20;
+    int64 TotalSum = 21;
+    string User = 22;
+
+}
+
+message Item {
+    string Name = 1;
+    int32 Nds = 2;
+    int64 NdsSum = 3;
+    int32 PaymentType = 4;
+    int64 Price = 5;
+    float Quantity = 6;
+    int64 Sum = 7;
+}
+

@@ -23,6 +23,10 @@ service InternalApi {
     rpc RegisterUser (UserRegistrationRequest) returns (UserRegistrationResponse) {
 
     }
+
+    rpc GetReceipts (NoParams) returns (stream Receipt) {
+
+    }
 }
 
 message NoParams {
