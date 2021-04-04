@@ -11,6 +11,9 @@ message AddReceiptResponse {
     string error = 1;
 }
 
+message GetReceiptsRequest {
+    string userId = 1;
+}
 
 message Receipt {
     int64 DateTime = 1;

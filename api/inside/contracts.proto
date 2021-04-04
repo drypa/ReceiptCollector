@@ -24,7 +24,7 @@ service InternalApi {
 
     }
 
-    rpc GetReceipts (NoParams) returns (stream Receipt) {
+    rpc GetReceipts (GetReceiptsRequest) returns (stream Receipt) {
 
     }
 }
