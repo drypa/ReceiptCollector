@@ -33,6 +33,12 @@ func (s *server) AddReceipt(ctx context.Context, req *api.AddReceiptRequest) (*a
 	return processor.AddReceipt(ctx, req)
 }
 
+//GetReceipts returns all receipts for user.
+func (s *server) GetReceipts(in *api.GetReceiptsRequest, stream api.InternalApi_GetReceiptsServer) error {
+	processor := *(s.receiptProcessor)
+	return processor.GetReceipts(in, stream)
+}
+
 //GetUser get user by telegramId.
 func (s *server) GetUser(ctx context.Context, in *api.GetUserRequest) (*api.GetUserResponse, error) {
 	processor := *(s.accountProcessor)

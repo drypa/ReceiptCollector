@@ -16,8 +16,8 @@ type Receipt struct {
 	Nds18                int32               `json:"nds18"`
 	Nds10                int32               `json:"nds10"`
 	User                 string              `json:"user"`
-	CashTotalSum         int32               `json:"cashTotalSum"`
-	EcashTotalSum        int32               `json:"ecashTotalSum"`
+	CashTotalSum         int64               `json:"cashTotalSum"`
+	EcashTotalSum        int64               `json:"ecashTotalSum"`
 	FiscalSign           int64               `json:"fiscalSign"`
 	FiscalDocumentNumber int64               `json:"fiscalDocumentNumber"`
 }
