@@ -47,3 +47,8 @@ cd ../..
 db.getCollection('receipt_requests').updateMany({check_request_status: 'requested'}, {$set: {check_request_status: 'undefined'}})
 
 ```
+
+```javascript
+//remove obsolete fields.
+db.getCollection('receipt_requests').updateMany({}, {$unset: {odfs_request_status: '', odfs_requested: ''}})
+```
