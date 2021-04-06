@@ -30,10 +30,20 @@ run angular app
 cd ./webapp
 npm run start
 ```
-and build and run third-party components 
+
+and build and run third-party components
+
 ```bash
 cd ./docker/nginx
 ./build.sh
 cd ../..
 ./up.dev.sh
+```
+
+### Useful scripts
+
+```javascript
+//reset status to allow workers reprocess it.
+db.getCollection('receipt_requests').updateMany({check_request_status: 'requested'}, {$set: {check_request_status: 'undefined'}})
+
 ```
