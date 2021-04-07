@@ -80,8 +80,17 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 
 	err = worker.repository.InsertRawTicket(ctx, details)
-	log.Printf("raw ticket %v saved\n", id)
+	ticket := getTicketExistence(details)
+	log.Printf("raw ticket %v saved. with status %d. ticket %s \n", id, details.Status, ticket)
 	return err
+}
+
+func getTicketExistence(details *nalogru.TicketDetails) string {
+	ticket := "exist"
+	if details.Ticket == nil {
+		ticket = "not exist"
+	}
+	return ticket
 }
 
 func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client) error {
