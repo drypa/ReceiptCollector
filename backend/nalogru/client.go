@@ -29,7 +29,7 @@ func NewClient(baseAddress string, device *device.Device) *Client {
 }
 
 const (
-	TicketNotFound string = "the ticket was not found"
+	DailyLimitReached = "too_many_requests"
 )
 
 //CheckReceiptExist send request to check receipt exist in Nalog.ru api.
@@ -96,6 +96,11 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	body, err := readBody(res)
 	if err != nil {
 		return "", err
+	}
+
+	if res.StatusCode == http.StatusTooManyRequests {
+		log.Printf("Too Many Requests : %d\n", res.StatusCode)
+		return "", errors.New(DailyLimitReached)
 	}
 
 	if res.StatusCode != http.StatusOK {

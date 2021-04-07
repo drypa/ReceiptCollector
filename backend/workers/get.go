@@ -32,9 +32,19 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 			err := worker.getReceipt(ctx, client)
 			if err != nil {
 				log.Printf("Get receipt error: %v\n", err)
+				if err.Error() == nalogru.DailyLimitReached {
+					ticker.Reset(getDurationToNextDay(time.Now()))
+					log.Println("timer snoozed  bis tomorrow")
+				}
 			}
 		}
 	}
+}
+
+func getDurationToNextDay(t time.Time) time.Duration {
+	tomorrow := time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, time.UTC)
+	return tomorrow.Sub(t)
+
 }
 
 func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) error {
@@ -51,6 +61,10 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 
 	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
 	id, err := client.GetTicketId(receipt.QueryString)
+
+	if err != nil && err.Error() == nalogru.DailyLimitReached {
+		return err
+	}
 
 	if err == nalogru.AuthError {
 		err = worker.refreshSession(ctx, client)
