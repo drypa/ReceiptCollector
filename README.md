@@ -45,6 +45,8 @@ cd ../..
 ```javascript
 //reset status to allow workers reprocess it.
 db.getCollection('receipt_requests').updateMany({check_request_status: 'requested'}, {$set: {check_request_status: 'undefined'}})
+//or
+db.getCollection('receipt_requests').updateMany({check_request_status: 'error'}, {$set: {check_request_status: 'undefined'}})
 
 ```
 
