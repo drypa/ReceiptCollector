@@ -156,6 +156,7 @@ func (repository Repository) SetReceipt(ctx context.Context, id primitive.Object
 	return err
 }
 
+//UpdateCheckStatus set check receipt status.
 func (repository Repository) UpdateCheckStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
 	collection := repository.getCollection()
 
@@ -203,6 +204,7 @@ func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersRecei
 	return &usersReceipt, err
 }
 
+//SetTicketId set ticket id in user receipt request collection.
 func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersReceipt, ticketId string) error {
 	collection := repository.getCollection()
 
@@ -216,4 +218,24 @@ func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersRec
 	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
 
+}
+
+//GetRawReceiptWithoutTicket retruns first receipt without ticket body.
+func (repository *Repository) GetRawReceiptWithoutTicket(ctx context.Context) (*nalogru.TicketDetails, error) {
+	collection := repository.getRawTicketCollection()
+	query := bson.M{"ticket": nil}
+
+	res := collection.FindOne(ctx, query)
+	err := res.Err()
+
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	details := &nalogru.TicketDetails{}
+	err = res.Decode(details)
+	return details, err
 }
