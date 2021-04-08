@@ -36,6 +36,8 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 					ticker.Reset(getDurationToNextDay(time.Now()))
 					log.Println("timer snoozed  bis tomorrow")
 				}
+			} else {
+				ticker.Reset(settings.Interval)
 			}
 		}
 	}
