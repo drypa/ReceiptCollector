@@ -16,6 +16,7 @@ type Repository struct {
 	client *mongo.Client
 }
 
+//NewRepository creates receipts repository.
 func NewRepository(client *mongo.Client) Repository {
 	repository := Repository{client: client}
 	return repository
@@ -30,6 +31,7 @@ func (repository Repository) getRawTicketCollection() *mongo.Collection {
 		Collection("raw_tickets")
 }
 
+//Insert - add new user receipt to collection.
 func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) error {
 	collection := repository.getCollection()
 
@@ -37,6 +39,7 @@ func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) e
 	return err
 }
 
+//InsertRawTicket - add new raw ticket to collection.
 func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalogru.TicketDetails) error {
 	collection := repository.getRawTicketCollection()
 
@@ -44,6 +47,7 @@ func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalo
 	return err
 }
 
+//GetByUser returns all user receipts for user.
 func (repository Repository) GetByUser(ctx context.Context, userId string) ([]UsersReceipt, error) {
 	collection := repository.getCollection()
 
@@ -73,6 +77,7 @@ func readReceipts(cursor *mongo.Cursor, context context.Context) []UsersReceipt 
 	return receipts
 }
 
+//Delete marks user receipt as deleted.
 func (repository Repository) Delete(ctx context.Context, userId string, receiptId string) error {
 	collection := repository.getCollection()
 	id, err := primitive.ObjectIDFromHex(receiptId)
@@ -89,6 +94,7 @@ func (repository Repository) Delete(ctx context.Context, userId string, receiptI
 	return err
 }
 
+//GetByQueryString find user receipt by QR code query string.
 func (repository Repository) GetByQueryString(ctx context.Context, userId string, queryString string) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
@@ -144,15 +150,6 @@ func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId str
 	filter := bson.M{"_id": bson.M{"$eq": id}}
 	update := bson.M{"$set": bson.M{checkStatus: status}}
 	_, err = collection.UpdateOne(ctx, filter, update)
-	return err
-}
-
-func (repository Repository) SetReceipt(ctx context.Context, id primitive.ObjectID, receipt Receipt) error {
-	collection := repository.getCollection()
-
-	filter := bson.M{"_id": id}
-	update := bson.M{"$set": bson.M{"receipt": receipt}}
-	_, err := collection.UpdateOne(ctx, filter, update)
 	return err
 }
 
