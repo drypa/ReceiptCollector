@@ -44,6 +44,5 @@ func (worker Worker) checkReceipt(ctx context.Context) error {
 		status = receipts.NotFound
 	}
 
-	err = worker.repository.UpdateCheckStatus(ctx, *receipt, status)
-	return err
+	return worker.repository.UpdateCheckStatus(ctx, *receipt, status)
 }

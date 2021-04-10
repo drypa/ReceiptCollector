@@ -89,7 +89,11 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 		return err
 	}
 
-	details, err := client.GetTicketById(id)
+	return worker.loadRawReceipt(ctx, id)
+}
+
+func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
+	details, err := worker.nalogruClient.GetTicketById(id)
 	if err != nil {
 		log.Printf("get ticket by id %s failed: %v", id, err)
 		return err

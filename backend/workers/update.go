@@ -16,7 +16,6 @@ func (worker *Worker) UpdateStart(ctx context.Context, settings Settings) {
 		log.Println("Failed to rent device")
 	}
 
-	//client := nalogru.NewClient(worker.nalogruClient.BaseAddress, d)
 	for {
 		select {
 		case <-ctx.Done():
@@ -27,7 +26,17 @@ func (worker *Worker) UpdateStart(ctx context.Context, settings Settings) {
 			}
 			return
 		case <-ticker.C:
-			worker.repository.GetRawReceiptWithoutTicket(ctx)
+			receipt, err := worker.repository.GetRawReceiptWithoutTicket(ctx)
+			if err != nil {
+				log.Println("Failed to get receipt")
+			}
+			if receipt == nil {
+				break
+			}
+			err = worker.loadRawReceipt(ctx, receipt.Id)
+			if err != nil {
+				log.Println("Failed to reload raw ticker")
+			}
 		}
 
 	}

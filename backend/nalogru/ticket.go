@@ -9,7 +9,7 @@ type TicketDetails struct {
 	Operation Operation `json:"operation"`
 	Query     Query     `json:"query"`
 	Ticket    *Ticket   `json:"ticket"`
-	Seller    *Seller
+	Seller    *Seller   `json:"seller"`
 }
 
 type Operation struct {

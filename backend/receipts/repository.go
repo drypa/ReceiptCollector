@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru"
 	"time"
@@ -43,7 +44,9 @@ func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) e
 func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalogru.TicketDetails) error {
 	collection := repository.getRawTicketCollection()
 
-	_, err := collection.InsertOne(ctx, details)
+	filter := bson.M{"id": details.Id}
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(ctx, filter, details, opts)
 	return err
 }
 
@@ -117,6 +120,7 @@ func (repository Repository) GetByQueryString(ctx context.Context, userId string
 
 }
 
+//GetById returns receipt by it's id.
 func (repository Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	receipt := UsersReceipt{}
 	collection := repository.getCollection()
@@ -140,6 +144,7 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
+//SetReceiptStatus updates status of receipt request.
 func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId string, status RequestStatus) error {
 	collection := repository.getCollection()
 
@@ -217,7 +222,7 @@ func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersRec
 
 }
 
-//GetRawReceiptWithoutTicket retruns first receipt without ticket body.
+//GetRawReceiptWithoutTicket return first receipt without ticket body.
 func (repository *Repository) GetRawReceiptWithoutTicket(ctx context.Context) (*nalogru.TicketDetails, error) {
 	collection := repository.getRawTicketCollection()
 	query := bson.M{"ticket": nil}
