@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-//UpdateStart fetch tickets with wrong status.
-func (worker *Worker) UpdateStart(ctx context.Context, settings Settings) {
+//UpdateRawReceiptStart fetch tickets with wrong status.
+func (worker *Worker) UpdateRawReceiptStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
 	d, err := worker.devices.Rent(ctx)
