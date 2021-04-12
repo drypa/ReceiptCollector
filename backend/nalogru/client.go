@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
 )
 
@@ -110,7 +111,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 			log.Println("failed to create error response file")
 			return "", err
 		}
-		defer file.Close()
+		defer dispose.Dispose(file.Close, "failed to close error file.")
 		_, err = file.Write(body)
 		if err != nil {
 			log.Println("failed to write response to file")
@@ -136,7 +137,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 }
 
 func readBody(res *http.Response) ([]byte, error) {
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "failed to close response body.")
 	var bodyReader io.ReadCloser
 	var err error
 	switch res.Header.Get("Content-Encoding") {
@@ -146,7 +147,7 @@ func readBody(res *http.Response) ([]byte, error) {
 			log.Printf("Can't create gzip reader \n")
 			return nil, err
 		}
-		defer bodyReader.Close()
+		defer dispose.Dispose(bodyReader.Close, "failed to close gzip reader.")
 	default:
 		bodyReader = res.Body
 	}
@@ -154,6 +155,7 @@ func readBody(res *http.Response) ([]byte, error) {
 	return ioutil.ReadAll(bodyReader)
 }
 
+//GetTicketById get ticket by id from nalog.ru api.
 func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	client := &http.Client{}
 
@@ -171,6 +173,10 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	if err != nil {
 		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
 		return nil, err
+	}
+
+	if res.StatusCode == http.StatusUnauthorized {
+		return nil, AuthError
 	}
 
 	if res.StatusCode != http.StatusOK {

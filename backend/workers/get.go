@@ -94,6 +94,16 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 
 func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
 	details, err := worker.nalogruClient.GetTicketById(id)
+
+	if err == nalogru.AuthError {
+		err = worker.refreshSession(ctx, worker.nalogruClient)
+		if err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return err
+		}
+		details, err = worker.nalogruClient.GetTicketById(id)
+	}
+
 	if err != nil {
 		log.Printf("get ticket by id %s failed: %v", id, err)
 		return err
