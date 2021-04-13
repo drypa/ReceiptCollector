@@ -35,7 +35,7 @@ func (worker *Worker) UpdateRawReceiptStart(ctx context.Context, settings Settin
 			}
 			err = worker.loadRawReceipt(ctx, receipt.Id)
 			if err != nil {
-				log.Println("Failed to reload raw ticker")
+				log.Printf("Failed to reload raw ticket. %v\n", err)
 			}
 		}
 

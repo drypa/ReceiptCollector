@@ -46,7 +46,8 @@ func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalo
 
 	filter := bson.M{"id": details.Id}
 	opts := options.Update().SetUpsert(true)
-	_, err := collection.UpdateOne(ctx, filter, details, opts)
+	update := bson.M{"$set": details}
+	_, err := collection.UpdateOne(ctx, filter, update, opts)
 	return err
 }
 
