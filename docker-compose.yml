@@ -4,7 +4,7 @@ services:
   mongo:
     container_name: receipt-mongo
     image: mongo:4.1
-    restart: always
+    restart: unless-stopped
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_SECRET}
@@ -25,9 +25,7 @@ services:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_LOGIN=${MONGO_LOGIN}
       - MONGO_SECRET=${MONGO_SECRET}
-      - NALOGRU_LOGIN=${NALOGRU_LOGIN}
-      - NALOGRU_PASS=${NALOGRU_PASS}
-      - GET_RECEIPT_WORKER_INTERVAL=5m
+      - GET_RECEIPT_WORKER_INTERVAL=15m
       - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
     networks:
       - collector-net
@@ -40,7 +38,7 @@ services:
     container_name: receipt-bot
     build: bot
     image: drypa/receipt-telegram-bot:latest
-    restart: always
+    restart: unless-stopped
     depends_on:
       - mongo
     environment:
@@ -55,7 +53,7 @@ services:
     container_name: receipt-webapp
     build: webapp
     image: drypa/receipt-frontend:latest
-    restart: always
+    restart: unless-stopped
     ports:
       - "443:443"
     volumes:
