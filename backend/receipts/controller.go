@@ -54,11 +54,6 @@ func processReceiptQueryString(ctx context.Context,
 		return err
 	}
 
-	err = result.Validate()
-	if err != nil {
-		return err
-	}
-
 	err = saveRequest(ctx, r, result.ToString(), userId)
 	if err != nil {
 		return err

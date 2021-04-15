@@ -31,14 +31,15 @@ func Parse(queryString string) (Query, error) {
 		return res, err
 	}
 
-	return Query{
+	query := Query{
 		N:          template.HTMLEscapeString(form.Get("n")),
 		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
 		Sum:        template.HTMLEscapeString(form.Get("s")),
 		Fd:         template.HTMLEscapeString(form.Get("fn")),
 		Time:       timeParsed,
 		Fp:         template.HTMLEscapeString(form.Get("i")),
-	}, nil
+	}
+	return query, query.validate()
 }
 
 //ToString returns normalized representation of Query.
@@ -47,7 +48,7 @@ func (q *Query) ToString() string {
 	return fmt.Sprintf("t=%s&s=%s&fn=%s&i=%s&fp=%s&n=%s", t, q.Sum, q.Fd, q.Fp, q.FiscalSign, q.N)
 }
 
-func (q Query) Validate() error {
+func (q Query) validate() error {
 	_, errN := strconv.Atoi(q.N)
 	_, errFs := strconv.Atoi(q.FiscalSign)
 	_, errSum := strconv.ParseFloat(q.Sum, 64)

@@ -22,7 +22,6 @@ import (
 	"receipt_collector/users"
 	"receipt_collector/users/login_url"
 	"receipt_collector/waste"
-	"receipt_collector/workers"
 	"time"
 )
 
@@ -35,8 +34,6 @@ var openUrl = os.Getenv("OPEN_URL")
 
 func main() {
 	log.SetOutput(os.Stdout)
-	settings := workers.ReadFromEnvironment()
-	log.Printf("Worker settings %v \n", settings)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	client, err := getMongoClient()
@@ -65,19 +62,6 @@ func main() {
 	marketRepository := markets.NewRepository(client)
 	wasteRepository := waste.NewRepository(client)
 
-	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, &wasteRepository, deviceService)
-
-	//wasteWorker := waste.NewWorker()
-	//go func() {
-	//	var err = wasteWorker.Process(ctx, client)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//}()
-
-	go worker.CheckReceiptStart(ctx, settings)
-	go worker.GetReceiptStart(ctx, settings)
-	//go worker.UpdateRawReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.pem", "/usr/share/receipts/ssl/certs/private.key")
