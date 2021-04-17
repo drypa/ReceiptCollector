@@ -39,9 +39,9 @@ func (r *Repository) getCollection() *mongo.Collection {
 	return r.m.Database("receipt_collection").Collection("devices")
 }
 
-func (r *Repository) Update(ctx context.Context, d *device.Device) error {
+func (r *Repository) Update(ctx context.Context, d device.ApiClient) error {
 	collection := r.getCollection()
-	filter := bson.M{"_id": d.Id}
+	filter := bson.M{"_id": d.GetId()}
 	_, err := collection.ReplaceOne(ctx, filter, d)
 	return err
 }

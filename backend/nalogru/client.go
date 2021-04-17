@@ -15,14 +15,14 @@ import (
 
 type Client struct {
 	BaseAddress string
-	device      *device.Device
+	device      device.ApiClient
 }
 
 var AuthError = errors.New("auth failed")
 var InternalError = errors.New("internal failed")
 
 //NewClient - creates instance of Client.
-func NewClient(baseAddress string, device *device.Device) *Client {
+func NewClient(baseAddress string, device device.ApiClient) *Client {
 	return &Client{
 		BaseAddress: baseAddress,
 		device:      device,
@@ -48,7 +48,7 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 		log.Printf("Could't not create request for %s", url)
 		return false, err
 	}
-	addHeaders(request, nalogruClient.device.Id.Hex())
+	addHeaders(request, nalogruClient.device.GetId())
 	resp, err := client.Do(request)
 	if err != nil {
 		log.Printf("Could't check receipt %s", url)
@@ -86,8 +86,8 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(req)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
+	addHeaders(request, nalogruClient.device.GetId())
+	addAuth(request, nalogruClient.device.GetSessionId())
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -161,8 +161,8 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
+	addHeaders(request, nalogruClient.device.GetId())
+	addAuth(request, nalogruClient.device.GetSessionId())
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
@@ -209,12 +209,12 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
+func (nalogruClient *Client) RefreshSession() (device.ApiClient, error) {
 	client := &http.Client{}
 
 	payload := RefreshRequest{
-		ClientSecret: nalogruClient.device.ClientSecret,
-		RefreshToken: nalogruClient.device.RefreshToken,
+		ClientSecret: nalogruClient.device.GetSecret(),
+		RefreshToken: nalogruClient.device.GetRefreshToken(),
 	}
 
 	resp, err := json.Marshal(payload)
@@ -225,7 +225,7 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id.Hex())
+	addHeaders(request, nalogruClient.device.GetId())
 	res, err := sendRequest(request, client)
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -243,8 +243,7 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 		return nil, err
 	}
 	log.Printf("%+v\n", response)
-	nalogruClient.device.RefreshToken = response.RefreshToken
-	nalogruClient.device.SessionId = response.SessionId
+	nalogruClient.device.Refresh(response.RefreshToken, response.SessionId)
 	return nalogruClient.device, nil
 }
 
