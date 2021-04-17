@@ -103,7 +103,7 @@ func startServer(nalogruClient *nalogru.Client,
 	wasteRepository waste.Repository,
 	devices device.Devices) *http.Server {
 	marketsController := markets.New(marketRepository)
-	deviceController := controller.NewController(devices)
+	deviceController := controller.New(devices)
 
 	receiptsController := receipts.New(receiptRepository, nalogruClient)
 	usersController := users.New(userRepository)
