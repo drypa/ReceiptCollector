@@ -2,15 +2,6 @@ package device
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
-//ApiClient contains all API credentials.
-type ApiClient interface {
-	GetSecret() string
-	GetSessionId() string
-	GetRefreshToken() string
-	GetId() string
-	Refresh(newToken string, newSession string)
-}
-
 //Device implement ApiClient interface with Mongo persistence.
 type Device struct {
 	ClientSecret string             `bson:"client_secret"`

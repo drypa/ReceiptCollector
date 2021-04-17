@@ -3,18 +3,16 @@ package device
 import (
 	"context"
 	"errors"
-	"receipt_collector/device/repository"
-	"receipt_collector/nalogru/device"
 )
 
 //Service to manage devices.
 type Service struct {
-	r       *repository.Repository
+	r       *Repository
 	devices []ForRent
 }
 
 //NewService creates instance of Service.
-func NewService(ctx context.Context, r *repository.Repository) (*Service, error) {
+func NewService(ctx context.Context, r *Repository) (*Service, error) {
 	all, err := r.All(ctx)
 	if err != nil {
 		return nil, err
@@ -33,7 +31,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 }
 
 //Add adds new device.
-func (s *Service) Add(ctx context.Context, d device.Device) error {
+func (s *Service) Add(ctx context.Context, d Device) error {
 	for _, v := range s.devices {
 		if v.GetSecret() == d.GetSecret() {
 			return errors.New("that device already added")
@@ -48,7 +46,7 @@ func (s *Service) Count(ctx context.Context) (int, error) {
 }
 
 //Rent device.
-func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
+func (s *Service) Rent(ctx context.Context) (*Device, error) {
 	for _, v := range s.devices {
 		if v.IsRent == false {
 			v.IsRent = true
@@ -58,11 +56,11 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	return nil, errors.New("no available devices found")
 }
 
-func (s *Service) Update(ctx context.Context, device *device.Device) error {
+func (s *Service) Update(ctx context.Context, device *Device) error {
 	return s.r.Update(ctx, device)
 }
 
-func (s *Service) Free(ctx context.Context, device *device.Device) error {
+func (s *Service) Free(ctx context.Context, device *Device) error {
 	for _, v := range s.devices {
 		if device.GetId() == v.GetId() {
 			v.IsRent = false

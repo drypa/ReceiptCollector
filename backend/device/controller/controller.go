@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"receipt_collector/device"
 	"receipt_collector/dispose"
-	"receipt_collector/nalogru"
-	nalogDevice "receipt_collector/nalogru/device"
 	"time"
 )
 
 type Controller struct {
-	service nalogru.Devices
+	service device.Devices
 }
 
-func NewController(service nalogru.Devices) *Controller {
+func NewController(service device.Devices) *Controller {
 	return &Controller{service: service}
 }
 func (c *Controller) AddDeviceHandler(writer http.ResponseWriter, request *http.Request) {
@@ -27,7 +26,7 @@ func (c *Controller) AddDeviceHandler(writer http.ResponseWriter, request *http.
 			onError(writer, err)
 			return
 		}
-		d := nalogDevice.Device{
+		d := device.Device{
 			ClientSecret: request.ClientSecret,
 			SessionId:    request.SessionId,
 			RefreshToken: request.RefreshToken,

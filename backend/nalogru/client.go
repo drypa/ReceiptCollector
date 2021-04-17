@@ -10,19 +10,19 @@ import (
 	"log"
 	"net/http"
 	"receipt_collector/dispose"
-	"receipt_collector/nalogru/device"
+	"receipt_collector/nalogru/api_client"
 )
 
 type Client struct {
 	BaseAddress string
-	device      device.ApiClient
+	device      api_client.ApiClient
 }
 
 var AuthError = errors.New("auth failed")
 var InternalError = errors.New("internal failed")
 
 //NewClient - creates instance of Client.
-func NewClient(baseAddress string, device device.ApiClient) *Client {
+func NewClient(baseAddress string, device api_client.ApiClient) *Client {
 	return &Client{
 		BaseAddress: baseAddress,
 		device:      device,
@@ -209,7 +209,7 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (nalogruClient *Client) RefreshSession() (device.ApiClient, error) {
+func (nalogruClient *Client) RefreshSession() (api_client.ApiClient, error) {
 	client := &http.Client{}
 
 	payload := RefreshRequest{
@@ -257,8 +257,8 @@ func addAuth(request *http.Request, sessionId string) {
 
 func addHeaders(request *http.Request, deviceId string) {
 	request.Header.Add("ClientVersion", "2.13.0")
-	request.Header.Add("Device-Id", deviceId)
-	request.Header.Add("Device-OS", "Android")
+	request.Header.Add("TestDevice-Id", deviceId)
+	request.Header.Add("TestDevice-OS", "Android")
 	request.Header.Add("Connection", "Keep-Alive")
 	request.Header.Add("Accept-Encoding", "gzip")
 	request.Header.Add("User-Agent", "okhttp/4.9.0")

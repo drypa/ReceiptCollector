@@ -12,7 +12,6 @@ import (
 	"receipt_collector/auth"
 	"receipt_collector/device"
 	"receipt_collector/device/controller"
-	"receipt_collector/device/repository"
 	"receipt_collector/dispose"
 	"receipt_collector/internal"
 	"receipt_collector/markets"
@@ -43,7 +42,7 @@ func main() {
 	defer dispose.Dispose(func() error {
 		return client.Disconnect(context.Background())
 	}, "error while mongo disconnect")
-	deviceRepository := repository.NewRepository(client)
+	deviceRepository := device.NewRepository(client)
 	deviceService, err := device.NewService(ctx, deviceRepository)
 	if err != nil {
 		log.Printf("Failed to create device service: %v\n", err)
@@ -102,7 +101,7 @@ func startServer(nalogruClient *nalogru.Client,
 	userRepository users.Repository,
 	marketRepository markets.Repository,
 	wasteRepository waste.Repository,
-	devices nalogru.Devices) *http.Server {
+	devices device.Devices) *http.Server {
 	marketsController := markets.New(marketRepository)
 	deviceController := controller.NewController(devices)
 

@@ -3,7 +3,6 @@ package nalogru
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
-	"receipt_collector/nalogru/device"
 	"testing"
 )
 
@@ -11,13 +10,47 @@ var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
 var sessionId = "INSERT SESSION ID HERE"
 var deviceId = primitive.NewObjectID().Hex()
 
-func IgnoreTestClient_GetTicketId(t *testing.T) {
-	d, err := createDevice(t, "", "")
-	if err != nil {
-		log.Println(err)
-		t.Fail()
-		return
+type TestDevice struct {
+	ClientSecret string
+	SessionId    string
+	RefreshToken string
+	Id           string
+}
+
+func newTestDevice(secret string, token string) TestDevice {
+	d := TestDevice{
+		SessionId:    sessionId,
+		Id:           deviceId,
+		ClientSecret: secret,
+		RefreshToken: token,
 	}
+	return d
+}
+
+func (d TestDevice) Refresh(newToken string, newSession string) {
+	d.SessionId = newSession
+	d.RefreshToken = newToken
+}
+
+func (d TestDevice) GetId() string {
+	return d.Id
+}
+
+func (d TestDevice) GetSecret() string {
+	return d.ClientSecret
+}
+
+func (d TestDevice) GetSessionId() string {
+	return d.SessionId
+}
+
+func (d TestDevice) GetRefreshToken() string {
+	return d.RefreshToken
+}
+
+func IgnoreTestClient_GetTicketId(t *testing.T) {
+	d := newTestDevice("", "")
+
 	client := NewClient(baseAddress, d)
 	queryString := "INSERT BARCODE TEST HERE"
 
@@ -37,27 +70,9 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 
 }
 
-func createDevice(t *testing.T, secret string, token string) (*device.Device, error) {
-	id, err := primitive.ObjectIDFromHex(deviceId)
-	if err != nil {
-		return nil, err
-	}
-	d := &device.Device{
-		SessionId:    sessionId,
-		Id:           id,
-		ClientSecret: secret,
-		RefreshToken: token,
-	}
-	return d, err
-}
-
 func IgnoreTestClient_GetTicketById(t *testing.T) {
-	d, err := createDevice(t, "", "")
-	if err != nil {
-		log.Println(err)
-		t.Fail()
-		return
-	}
+	d := newTestDevice("", "")
+
 	client := NewClient(baseAddress, d)
 
 	ticketId := "INSERT TICKET ID HERE"
@@ -77,26 +92,21 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 func IgnoreTestClient_RefreshSession(t *testing.T) {
 	secret := "PASS CLIENT SECRET HERE"
 	refreshToken := "PASS REFRESH TOKEN HERE"
-	d, err := createDevice(t, secret, refreshToken)
-	if err != nil {
-		log.Println(err)
-		t.Fail()
-		return
-	}
+	d := newTestDevice(secret, refreshToken)
 	client := NewClient(baseAddress, d)
 
-	d, err = client.RefreshSession()
+	apiClient, err := client.RefreshSession()
 
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 	}
 
-	if d.SessionId == sessionId {
+	if d.SessionId == apiClient.GetSessionId() {
 		log.Println("Session was not refreshed")
 		t.Fail()
 	}
-	if d.RefreshToken == "" {
+	if apiClient.GetRefreshToken() == "" {
 		log.Println("Refresh token is empty")
 		t.Fail()
 	}
@@ -105,12 +115,7 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 
 func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 	queryString := "INSERT VALID QUERY STRING HERE"
-	d, err := createDevice(t, "", "")
-	if err != nil {
-		log.Println(err)
-		t.Fail()
-		return
-	}
+	d := newTestDevice("", "")
 	client := NewClient(baseAddress, d)
 	exist, err := client.CheckReceiptExist(queryString)
 
