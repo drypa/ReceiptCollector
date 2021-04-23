@@ -4,24 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/drypa/ReceiptCollector/kkt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"net/http"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
-	"receipt_collector/nalogru"
 	"receipt_collector/nalogru/qr"
 	"strings"
 )
 
 type Controller struct {
 	repository    Repository
-	nalogruClient *nalogru.Client
+	nalogruClient *kkt.Client
 }
 
 //New creates controller.
-func New(repository Repository, nalogruClient *nalogru.Client) Controller {
+func New(repository Repository, nalogruClient *kkt.Client) Controller {
 	return Controller{
 		repository:    repository,
 		nalogruClient: nalogruClient,

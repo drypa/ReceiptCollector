@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-const checkStatus = "check_request_status"
+const (
+	checkStatus      = "check_request_status"
+	statusUpdateTime = "check_request_time"
+)
 
 type Repository struct {
 	client *mongo.Client
@@ -145,28 +148,14 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
-//SetReceiptStatus updates status of receipt request.
-func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId string, status RequestStatus) error {
-	collection := repository.getCollection()
-
-	id, err := primitive.ObjectIDFromHex(receiptId)
-	if err != nil {
-		return err
-	}
-	filter := bson.M{"_id": bson.M{"$eq": id}}
-	update := bson.M{"$set": bson.M{checkStatus: status}}
-	_, err = collection.UpdateOne(ctx, filter, update)
-	return err
-}
-
-//UpdateCheckStatus set check receipt status.
-func (repository Repository) UpdateCheckStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
+//UpdateStatus set new receipt status.
+func (repository Repository) UpdateStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
 	collection := repository.getCollection()
 
 	update := bson.M{
 		"$set": bson.M{
-			checkStatus:          status,
-			"check_request_time": time.Now().UTC(),
+			checkStatus:      status,
+			statusUpdateTime: time.Now().UTC(),
 		},
 	}
 	filter := bson.M{"_id": bson.M{"$eq": receipt.Id}}

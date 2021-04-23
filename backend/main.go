@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/drypa/ReceiptCollector/kkt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc/credentials"
@@ -16,7 +17,6 @@ import (
 	"receipt_collector/internal"
 	"receipt_collector/markets"
 	"receipt_collector/mongo_client"
-	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/users"
 	"receipt_collector/users/login_url"
@@ -55,7 +55,7 @@ func main() {
 		//return
 	}
 
-	nalogruClient := nalogru.NewClient(baseAddress, d)
+	nalogruClient := kkt.NewClient(baseAddress, d)
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
@@ -96,7 +96,7 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient *nalogru.Client,
+func startServer(nalogruClient *kkt.Client,
 	receiptRepository receipts.Repository,
 	userRepository users.Repository,
 	marketRepository markets.Repository,
