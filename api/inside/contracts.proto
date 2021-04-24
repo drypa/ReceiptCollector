@@ -33,7 +33,15 @@ service InternalApi {
 
     }
 
-    rpc SetRequestStatus (SetRequestStatusRequest) returns (SetStatusResponse) {
+    rpc SetRequestStatus (SetRequestStatusRequest) returns (ErrorResponse) {
+
+    }
+
+    rpc GetFirstRequestWithStatus (QueryByStatus) returns (ReceiptRequest) {
+
+    }
+
+    rpc SetTicketId (SetTicketIdRequest) returns (ErrorResponse) {
 
     }
 }
@@ -42,3 +50,6 @@ message NoParams {
 
 }
 
+message ErrorResponse {
+    string error = 1;
+}

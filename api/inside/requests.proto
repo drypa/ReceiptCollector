@@ -22,6 +22,12 @@ message SetRequestStatusRequest {
     Status status = 2;
 }
 
-message SetStatusResponse {
-    string error = 1;
+
+message QueryByStatus {
+    Status status = 1;
+}
+
+message SetTicketIdRequest {
+    string id = 1;
+    string ticketId = 2;
 }
