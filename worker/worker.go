@@ -1,6 +1,7 @@
-package workers
+package worker
 
 import (
+	"github.com/drypa/ReceiptCollector/kkt"
 	device "receipt_collector/device/repository"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
@@ -9,7 +10,7 @@ import (
 
 //Worker for any background job.
 type Worker struct {
-	nalogruClient    *nalogru.Client
+	nalogruClient    *kkt.Client
 	repository       receipts.Repository
 	deviceRepository *device.Repository
 	wasteRepository  *waste.Repository
@@ -17,7 +18,7 @@ type Worker struct {
 }
 
 //New constructs Worker.
-func New(nalogruClient *nalogru.Client, repository receipts.Repository, deviceRepository *device.Repository, wasteRepository *waste.Repository, devices nalogru.Devices) Worker {
+func New(nalogruClient *kkt.Client, repository receipts.Repository, deviceRepository *device.Repository, wasteRepository *waste.Repository, devices nalogru.Devices) Worker {
 	return Worker{
 		//TODO: nalogruClient is not required here
 		nalogruClient:    nalogruClient,
