@@ -4,6 +4,7 @@ syntax = "proto3";
 
 import "receipts.proto";
 import "accounts.proto";
+import "requests.proto";
 
 package inside_api;
 
@@ -25,6 +26,14 @@ service InternalApi {
     }
 
     rpc GetReceipts (GetReceiptsRequest) returns (stream Receipt) {
+
+    }
+
+    rpc GetFirstUnckeckedRequest (NoParams) returns (ReceiptRequest) {
+
+    }
+
+    rpc SetRequestStatus (SetRequestStatusRequest) returns (SetStatusResponse) {
 
     }
 }
