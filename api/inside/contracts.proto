@@ -44,6 +44,10 @@ service InternalApi {
     rpc SetTicketId (SetTicketIdRequest) returns (ErrorResponse) {
 
     }
+
+    rpc AddRawTicket (AddRawTicketRequest) returns (ErrorResponse) {
+
+    }
 }
 
 message NoParams {
