@@ -15,6 +15,11 @@ message GetReceiptsRequest {
     string userId = 1;
 }
 
+message AddRawTicketRequest {
+    TicketDetails details = 1;
+}
+
+
 message Receipt {
     int64 DateTime = 1;
     int64 CashTotalSum = 2;
@@ -36,7 +41,17 @@ message Receipt {
     string RetailPlaceAddress = 20;
     int64 TotalSum = 21;
     string User = 22;
-
+    uint64 PostpaymentSum = 23;
+    uint64 CounterSubmissionSum = 24;
+    string FiscalDriveNumber = 25;
+    uint32 FiscalSign = 26;
+    string KktRegId = 27;
+    uint64 PrepaymentSum = 28;
+    uint32 ProtocolVersion = 29;
+    uint32 ReceiptCode = 30;
+    string SenderAddress = 31;
+    uint32 ShiftNumber = 32;
+    uint32 TaxationType = 33;
 }
 
 message Item {
@@ -47,5 +62,61 @@ message Item {
     int64 Price = 5;
     float Quantity = 6;
     int64 Sum = 7;
+
+    uint32 CalculationSubjectSign = 8;
+    uint32 CalculationTypeSign = 9;
+    uint32 NdsRate = 10;
 }
+
+message Document {
+    Receipt receipt = 1;
+}
+
+message Ticket {
+    Document document = 1;
+}
+
+message TicketDetails {
+    uint32 status = 1;
+    string id = 2;
+    string kind = 3;
+    string createdAt = 4;
+    string qr = 5;
+    Operation operation = 6;
+    repeated Process process = 7;
+    Query query = 8;
+    Ticket ticket = 9;
+    Organization organization = 10;
+    Seller seller = 11;
+}
+message Query {
+    uint32 operationType = 1;
+    uint64 sum = 2;
+    uint32 documentId = 3;
+    string fsId = 4;
+    string fiscalSign = 5;
+    string date = 6;
+}
+
+message Organization {
+    string name = 1;
+    string inn = 2;
+}
+
+message Seller {
+    string name = 1;
+    string inn = 2;
+}
+message Operation {
+    string date = 1;
+    uint32 type = 2;
+    uint64 sum = 3;
+}
+
+message Process {
+    string time = 1;
+    uint32 result = 2;
+}
+
+
 

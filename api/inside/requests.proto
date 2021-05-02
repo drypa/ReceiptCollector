@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package inside_api;
+
+message ReceiptRequest {
+    string id = 1;
+    string userId = 2;
+    string qr = 3;
+}
+
+enum Status {
+    undefined = 0;
+    checkPassed = 1;
+    checkFailed = 2;
+    requested = 3;
+    error = 4;
+    notFound = 5;
+}
+
+message SetRequestStatusRequest {
+    string id = 1;
+    Status status = 2;
+}
+
+
+message QueryByStatus {
+    Status status = 1;
+}
+
+message SetTicketIdRequest {
+    string id = 1;
+    string ticketId = 2;
+}
