@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"github.com/drypa/ReceiptCollector/kkt"
+	"github.com/drypa/ReceiptCollector/worker/backend"
 	"log"
 	"receipt_collector/receipts"
 	"time"
@@ -41,7 +42,6 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 			}
 		}
 	}
-	``
 }
 
 func getDurationToNextDay(t time.Time) time.Duration {
@@ -51,7 +51,7 @@ func getDurationToNextDay(t time.Time) time.Duration {
 }
 
 func (worker *Worker) getReceipt(ctx context.Context, client *kkt.Client) error {
-	receipt, err := worker.repository.GetWithoutTicket(ctx)
+	receipt, err := worker.backendClient.GetFirstByStatus(ctx, backend.CheckPassed)
 	if err != nil {
 		log.Printf("failed to get tickets to process: %v", err)
 		return err
@@ -62,8 +62,8 @@ func (worker *Worker) getReceipt(ctx context.Context, client *kkt.Client) error 
 		return nil
 	}
 
-	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
-	id, err := client.GetTicketId(receipt.QueryString)
+	log.Printf("try get ticket with qr: %s\n", receipt.Qr)
+	id, err := client.GetTicketId(receipt.Qr)
 
 	if err != nil && err.Error() == kkt.DailyLimitReached {
 		return err
@@ -75,16 +75,16 @@ func (worker *Worker) getReceipt(ctx context.Context, client *kkt.Client) error 
 			log.Printf("failed to refresh session. %v\n", err)
 			return err
 		}
-		id, err = client.GetTicketId(receipt.QueryString)
+		id, err = client.GetTicketId(receipt.Qr)
 	}
 
 	if err != nil {
 		log.Printf("failed get receipt id %v\n", err)
-		err := worker.repository.SetReceiptStatus(ctx, receipt.Id.Hex(), receipts.Error)
+		err := worker.backendClient.UpdateStatus(ctx, receipt, backend.Error)
 		return err
 	}
 
-	err = worker.repository.SetTicketId(ctx, receipt, id)
+	err = worker.backendClient.SetTicketId(ctx, receipt, id)
 	if err != nil {
 		log.Printf("set ticket id failed: %v", err)
 		return err

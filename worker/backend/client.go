@@ -30,6 +30,10 @@ const (
 	NotFound    Status = 5
 )
 
+func (s Status) ToDto() inside.Status {
+	return inside.Status(s)
+}
+
 //NewClient creates instance of grpcClient.
 func NewClient(backendUrl string, creds credentials.TransportCredentials) *GrpcClient {
 	dial, err := grpc.Dial(backendUrl, grpc.WithTransportCredentials(creds))
@@ -68,4 +72,47 @@ func (c *GrpcClient) UpdateStatus(ctx context.Context, request *ReceiptRequest, 
 		return errors.New(response.Error)
 	}
 	return nil
+}
+
+func (c *GrpcClient) GetFirstByStatus(ctx context.Context, status Status) (*ReceiptRequest, error) {
+	client := c.client
+
+	in := inside.QueryByStatus{
+		Status: status.ToDto(),
+	}
+	request, err := (*client).GetFirstRequestWithStatus(ctx, &in)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		return nil, nil
+	}
+	return mapRequest(request), nil
+
+}
+
+func (c *GrpcClient) SetTicketId(ctx context.Context, request *ReceiptRequest, ticketId string) error {
+	client := c.client
+
+	in := inside.SetTicketIdRequest{
+		Id:       request.Id,
+		TicketId: ticketId,
+	}
+
+	response, err := (*client).SetTicketId(ctx, &in)
+	if err != nil {
+		return err
+	}
+	if response.Error != "" {
+		return errors.New(response.Error)
+	}
+	return nil
+}
+
+func mapRequest(dto *inside.ReceiptRequest) *ReceiptRequest {
+	return &ReceiptRequest{
+		Id:     dto.Id,
+		UserId: dto.UserId,
+		Qr:     dto.Qr,
+	}
 }
