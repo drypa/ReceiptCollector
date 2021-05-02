@@ -3,7 +3,6 @@ package worker
 import (
 	"github.com/drypa/ReceiptCollector/kkt"
 	"github.com/drypa/ReceiptCollector/worker/backend"
-	"receipt_collector/nalogru"
 )
 
 //Worker for any background job.

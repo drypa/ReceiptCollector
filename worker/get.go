@@ -2,8 +2,8 @@ package worker
 
 import (
 	"context"
+	"github.com/drypa/ReceiptCollector/kkt"
 	"log"
-	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"time"
 )
@@ -17,7 +17,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 		log.Println("Failed to rent device")
 	}
 
-	client := nalogru.NewClient(worker.nalogruClient.BaseAddress, d)
+	client := worker.nalogruClient
 
 	for {
 		select {
@@ -32,7 +32,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 			err := worker.getReceipt(ctx, client)
 			if err != nil {
 				log.Printf("Get receipt error: %v\n", err)
-				if err.Error() == nalogru.DailyLimitReached {
+				if err.Error() == kkt.DailyLimitReached {
 					ticker.Reset(getDurationToNextDay(time.Now()))
 					log.Println("timer snoozed  bis tomorrow")
 				}
@@ -41,6 +41,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 			}
 		}
 	}
+	``
 }
 
 func getDurationToNextDay(t time.Time) time.Duration {
@@ -49,7 +50,7 @@ func getDurationToNextDay(t time.Time) time.Duration {
 
 }
 
-func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) error {
+func (worker *Worker) getReceipt(ctx context.Context, client *kkt.Client) error {
 	receipt, err := worker.repository.GetWithoutTicket(ctx)
 	if err != nil {
 		log.Printf("failed to get tickets to process: %v", err)
@@ -64,11 +65,11 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
 	id, err := client.GetTicketId(receipt.QueryString)
 
-	if err != nil && err.Error() == nalogru.DailyLimitReached {
+	if err != nil && err.Error() == kkt.DailyLimitReached {
 		return err
 	}
 
-	if err == nalogru.AuthError {
+	if err == kkt.AuthError {
 		err = worker.refreshSession(ctx, client)
 		if err != nil {
 			log.Printf("failed to refresh session. %v\n", err)
@@ -95,7 +96,7 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
 	details, err := worker.nalogruClient.GetTicketById(id)
 
-	if err == nalogru.AuthError {
+	if err == kkt.AuthError {
 		err = worker.refreshSession(ctx, worker.nalogruClient)
 		if err != nil {
 			log.Printf("failed to refresh session. %v\n", err)
@@ -115,7 +116,7 @@ func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
 	return err
 }
 
-func getTicketExistence(details *nalogru.TicketDetails) string {
+func getTicketExistence(details *kkt.TicketDetails) string {
 	ticket := "exist"
 	if details.Ticket == nil {
 		ticket = "not exist"
@@ -123,7 +124,7 @@ func getTicketExistence(details *nalogru.TicketDetails) string {
 	return ticket
 }
 
-func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client) error {
+func (worker *Worker) refreshSession(ctx context.Context, client *kkt.Client) error {
 	d, err := client.RefreshSession()
 	if err != nil {
 		log.Printf("failed to refresh session: %v", err)

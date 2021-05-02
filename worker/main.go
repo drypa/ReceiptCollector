@@ -2,9 +2,10 @@ package worker
 
 import (
 	"context"
+	"github.com/drypa/ReceiptCollector/kkt"
+	"github.com/drypa/ReceiptCollector/worker/backend"
 	"log"
 	"os"
-	"receipt_collector/nalogru"
 )
 
 func main() {
@@ -13,9 +14,10 @@ func main() {
 	settings := ReadFromEnvironment()
 	log.Printf("Worker settings %v \n", settings)
 
-	nalogruClient := nalogru.NewClient(baseAddress, d)
+	nalogruClient := kkt.NewClient(baseAddress, d)
+	backendClient := backend.NewClient()
 
-	w := New(nalogruClient, receiptRepository, deviceRepository, &wasteRepository, deviceService)
+	w := New(nalogruClient, backendClient, deviceService)
 
 	go w.CheckReceiptStart(ctx, settings)
 	go w.GetReceiptStart(ctx, settings)
