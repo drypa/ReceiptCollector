@@ -2,8 +2,8 @@ package worker
 
 import (
 	"context"
+	"github.com/drypa/ReceiptCollector/worker/backend"
 	"log"
-	"receipt_collector/receipts"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func (worker Worker) CheckReceiptStart(ctx context.Context, settings Settings) {
 }
 
 func (worker Worker) checkReceipt(ctx context.Context) error {
-	receipt, err := worker.repository.GetWithoutCheckRequest(ctx)
+	receipt, err := worker.backendClient.GetUnchekedQr(ctx)
 
 	if err != nil {
 		return err
@@ -35,14 +35,14 @@ func (worker Worker) checkReceipt(ctx context.Context) error {
 		//No unchecked receipts
 		return nil
 	}
-	status := receipts.Success
-	exist, err := worker.nalogruClient.CheckReceiptExist(receipt.QueryString)
+	status := backend.CheckPassed
+	exist, err := worker.nalogruClient.CheckReceiptExist(receipt.Qr)
 	if err != nil {
-		status = receipts.Error
+		status = backend.Error
 	}
 	if exist == false {
-		status = receipts.NotFound
+		status = backend.NotFound
 	}
 
-	return worker.repository.UpdateCheckStatus(ctx, *receipt, status)
+	return worker.backendClient.UpdateStatus(ctx, receipt, status)
 }

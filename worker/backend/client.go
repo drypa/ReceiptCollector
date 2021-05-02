@@ -19,6 +19,17 @@ type ReceiptRequest struct {
 	Qr     string
 }
 
+type Status int32
+
+const (
+	Undefined   Status = 0
+	CheckPassed Status = 1
+	CheckFailed Status = 2
+	Requested   Status = 3
+	Error       Status = 4
+	NotFound    Status = 5
+)
+
 //NewClient creates instance of grpcClient.
 func NewClient(backendUrl string, creds credentials.TransportCredentials) *GrpcClient {
 	dial, err := grpc.Dial(backendUrl, grpc.WithTransportCredentials(creds))
@@ -30,20 +41,20 @@ func NewClient(backendUrl string, creds credentials.TransportCredentials) *GrpcC
 }
 
 //GetUnchekedQr return one not checked receipt qr code.
-func (c *GrpcClient) GetUnchekedQr(ctx context.Context) (ReceiptRequest, error) {
+func (c *GrpcClient) GetUnchekedQr(ctx context.Context) (*ReceiptRequest, error) {
 	client := c.client
 	res := ReceiptRequest{}
 	request, err := (*client).GetFirstUnckeckedRequest(ctx, &inside.NoParams{})
 	if err != nil {
-		return res, err
+		return &res, err
 	}
 	res.Id = request.Id
 	res.UserId = request.UserId
 	res.Qr = request.Qr
-	return res, nil
+	return &res, nil
 }
 
-func (c *GrpcClient) UpdateStatus(ctx context.Context, request *ReceiptRequest, status int32) error {
+func (c *GrpcClient) UpdateStatus(ctx context.Context, request *ReceiptRequest, status Status) error {
 	client := c.client
 	in := inside.SetRequestStatusRequest{
 		Id:     request.Id,
