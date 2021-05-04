@@ -5,7 +5,6 @@ import (
 	"github.com/drypa/ReceiptCollector/kkt"
 	"github.com/drypa/ReceiptCollector/worker/backend"
 	"log"
-	"receipt_collector/receipts"
 	"time"
 )
 

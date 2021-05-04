@@ -9,11 +9,11 @@ import (
 type Worker struct {
 	nalogruClient *kkt.Client
 	backendClient *backend.GrpcClient
-	devices       nalogru.Devices
+	devices       Devices
 }
 
 //New constructs Worker.
-func New(nalogruClient *kkt.Client, backendClient *backend.GrpcClient, devices nalogru.Devices) Worker {
+func New(nalogruClient *kkt.Client, backendClient *backend.GrpcClient, devices Devices) Worker {
 	return Worker{
 		//TODO: nalogruClient is not required here
 		nalogruClient: nalogruClient,
