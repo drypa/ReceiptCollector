@@ -12,3 +12,7 @@ message Device {
     string RefreshToken = 3;
     string Id = 4;
 }
+
+message UpdateDeviceRequest {
+    Device device = 1;
+}
