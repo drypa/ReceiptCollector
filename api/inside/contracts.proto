@@ -5,6 +5,7 @@ syntax = "proto3";
 import "receipts.proto";
 import "accounts.proto";
 import "requests.proto";
+import "devices.proto";
 
 package inside_api;
 
@@ -46,6 +47,10 @@ service InternalApi {
     }
 
     rpc AddRawTicket (AddRawTicketRequest) returns (ErrorResponse) {
+
+    }
+
+    rpc GetDevices (GetDevicesRequest) returns (stream Device) {
 
     }
 }

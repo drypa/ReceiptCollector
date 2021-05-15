@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package inside_api;
+
+message GetDevicesRequest {
+
+}
+
+message Device {
+    string ClientSecret = 1;
+    string SessionId = 2;
+    string RefreshToken = 3;
+    string Id = 4;
+}
