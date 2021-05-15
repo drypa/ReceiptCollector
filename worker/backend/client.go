@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	inside "github.com/drypa/ReceiptCollector/api/inside"
+	"github.com/drypa/ReceiptCollector/kkt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"log"
@@ -107,6 +108,134 @@ func (c *GrpcClient) SetTicketId(ctx context.Context, request *ReceiptRequest, t
 		return errors.New(response.Error)
 	}
 	return nil
+}
+
+func (c *GrpcClient) AddRawTicket(ctx context.Context, raw *kkt.TicketDetails) error {
+	client := c.client
+	details := mapRawDetails(raw)
+	in := inside.AddRawTicketRequest{
+		Details: &details,
+	}
+	response, err := (*client).AddRawTicket(ctx, &in)
+
+	if err != nil {
+		return err
+	}
+	if response.Error != "" {
+		return errors.New(response.Error)
+	}
+	return nil
+}
+
+func mapRawDetails(raw *kkt.TicketDetails) inside.TicketDetails {
+	return inside.TicketDetails{
+		Status:       uint32(raw.Status),
+		Id:           raw.Id,
+		Kind:         raw.Kind,
+		CreatedAt:    raw.CreatedAt,
+		Qr:           raw.Qr,
+		Operation:    mapOperation(&raw.Operation),
+		Process:      nil,
+		Query:        mapQuery(raw.Query),
+		Ticket:       mapTicket(raw.Ticket),
+		Organization: mapOrganization(raw.Organization),
+		Seller:       mapSeller(raw.Seller),
+	}
+}
+
+func mapSeller(seller *kkt.Seller) *inside.Seller {
+	return &inside.Seller{
+		Name: seller.Name,
+		Inn:  seller.Inn,
+	}
+}
+
+func mapOrganization(organization *kkt.Organization) *inside.Organization {
+	return &inside.Organization{
+		Name: organization.Name,
+		Inn:  organization.Inn,
+	}
+}
+
+func mapQuery(query kkt.Query) *inside.Query {
+	return &inside.Query{
+		OperationType: uint32(query.OperationType),
+		Sum:           uint64(query.Sum),
+		DocumentId:    uint32(query.DocumentId),
+		FsId:          query.FsId,
+		FiscalSign:    query.FiscalSign,
+		Date:          query.Date,
+	}
+}
+func mapOperation(operation *kkt.Operation) *inside.Operation {
+	return &inside.Operation{
+		Date: operation.Date,
+		Type: uint32(operation.Type),
+		Sum:  uint64(operation.Sum),
+	}
+}
+
+func mapTicket(ticket *kkt.Ticket) *inside.Ticket {
+	return &inside.Ticket{
+		Document: &inside.Document{
+			Receipt: &inside.Receipt{
+				DateTime:             ticket.Document.Receipt.DateTime,
+				CashTotalSum:         ticket.Document.Receipt.CashTotalSum,
+				Code:                 int32(ticket.Document.Receipt.Code),
+				CreditSum:            ticket.Document.Receipt.CreditSum,
+				EcashTotalSum:        ticket.Document.Receipt.EcashTotalSum,
+				FiscalDocumentNumber: int32(ticket.Document.Receipt.FiscalDocumentNumber),
+				FnsUrl:               ticket.Document.Receipt.FnsUrl,
+				Items:                mapItems(ticket.Document.Receipt.Items),
+				UserInn:              ticket.Document.Receipt.UserInn,
+				Nds10:                ticket.Document.Receipt.Nds10,
+				Nds18:                ticket.Document.Receipt.Nds18,
+				OperationType:        int32(ticket.Document.Receipt.OperationType),
+				Operator:             ticket.Document.Receipt.Operator,
+				PrepaidSum:           ticket.Document.Receipt.PrepaidSum,
+				ProvisionSum:         ticket.Document.Receipt.ProvisionSum,
+				RequestNumber:        int32(ticket.Document.Receipt.RequestNumber),
+				RetailPlace:          ticket.Document.Receipt.RetailPlace,
+				RetailPlaceAddress:   ticket.Document.Receipt.RetailPlaceAddress,
+				TotalSum:             ticket.Document.Receipt.TotalSum,
+				User:                 ticket.Document.Receipt.User,
+				PostpaymentSum:       0,  //TODO: need add to kkt model?
+				CounterSubmissionSum: 0,  //TODO: need add to kkt model?
+				FiscalDriveNumber:    "", //TODO: need add to kkt model?
+				FiscalSign:           uint32(ticket.Document.Receipt.FiscalSign),
+				KktRegId:             ticket.Document.Receipt.KktRegId,
+				PrepaymentSum:        0,  //TODO: need add to kkt model?
+				ProtocolVersion:      0,  //TODO: need add to kkt model?
+				ReceiptCode:          0,  //TODO: need add to kkt model?
+				SenderAddress:        "", //TODO: need add to kkt model?
+				ShiftNumber:          0,  //TODO: need add to kkt model?
+				TaxationType:         0,  //TODO: need add to kkt model?
+			},
+		},
+	}
+}
+
+func mapItems(items []kkt.Item) []*inside.Item {
+	res := make([]*inside.Item, len(items))
+	for i, v := range items {
+		res[i] = mapItem(v)
+	}
+	return res
+}
+
+func mapItem(item kkt.Item) *inside.Item {
+	return &inside.Item{
+		Name:                   item.Name,
+		Nds:                    int32(item.Nds),
+		NdsSum:                 item.NdsSum,
+		PaymentType:            int32(item.PaymentType),
+		Price:                  item.Price,
+		Quantity:               item.Quantity,
+		Sum:                    item.Sum,
+		CalculationSubjectSign: 0,
+		CalculationTypeSign:    0,
+		NdsRate:                0, //TODO: need add to kkt model?
+	}
 }
 
 func mapRequest(dto *inside.ReceiptRequest) *ReceiptRequest {
