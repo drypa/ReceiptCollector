@@ -7,6 +7,7 @@ import (
 	"receipt_collector/receipts/purchase"
 )
 
+//Processor for actions with receipts.
 type Processor struct {
 	r *Repository
 }

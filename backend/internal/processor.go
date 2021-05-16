@@ -18,3 +18,8 @@ type ReceiptProcessor interface {
 	AddReceipt(ctx context.Context, in *api.AddReceiptRequest, opts ...grpc.CallOption) (*api.AddReceiptResponse, error)
 	GetReceipts(*api.GetReceiptsRequest, api.InternalApi_GetReceiptsServer) error
 }
+
+type DeviceProcessor interface {
+	GetDevices(*api.GetDevicesRequest, api.InternalApi_GetDevicesServer) error
+	UpdateDevice(context.Context, *api.UpdateDeviceRequest) (*api.ErrorResponse, error)
+}
