@@ -127,6 +127,29 @@ func (c *GrpcClient) AddRawTicket(ctx context.Context, raw *kkt.TicketDetails) e
 	return nil
 }
 
+func (c *GrpcClient) GetDevices(ctx context.Context) ([]Device, error) {
+	client := c.client
+
+	in := inside.GetDevicesRequest{}
+
+	devices, err := (*client).GetDevices(ctx, &in)
+
+	if err != nil {
+		return nil, err
+	}
+	res := make([]Device, 1)
+	device, err := devices.Recv()
+	for device != nil {
+		res = append(res, Device{
+			ClientSecret: device.ClientSecret,
+			SessionId:    device.SessionId,
+			RefreshToken: device.RefreshToken,
+			Id:           device.Id,
+		})
+	}
+	return res, nil
+}
+
 func mapRawDetails(raw *kkt.TicketDetails) inside.TicketDetails {
 	return inside.TicketDetails{
 		Status:       uint32(raw.Status),
