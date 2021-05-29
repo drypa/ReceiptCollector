@@ -1,23 +1,36 @@
 package worker
 
 import (
+	"context"
 	"github.com/drypa/ReceiptCollector/kkt"
 	"github.com/drypa/ReceiptCollector/worker/backend"
 )
 
 //Worker for any background job.
 type Worker struct {
-	nalogruClient *kkt.Client
+	kkt           *kkt.Client
 	backendClient *backend.GrpcClient
 	devices       Devices
 }
 
 //New constructs Worker.
-func New(nalogruClient *kkt.Client, backendClient *backend.GrpcClient, devices Devices) Worker {
-	return Worker{
-		//TODO: nalogruClient is not required here
-		nalogruClient: nalogruClient,
+func New(backendClient *backend.GrpcClient, devices Devices) (Worker, error) {
+	worker := Worker{
 		backendClient: backendClient,
 		devices:       devices,
 	}
+	err := setKktClient(context.Background(), &worker)
+	return worker, err
+}
+
+func setKktClient(ctx context.Context, worker *Worker) error {
+	device, err := worker.devices.Rent(ctx)
+	if err != nil {
+		return err
+	}
+
+	client := kkt.NewClient(baseAddress, *device)
+	worker.kkt = client
+	return nil
+
 }
