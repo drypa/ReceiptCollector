@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -233,7 +234,7 @@ func (nalogruClient *Client) RefreshSession() (api_client.ApiClient, error) {
 	}
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Refresh session error: %d\n", res.StatusCode)
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))
 	}
 
 	response := &RefreshResponse{}
