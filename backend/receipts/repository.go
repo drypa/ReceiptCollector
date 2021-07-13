@@ -197,10 +197,13 @@ func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersRecei
 	collection := repository.getCollection()
 
 	usersReceipt := UsersReceipt{}
-	query := bson.M{"$or": bson.A{
-		bson.M{"ticket_id": ""},
-		bson.M{"ticket_id": nil},
-	}}
+	query := bson.M{
+		"$and": bson.A{
+			bson.M{"check_request_status": Error},
+			bson.M{"$or": bson.A{
+				bson.M{"ticket_id": ""},
+				bson.M{"ticket_id": nil},
+			}}}}
 
 	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
 
