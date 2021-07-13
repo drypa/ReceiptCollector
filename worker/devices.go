@@ -4,18 +4,37 @@ import (
 	"context"
 )
 
-//Devices interface to rent device.
-type Devices interface {
-	Rent(ctx context.Context) (*Device, error)
-	Update(ctx context.Context, device *Device) error
-	Free(ctx context.Context, device *Device) error
+//Devices to rent device.
+type Devices struct {
+	//TODO: should send all requests to backend
+}
+
+func (d *Devices) Rent(ctx context.Context) (*Device, error) {
+	panic("not implemented")
+}
+func (d *Devices) Update(ctx context.Context, device *Device) error {
+	panic("not implemented")
+}
+func (d *Devices) Free(ctx context.Context, device *Device) error {
+	panic("not implemented")
 }
 
 //Device contains all API credentials.
-type Device interface {
-	GetSecret() string
-	GetSessionId() string
-	GetRefreshToken() string
-	GetId() string
-	Refresh(newToken string, newSession string)
+type Device struct {
+}
+
+func (d Device) GetSecret() string {
+	panic("not implemented")
+}
+func (d Device) GetSessionId() string {
+	panic("not implemented")
+}
+func (d Device) GetRefreshToken() string {
+	panic("not implemented")
+}
+func (d Device) GetId() string {
+	panic("not implemented")
+}
+func (d Device) Refresh(newToken string, newSession string) {
+	//TODO: need implement
 }

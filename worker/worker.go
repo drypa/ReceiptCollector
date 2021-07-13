@@ -10,11 +10,11 @@ import (
 type Worker struct {
 	kkt           *kkt.Client
 	backendClient *backend.GrpcClient
-	devices       Devices
+	devices       *Devices
 }
 
 //New constructs Worker.
-func New(backendClient *backend.GrpcClient, devices Devices) (Worker, error) {
+func New(backendClient *backend.GrpcClient, devices *Devices) (Worker, error) {
 	worker := Worker{
 		backendClient: backendClient,
 		devices:       devices,
@@ -24,7 +24,8 @@ func New(backendClient *backend.GrpcClient, devices Devices) (Worker, error) {
 }
 
 func setKktClient(ctx context.Context, worker *Worker) error {
-	device, err := worker.devices.Rent(ctx)
+	devices := *(worker.devices)
+	device, err := devices.Rent(ctx)
 	if err != nil {
 		return err
 	}
