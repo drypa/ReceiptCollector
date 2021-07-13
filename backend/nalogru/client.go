@@ -65,7 +65,8 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 
 //TicketIdRequest is request object to get Ticket id.
 type TicketIdRequest struct {
-	Qr string `json:"qr"`
+	Qr          string      `json:"qr"`
+	Coordinates interface{} `json:"coordinates"`
 }
 
 //TicketIdResponse - response on TicketIdRequest.
