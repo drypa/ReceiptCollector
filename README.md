@@ -54,3 +54,13 @@ db.getCollection('receipt_requests').updateMany({check_request_status: 'error'},
 //remove obsolete fields.
 db.getCollection('receipt_requests').updateMany({}, {$unset: {odfs_request_status: '', odfs_requested: ''}})
 ```
+
+```javascript
+//refresh session manually
+db.getCollection('devices').updateOne({"_id": ObjectId("000000000000000000000000")}, {
+    "$set": {
+        "session_id": "XXX:XXX",
+        "refresh_token": "XXX"
+    }
+})
+```
