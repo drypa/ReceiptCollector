@@ -199,7 +199,7 @@ func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersRecei
 	usersReceipt := UsersReceipt{}
 	query := bson.M{
 		"$and": bson.A{
-			bson.M{"check_request_status": Error},
+			bson.M{"check_request_status": bson.M{"$ne": Error}},
 			bson.M{"$or": bson.A{
 				bson.M{"ticket_id": ""},
 				bson.M{"ticket_id": nil},
