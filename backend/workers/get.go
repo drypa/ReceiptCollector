@@ -134,5 +134,6 @@ func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client
 		log.Printf("failed to update device: %v", err)
 		return err
 	}
+	log.Printf("device %s updated\n", d.Id.Hex())
 	return nil
 }

@@ -12,7 +12,7 @@ var sessionId = "INSERT SESSION ID HERE"
 var deviceId = primitive.NewObjectID().Hex()
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
-	d, err := createDevice(t, "", "")
+	d, err := createDevice("", "")
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -37,7 +37,7 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 
 }
 
-func createDevice(t *testing.T, secret string, token string) (*device.Device, error) {
+func createDevice(secret string, token string) (*device.Device, error) {
 	id, err := primitive.ObjectIDFromHex(deviceId)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func createDevice(t *testing.T, secret string, token string) (*device.Device, er
 }
 
 func IgnoreTestClient_GetTicketById(t *testing.T) {
-	d, err := createDevice(t, "", "")
+	d, err := createDevice("", "")
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -77,7 +77,7 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 func IgnoreTestClient_RefreshSession(t *testing.T) {
 	secret := "PASS CLIENT SECRET HERE"
 	refreshToken := "PASS REFRESH TOKEN HERE"
-	d, err := createDevice(t, secret, refreshToken)
+	d, err := createDevice(secret, refreshToken)
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -100,12 +100,14 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 		log.Println("Refresh token is empty")
 		t.Fail()
 	}
+	log.Printf("SessionId: %s\n", d.SessionId)
+	log.Printf("RefreshToken: %s\n", d.RefreshToken)
 
 }
 
 func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 	queryString := "INSERT VALID QUERY STRING HERE"
-	d, err := createDevice(t, "", "")
+	d, err := createDevice("", "")
 	if err != nil {
 		log.Println(err)
 		t.Fail()
