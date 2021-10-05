@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
+	"time"
 )
 
 type Client struct {
@@ -36,7 +37,7 @@ const (
 
 //CheckReceiptExist send request to check receipt exist in Nalog.ru api.
 func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
-	client := &http.Client{}
+	client := createHttpClient()
 	url, err := buildCheckReceiptUrl(nalogruClient.BaseAddress, queryString)
 	if err != nil {
 		log.Printf("Could't build url for %s", queryString)
@@ -51,6 +52,7 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 	}
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	resp, err := client.Do(request)
+	defer resp.Body.Close()
 	if err != nil {
 		log.Printf("Could't check receipt %s", url)
 		return false, err
@@ -61,6 +63,10 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 	}
 	log.Printf("Receipt is invalid? %s", url)
 	return false, nil
+}
+
+func createHttpClient() *http.Client {
+	return &http.Client{Timeout: time.Second * 10}
 }
 
 //TicketIdRequest is request object to get Ticket id.
@@ -78,7 +84,7 @@ type TicketIdResponse struct {
 
 //GetTicketId - send ticket id request to nalog.ru API.
 func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
-	client := &http.Client{}
+	client := createHttpClient()
 	payload := TicketIdRequest{Qr: queryString}
 
 	req, err := json.Marshal(payload)
@@ -91,6 +97,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
+	defer res.Body.Close()
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
@@ -159,13 +166,14 @@ func readBody(res *http.Response) ([]byte, error) {
 
 //GetTicketById get ticket by id from nalog.ru api.
 func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
-	client := &http.Client{}
+	client := createHttpClient()
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
+	defer res.Body.Close()
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
@@ -212,7 +220,7 @@ type RefreshResponse struct {
 }
 
 func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
-	client := &http.Client{}
+	client := createHttpClient()
 
 	payload := RefreshRequest{
 		ClientSecret: nalogruClient.device.ClientSecret,
@@ -229,6 +237,7 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	res, err := sendRequest(request, client)
+	defer res.Body.Close()
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return nil, err
