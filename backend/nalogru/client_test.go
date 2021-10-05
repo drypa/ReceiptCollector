@@ -3,6 +3,8 @@ package nalogru
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"receipt_collector/nalogru/device"
 	"testing"
 )
@@ -127,5 +129,56 @@ func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 		t.Fail()
 		return
 	}
+
+}
+
+func IgnoreTestHttpClient_NoError(t *testing.T) {
+	svr := createServer(t)
+	defer svr.Close()
+	client := http.Client{}
+	iterationErrorOccurred := -1
+	for i := 0; i < 30_000; i++ {
+		err := callServerWithCloseBody(client, svr)
+		if err != nil {
+			iterationErrorOccurred = i
+		}
+	}
+	if iterationErrorOccurred == -1 {
+		t.FailNow()
+	}
+}
+func IgnoreTestHttpClient_Error(t *testing.T) {
+	svr := createServer(t)
+	defer svr.Close()
+	client := http.Client{}
+	for i := 0; i < 30_000; i++ {
+		err := callServerWithoutCloseBody(client, svr)
+		if err != nil {
+			log.Println(i)
+			log.Println(err.Error())
+			t.FailNow()
+		}
+	}
+}
+
+func createServer(t *testing.T) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write([]byte("Hello"))
+		if err != nil {
+			log.Printf("Server fail: %v\n", err.Error())
+			t.Fail()
+		}
+	}))
+}
+
+func callServerWithCloseBody(client http.Client, svr *httptest.Server) error {
+	m, err := client.Get(svr.URL)
+	defer m.Body.Close()
+	return err
+
+}
+func callServerWithoutCloseBody(client http.Client, svr *httptest.Server) error {
+	_, err := client.Get(svr.URL)
+	return err
 
 }
