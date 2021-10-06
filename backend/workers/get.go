@@ -124,16 +124,17 @@ func getTicketExistence(details *nalogru.TicketDetails) string {
 }
 
 func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client) error {
-	d, err := client.RefreshSession()
+	err := client.RefreshSession()
 	if err != nil {
 		log.Printf("failed to refresh session: %v", err)
 		return err
 	}
-	err = worker.devices.Update(ctx, d)
+	device := client.GetDevice()
+	err = worker.devices.Update(ctx, &device)
 	if err != nil {
 		log.Printf("failed to update device: %v", err)
 		return err
 	}
-	log.Printf("device %s updated\n", d.Id.Hex())
+	log.Printf("device %s updated\n", device.Id.Hex())
 	return nil
 }

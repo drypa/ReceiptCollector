@@ -87,7 +87,7 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 	}
 	client := NewClient(baseAddress, d)
 
-	d, err = client.RefreshSession()
+	err = client.RefreshSession()
 
 	if err != nil {
 		log.Println(err)

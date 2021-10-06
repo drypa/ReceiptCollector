@@ -145,6 +145,15 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	return ticketIdResp.Id, nil
 }
 
+func (nalogruClient *Client) GetDevice() device.Device {
+	return device.Device{
+		ClientSecret: nalogruClient.device.ClientSecret,
+		SessionId:    nalogruClient.device.SessionId,
+		RefreshToken: nalogruClient.device.RefreshToken,
+		Id:           nalogruClient.device.Id,
+	}
+}
+
 func readBody(res *http.Response) ([]byte, error) {
 	defer dispose.Dispose(res.Body.Close, "failed to close response body.")
 	var bodyReader io.ReadCloser
@@ -219,7 +228,7 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
+func (nalogruClient *Client) RefreshSession() error {
 	client := createHttpClient()
 
 	payload := RefreshRequest{
@@ -229,7 +238,7 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 
 	resp, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	reader := bytes.NewReader(resp)
 
@@ -240,23 +249,23 @@ func (nalogruClient *Client) RefreshSession() (*device.Device, error) {
 	defer res.Body.Close()
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
-		return nil, err
+		return err
 	}
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Refresh session error: %d\n", res.StatusCode)
-		return nil, errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))
+		return errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))
 	}
 
 	response := &RefreshResponse{}
 	err = json.NewDecoder(res.Body).Decode(response)
 	if err != nil {
 		log.Println("Can't decode response body")
-		return nil, err
+		return err
 	}
 	log.Printf("%+v\n", response)
 	nalogruClient.device.RefreshToken = response.RefreshToken
 	nalogruClient.device.SessionId = response.SessionId
-	return nalogruClient.device, nil
+	return nil
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
