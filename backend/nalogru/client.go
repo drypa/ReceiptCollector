@@ -52,11 +52,12 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 	}
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	resp, err := client.Do(request)
-	defer resp.Body.Close()
+
 	if err != nil {
 		log.Printf("Could't check receipt %s", url)
 		return false, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
 		log.Println("Check passed")
 		return true, nil
@@ -97,11 +98,12 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
-	defer res.Body.Close()
+
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
+	defer res.Body.Close()
 
 	body, err := readBody(res)
 	if err != nil {
@@ -182,11 +184,12 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	addAuth(request, nalogruClient.device.SessionId)
 	res, err := sendRequest(request, client)
-	defer res.Body.Close()
+
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	all, err := readBody(res)
 	if err != nil {
@@ -246,11 +249,13 @@ func (nalogruClient *Client) RefreshSession() error {
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, nalogruClient.device.Id.Hex())
 	res, err := sendRequest(request, client)
-	defer res.Body.Close()
+
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Refresh session error: %d\n", res.StatusCode)
 		return errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))

@@ -173,7 +173,9 @@ func createServer(t *testing.T) *httptest.Server {
 
 func callServerWithCloseBody(client http.Client, svr *httptest.Server) error {
 	m, err := client.Get(svr.URL)
-	defer m.Body.Close()
+	if m != nil {
+		defer m.Body.Close()
+	}
 	return err
 
 }
