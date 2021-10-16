@@ -59,6 +59,11 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 }
 
 func (s *Service) Update(ctx context.Context, device *device.Device) error {
+	for _, v := range s.devices {
+		if device.Id == v.Id {
+			v.Device = *device
+		}
+	}
 	return s.r.Update(ctx, device)
 }
 
