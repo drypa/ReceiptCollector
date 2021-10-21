@@ -65,7 +65,7 @@ func main() {
 	marketRepository := markets.NewRepository(client)
 	wasteRepository := waste.NewRepository(client)
 
-	worker := workers.New(nalogruClient, receiptRepository, deviceRepository, &wasteRepository, deviceService)
+	worker := workers.New(nalogruClient, receiptRepository, &wasteRepository, deviceService)
 
 	//wasteWorker := waste.NewWorker()
 	//go func() {
