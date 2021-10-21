@@ -17,8 +17,6 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 		log.Println("Failed to rent device")
 	}
 
-	client := nalogru.NewClient(worker.nalogruClient.BaseAddress, d)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -29,7 +27,7 @@ func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 			}
 			return
 		case <-ticker.C:
-			err := worker.getReceipt(ctx, client)
+			err := worker.getReceipt(ctx)
 			if err != nil {
 				log.Printf("Get receipt error: %v\n", err)
 				if err.Error() == nalogru.DailyLimitReached {
@@ -49,7 +47,7 @@ func getDurationToNextDay(t time.Time) time.Duration {
 
 }
 
-func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) error {
+func (worker *Worker) getReceipt(ctx context.Context) error {
 	receipt, err := worker.repository.GetWithoutTicket(ctx)
 	if err != nil {
 		log.Printf("failed to get tickets to process: %v", err)
@@ -62,19 +60,19 @@ func (worker *Worker) getReceipt(ctx context.Context, client *nalogru.Client) er
 	}
 
 	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
-	id, err := client.GetTicketId(receipt.QueryString)
+	id, err := worker.nalogruClient.GetTicketId(receipt.QueryString)
 
 	if err != nil && err.Error() == nalogru.DailyLimitReached {
 		return err
 	}
 
 	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx, client)
+		err = worker.refreshSession(ctx)
 		if err != nil {
 			log.Printf("failed to refresh session. %v\n", err)
 			return err
 		}
-		id, err = client.GetTicketId(receipt.QueryString)
+		id, err = worker.nalogruClient.GetTicketId(receipt.QueryString)
 	}
 
 	if err != nil {
@@ -96,7 +94,7 @@ func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
 	details, err := worker.nalogruClient.GetTicketById(id)
 
 	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx, worker.nalogruClient)
+		err = worker.refreshSession(ctx)
 		if err != nil {
 			log.Printf("failed to refresh session. %v\n", err)
 			return err
@@ -123,13 +121,13 @@ func getTicketExistence(details *nalogru.TicketDetails) string {
 	return ticket
 }
 
-func (worker *Worker) refreshSession(ctx context.Context, client *nalogru.Client) error {
-	err := client.RefreshSession()
+func (worker *Worker) refreshSession(ctx context.Context) error {
+	err := worker.nalogruClient.RefreshSession()
 	if err != nil {
 		log.Printf("failed to refresh session: %v", err)
 		return err
 	}
-	device := client.GetDevice()
+	device := worker.nalogruClient.GetDevice()
 	err = worker.devices.Update(ctx, &device)
 	if err != nil {
 		log.Printf("failed to update device: %v", err)
