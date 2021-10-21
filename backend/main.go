@@ -75,7 +75,6 @@ func main() {
 	//	}
 	//}()
 
-	go worker.CheckReceiptStart(ctx, settings)
 	go worker.GetReceiptStart(ctx, settings)
 	//go worker.UpdateRawReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
