@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Publish Backend
-      uses: elgohr/Publish-Docker-Github-Action@2.7
+      uses: elgohr/Publish-Docker-Github-Action@3.04
       with:
         name: drypa/receipt-collector
         username: ${{ secrets.DOCKER_USERNAME }}
@@ -16,7 +16,7 @@ jobs:
         workdir: backend
         snapshot: true
     - name: Publish Frontend
-      uses: elgohr/Publish-Docker-Github-Action@2.7
+      uses: elgohr/Publish-Docker-Github-Action@3.04
       with:
         name: drypa/receipt-frontend
         username: ${{ secrets.DOCKER_USERNAME }}
@@ -24,7 +24,7 @@ jobs:
         workdir: webapp
         snapshot: true
     - name: Publish Telegram bot
-      uses: elgohr/Publish-Docker-Github-Action@2.7
+      uses: elgohr/Publish-Docker-Github-Action@3.04
       with:
         name: drypa/receipt-telegram-bot
         username: ${{ secrets.DOCKER_USERNAME }}
