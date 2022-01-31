@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"receipt_collector/nalogru"
+	"receipt_collector/nalogru/qr"
 	"receipt_collector/receipts"
 	"time"
 )
@@ -60,7 +61,13 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 	}
 
 	log.Printf("try get ticket with qr: %s\n", receipt.QueryString)
-	id, err := worker.nalogruClient.GetTicketId(receipt.QueryString)
+	query, err := qr.Parse(receipt.QueryString)
+
+	if err != nil {
+		return err
+	}
+	normalizedQr := query.ToString()
+	id, err := worker.nalogruClient.GetTicketId(normalizedQr)
 
 	if err != nil && err.Error() == nalogru.DailyLimitReached {
 		return err
@@ -72,7 +79,7 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 			log.Printf("failed to refresh session. %v\n", err)
 			return err
 		}
-		id, err = worker.nalogruClient.GetTicketId(receipt.QueryString)
+		id, err = worker.nalogruClient.GetTicketId(normalizedQr)
 	}
 
 	if err != nil {

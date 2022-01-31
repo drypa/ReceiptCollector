@@ -18,6 +18,14 @@ func TestParseQuery(t *testing.T) {
 			Sum:        "333.00",
 			N:          "1",
 		},
+		"t=20190409T130300&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1": {
+			FiscalSign: "865669710",
+			Fd:         "8710000101407564",
+			Fp:         "91331",
+			Time:       date,
+			Sum:        "333.00",
+			N:          "1",
+		},
 	}
 	for key, val := range testData {
 		query, err := Parse(key)
