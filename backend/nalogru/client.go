@@ -116,7 +116,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		log.Printf("Get ticket id error: %d\n", res.StatusCode)
+		log.Printf("Get ticket id(%s) error: %d\n", queryString, res.StatusCode)
 		file, err := ioutil.TempFile("/var/lib/receipts/error/", "*.err")
 		if err != nil {
 			log.Println("failed to create error response file")

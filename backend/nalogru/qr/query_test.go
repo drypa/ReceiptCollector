@@ -15,7 +15,7 @@ func TestParseQuery(t *testing.T) {
 			Fd:         "8710000101407564",
 			Fp:         "91331",
 			Time:       date,
-			Sum:        "333.00",
+			Sum:        333.00,
 			N:          "1",
 		},
 		"t=20190409T130300&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1": {
@@ -23,14 +23,14 @@ func TestParseQuery(t *testing.T) {
 			Fd:         "8710000101407564",
 			Fp:         "91331",
 			Time:       date,
-			Sum:        "333.00",
+			Sum:        333.00,
 			N:          "1",
 		},
 	}
 	for key, val := range testData {
 		query, err := Parse(key)
 		if err != nil || query != val {
-			t.Errorf("Parse was incorrect got %s, want %s", query, val)
+			t.Errorf("Parse was incorrect got %s, want %s", query.ToString(), val.ToString())
 		}
 	}
 }
@@ -41,7 +41,7 @@ func TestQuery_Validate(t *testing.T) {
 		Fd:         "8710000101407564",
 		Fp:         "91331",
 		Time:       date,
-		Sum:        "333.00",
+		Sum:        333.00,
 		N:          "1",
 	}
 	err := query.Validate()
@@ -56,6 +56,7 @@ func TestQuery_Normalize(t *testing.T) {
 		"t=20190409T130300&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1":  "t=20190409T1303&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1",
 		"t=20190409T130320&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1":  "t=20190409T1303&s=333.00&fn=8710000101407564&i=91331&fp=865669710&n=1",
 		"fp=1234567890&t=20201226T121800&s=551.89&i=12345&fn=1234567890123456&n=1": "t=20201226T1218&s=551.89&fn=1234567890123456&i=12345&fp=1234567890&n=1",
+		"fp=1234567890&t=20201226T121800&s=55189&i=12345&fn=1234567890123456&n=1":  "t=20201226T1218&s=551.89&fn=1234567890123456&i=12345&fp=1234567890&n=1",
 	}
 	for key, val := range testData {
 		query, err := Parse(key)

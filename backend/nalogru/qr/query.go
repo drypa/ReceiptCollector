@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -13,7 +14,7 @@ type Query struct {
 	Fd         string
 	Fp         string
 	Time       time.Time
-	Sum        string
+	Sum        float32
 	N          string
 }
 
@@ -31,10 +32,19 @@ func Parse(queryString string) (Query, error) {
 		return res, err
 	}
 
+	s := template.HTMLEscapeString(form.Get("s"))
+	sum, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return res, err
+	}
+	if strings.Contains(s, ".") == false {
+		sum = sum / 100
+	}
+
 	return Query{
 		N:          template.HTMLEscapeString(form.Get("n")),
 		FiscalSign: template.HTMLEscapeString(form.Get("fp")),
-		Sum:        template.HTMLEscapeString(form.Get("s")),
+		Sum:        float32(sum),
 		Fd:         template.HTMLEscapeString(form.Get("fn")),
 		Time:       timeParsed,
 		Fp:         template.HTMLEscapeString(form.Get("i")),
@@ -44,15 +54,15 @@ func Parse(queryString string) (Query, error) {
 //ToString returns normalized representation of Query.
 func (q *Query) ToString() string {
 	t := q.Time.Format("20060102T1504")
-	return fmt.Sprintf("t=%s&s=%s&fn=%s&i=%s&fp=%s&n=%s", t, q.Sum, q.Fd, q.Fp, q.FiscalSign, q.N)
+	formattedSum := fmt.Sprintf("%.2f", q.Sum)
+	return fmt.Sprintf("t=%s&s=%s&fn=%s&i=%s&fp=%s&n=%s", t, formattedSum, q.Fd, q.Fp, q.FiscalSign, q.N)
 }
 
 func (q Query) Validate() error {
 	_, errN := strconv.Atoi(q.N)
 	_, errFs := strconv.Atoi(q.FiscalSign)
-	_, errSum := strconv.ParseFloat(q.Sum, 64)
 	_, errFd := strconv.Atoi(q.Fd)
-	return firstError([]error{errN, errFs, errSum, errFd})
+	return firstError([]error{errN, errFs, errFd})
 }
 
 func firstError(errors []error) error {
