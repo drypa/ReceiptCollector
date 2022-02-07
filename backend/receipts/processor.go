@@ -24,15 +24,17 @@ func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, o
 
 func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.InternalApi_GetReceiptsServer) error {
 	//TODO: do not load all receipts. make streaming from cursor.
-	receipts, err := p.r.GetByUser(context.Background(), in.UserId)
+	receipts, err := p.r.GetByUser(out.Context(), in.UserId)
 	if err != nil {
 		return err
 	}
 	for _, v := range receipts {
-		contract := toContract(&v)
-		err = out.Send(&contract)
-		if err != nil {
-			return err
+		if v.Receipt != nil {
+			contract := toContract(&v)
+			err = out.Send(&contract)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return err
