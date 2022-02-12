@@ -6,6 +6,7 @@ import "receipts.proto";
 import "accounts.proto";
 import "requests.proto";
 import "devices.proto";
+import "report.proto";
 
 package inside_api;
 
@@ -55,6 +56,10 @@ service InternalApi {
     }
 
     rpc UpdateDevice (UpdateDeviceRequest) returns (ErrorResponse) {
+
+    }
+
+    rpc GetReports(NoParams) returns (stream Report){
 
     }
 }
