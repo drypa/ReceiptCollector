@@ -34,7 +34,7 @@ func (s *server) AddReceipt(ctx context.Context, req *api.AddReceiptRequest) (*a
 }
 
 //GetReceipts returns all receipts for user.
-func (s *server) GetReceipts(in *api.GetReceiptsRequest, stream api.InternalApi_GetReceiptsServer) error {
+func (s *server) GetReceipts(in *api.GetReceiptsRequest, stream api.ReceiptApi_GetReceiptsServer) error {
 	processor := *(s.receiptProcessor)
 	return processor.GetReceipts(in, stream)
 }
