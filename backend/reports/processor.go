@@ -4,21 +4,39 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+//Processor send notifications with statistics.
 type Processor struct {
-	c chan UserReport
-	s *Sender
+	c    chan UserReport
+	s    *Sender
+	cr   *cron.Cron
+	jobs []cron.EntryID
 }
 
-//New Creates Processor instance.
+//New Creates Processor instance and start all jobs.
 func New() (Processor, error) {
 	reports := make(chan UserReport)
 	sender := NewSender(reports)
-	processor := Processor{c: reports, s: &sender}
-
 	cr := cron.New()
-	_, err := cr.AddFunc("0 15 1 * *", processor.sendMonthlyReport)
+	p := Processor{c: reports, s: &sender, cr: cr}
 
-	return processor, err
+	err := p.addJob("0 15 1 * *", p.sendMonthlyReport)
+
+	cr.Start()
+	return p, err
+}
+
+func (p *Processor) addJob(spec string, task func()) error {
+	monthly, err := p.cr.AddFunc(spec, task)
+	p.jobs = append(p.jobs, monthly)
+	return err
+}
+
+//Stop all jobs.
+func (p *Processor) Stop() {
+	for _, v := range p.jobs {
+		p.cr.Remove(v)
+	}
+	p.cr.Stop()
 }
 
 func (p *Processor) sendMonthlyReport() {
