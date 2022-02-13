@@ -19,6 +19,7 @@ import (
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
+	"receipt_collector/reports"
 	"receipt_collector/users"
 	"receipt_collector/users/login_url"
 	"receipt_collector/waste"
@@ -87,6 +88,7 @@ func main() {
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository)
 
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
+	go reports.Serve(":15001", creds)
 
 	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
