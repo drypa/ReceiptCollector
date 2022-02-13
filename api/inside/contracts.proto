@@ -10,64 +10,57 @@ import "report.proto";
 
 package inside_api;
 
-service InternalApi {
-    rpc GetLoginLink (GetLoginLinkRequest) returns (LoginLinkResponse) {
-    }
+service AccountApi{
+  rpc GetLoginLink (GetLoginLinkRequest) returns (LoginLinkResponse) {
+  }
+  rpc GetUsers (NoParams) returns (GetUsersResponse) {
+  }
 
-    rpc AddReceipt (AddReceiptRequest) returns (AddReceiptResponse) {
-    }
-
-    rpc GetUsers (NoParams) returns (GetUsersResponse) {
-    }
-
-    rpc GetUser (GetUserRequest) returns (GetUserResponse) {
-    }
-
-    rpc RegisterUser (UserRegistrationRequest) returns (UserRegistrationResponse) {
-
-    }
-
-    rpc GetReceipts (GetReceiptsRequest) returns (stream Receipt) {
-
-    }
-
-    rpc GetFirstUnckeckedRequest (NoParams) returns (ReceiptRequest) {
-
-    }
-
-    rpc SetRequestStatus (SetRequestStatusRequest) returns (ErrorResponse) {
-
-    }
-
-    rpc GetFirstRequestWithStatus (QueryByStatus) returns (ReceiptRequest) {
-
-    }
-
-    rpc SetTicketId (SetTicketIdRequest) returns (ErrorResponse) {
-
-    }
-
-    rpc AddRawTicket (AddRawTicketRequest) returns (ErrorResponse) {
-
-    }
-
-    rpc GetDevices (GetDevicesRequest) returns (stream Device) {
-
-    }
-
-    rpc UpdateDevice (UpdateDeviceRequest) returns (ErrorResponse) {
-
-    }
-
-    rpc GetReports(NoParams) returns (stream Report){
-
-    }
+  rpc GetUser (GetUserRequest) returns (GetUserResponse) {
+  }
 }
 
-message NoParams {
+service ReceiptApi{
+  rpc AddReceipt (AddReceiptRequest) returns (AddReceiptResponse) {
+  }
+  rpc GetReceipts (GetReceiptsRequest) returns (stream Receipt) {
+  }
+}
 
+service InternalApi {
+  rpc RegisterUser (UserRegistrationRequest) returns (UserRegistrationResponse) {
+
+  }
+
+  rpc GetFirstUnckeckedRequest (NoParams) returns (ReceiptRequest) {
+
+  }
+
+  rpc SetRequestStatus (SetRequestStatusRequest) returns (ErrorResponse) {
+
+  }
+
+  rpc GetFirstRequestWithStatus (QueryByStatus) returns (ReceiptRequest) {
+
+  }
+
+  rpc SetTicketId (SetTicketIdRequest) returns (ErrorResponse) {
+
+  }
+
+  rpc AddRawTicket (AddRawTicketRequest) returns (ErrorResponse) {
+
+  }
+
+  rpc GetDevices (GetDevicesRequest) returns (stream Device) {
+
+  }
+
+  rpc UpdateDevice (UpdateDeviceRequest) returns (ErrorResponse) {
+
+  }
 }
 
 message ErrorResponse {
-    string error = 1;
+  string error = 1;
 }

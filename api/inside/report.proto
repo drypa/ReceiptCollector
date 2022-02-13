@@ -6,3 +6,11 @@ message Report{
   string message = 1;
   string userId = 2;
 }
+
+message NoParams {
+}
+
+service ReportApi{
+  rpc GetReports(NoParams) returns (stream Report){
+  }
+}
