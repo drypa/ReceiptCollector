@@ -25,12 +25,12 @@ func (s *Sender) GetReports(_ *api.NoParams, server api.ReportApi_GetReportsServ
 			return nil
 		case i := <-c:
 			report := api.Report{
-				Message: i.message,
-				UserId:  i.userId,
+				Message:    i.message,
+				TelegramId: i.telegramId,
 			}
 			err := server.Send(&report)
 			if err != nil {
-				log.Printf("Failed to send report to user %s with error: %v", i.userId, err)
+				log.Printf("Failed to send report to user %d with error: %v", i.telegramId, err)
 			}
 		}
 	}

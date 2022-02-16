@@ -1,6 +1,6 @@
 package reports
 
 type UserReport struct {
-	message string
-	userId  string
+	message    string
+	telegramId int64
 }

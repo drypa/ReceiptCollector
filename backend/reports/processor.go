@@ -43,7 +43,7 @@ func (p *Processor) sendMonthlyReport() {
 	//TODO: get users -> for each user get last month receipts -> aggregate all sums and send.
 
 	p.c <- UserReport{
-		message: "",
-		userId:  "",
+		message:    "",
+		telegramId: 1,
 	}
 }
