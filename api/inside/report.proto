@@ -4,7 +4,7 @@ package inside_api;
 
 message Report{
   string message = 1;
-  string userId = 2;
+  int64 telegramId = 2;
 }
 
 message NoParams {
