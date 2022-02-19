@@ -22,11 +22,11 @@ func New(backendUrl string, creds credentials.TransportCredentials) *Client {
 	notifications := make(chan *inside.Report)
 
 	c := &Client{report: &report, Notifications: notifications}
-	go c.SubscribeOnReports()
+	go c.subscribeOnReports()
 	return c
 }
 
-func (c *Client) SubscribeOnReports() error {
+func (c *Client) subscribeOnReports() {
 	ctx := context.Background()
 	report := *(c.report)
 	stream, err := report.GetReports(ctx, &inside.NoParams{}, grpc.EmptyCallOption{})
