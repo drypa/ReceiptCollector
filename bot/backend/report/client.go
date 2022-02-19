@@ -20,11 +20,16 @@ func New(backendUrl string, creds credentials.TransportCredentials) *Client {
 	}
 	report := inside.NewReportApiClient(dial)
 	notifications := make(chan *inside.Report)
-	return &Client{report: &report, Notifications: notifications}
+
+	c := &Client{report: &report, Notifications: notifications}
+	go c.SubscribeOnReports()
+	return c
 }
 
-func (c *Client) GetReports(ctx context.Context, in *inside.NoParams, opts ...grpc.CallOption) (inside.ReportApi_GetReportsClient, error) {
-	stream, err := c.GetReports(ctx, in, opts...)
+func (c *Client) SubscribeOnReports() error {
+	ctx := context.Background()
+	report := *(c.report)
+	stream, err := report.GetReports(ctx, &inside.NoParams{}, grpc.EmptyCallOption{})
 	if err != nil {
 		log.Fatalf("%v.GetReports() failed with %v", c.report, err)
 	}
