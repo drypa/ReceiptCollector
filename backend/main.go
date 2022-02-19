@@ -88,7 +88,7 @@ func main() {
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository)
 
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
-	go reports.Serve(":15001", creds)
+	go reports.Serve(":15001", creds, &userRepository)
 
 	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
