@@ -21,7 +21,8 @@ func (m *Monthly) GetCronSpec() string {
 }
 
 func (m *Monthly) GetReport(ctx context.Context, userId string) (string, error) {
-	filter := getPrevMonthFilter()
+	year, month := getPrevMonth()
+	filter := getPrevMonthFilter(year, month)
 	receipts, err := m.r.GetByQueryStringFilter(ctx, userId, filter)
 	if err != nil {
 		log.Printf("Failed to get receipts for user %s by filter %s\n", userId, filter)
@@ -37,11 +38,14 @@ func (m *Monthly) GetReport(ctx context.Context, userId string) (string, error) 
 		sum = sum + float64(query.Sum)
 	}
 
-	return fmt.Sprintf("Previous month spending: %f", sum), nil
+	return fmt.Sprintf("Your expenses for %s %d : %f", time.Month(month).String(), year, sum), nil
 }
 
-func getPrevMonthFilter() string {
+func getPrevMonth() (y int, m int) {
 	date := time.Now().AddDate(0, -1, 0)
-	str := date.Format("200601")
-	return fmt.Sprintf("t=%s", str)
+	return date.Year(), int(date.Month())
+}
+
+func getPrevMonthFilter(year int, month int) string {
+	return fmt.Sprintf("t=%d%02d", year, month)
 }
