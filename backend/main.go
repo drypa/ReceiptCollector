@@ -20,6 +20,7 @@ import (
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
 	"receipt_collector/reports"
+	"receipt_collector/reports/dal"
 	"receipt_collector/users"
 	"receipt_collector/users/login_url"
 	"receipt_collector/waste"
@@ -65,6 +66,7 @@ func main() {
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
 	wasteRepository := waste.NewRepository(client)
+	receiptReportRepository := dal.New(client)
 
 	worker := workers.New(nalogruClient, receiptRepository, &wasteRepository, deviceService)
 
@@ -88,7 +90,7 @@ func main() {
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository)
 
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
-	go reports.Serve(":15001", creds, &userRepository)
+	go reports.Serve(":15001", creds, &userRepository, &receiptReportRepository)
 
 	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 

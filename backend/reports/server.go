@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
+	"receipt_collector/reports/dal"
 	"receipt_collector/users"
 )
 
@@ -13,7 +14,7 @@ type Server struct {
 }
 
 //Serve starts Server.
-func Serve(bindingAddress string, creds credentials.TransportCredentials, r *users.Repository) *Server {
+func Serve(bindingAddress string, creds credentials.TransportCredentials, r *users.Repository, receipts *dal.Repository) *Server {
 	listen, err := net.Listen("tcp", bindingAddress)
 	if err != nil {
 		log.Printf("Error process address: %s, Error: %v", bindingAddress, err)
@@ -21,7 +22,7 @@ func Serve(bindingAddress string, creds credentials.TransportCredentials, r *use
 	}
 	opts := []grpc.ServerOption{grpc.Creds(creds)}
 	grpcServer := grpc.NewServer(opts...)
-	p, err := New(r)
+	p, err := New(r, receipts)
 	if err != nil {
 		log.Printf("Filed to create processor %v", err)
 		return nil

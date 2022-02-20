@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/robfig/cron/v3"
 	"log"
+	"receipt_collector/reports/dal"
 	"receipt_collector/users"
 )
 
@@ -17,14 +18,14 @@ type Processor struct {
 }
 
 //New Creates Processor instance and start all jobs.
-func New(r *users.Repository) (Processor, error) {
+func New(r *users.Repository, receipts *dal.Repository) (Processor, error) {
 	reports := make(chan UserReport)
 	sender := NewSender(reports)
 	cr := cron.New()
 	p := Processor{c: reports, s: &sender, cr: cr, usersRepository: r}
 
 	aggregators := make([]Aggregator, 0)
-	aggregators = append(aggregators, NewMonthly())
+	aggregators = append(aggregators, NewMonthly(receipts))
 
 	for _, v := range aggregators {
 		err := p.addJob(v.GetCronSpec(), p.getJobFunc(v))
@@ -38,13 +39,17 @@ func New(r *users.Repository) (Processor, error) {
 }
 
 func (p *Processor) getJobFunc(aggregator Aggregator) func() {
-	all, err := p.usersRepository.GetAll(context.Background())
+	allUsers, err := p.usersRepository.GetAll(context.Background())
 	if err != nil {
 		log.Fatalf("Failed to get users for Report.%v \n", err)
 	}
 	return func() {
-		for _, v := range all {
-			report := aggregator.GetReport(v.Id.Hex())
+		for _, v := range allUsers {
+			report, err := aggregator.GetReport(context.Background(), v.Id.Hex())
+			if err != nil {
+				log.Printf("Failed to create report for user %s\n", v.Id.Hex())
+				continue
+			}
 
 			p.c <- UserReport{
 				message:    report,

@@ -1,7 +1,8 @@
 package reports
 
+import "context"
+
 type Aggregator interface {
 	GetCronSpec() string
-	GetSum(userId string) float64
-	GetReport(userId string) string
+	GetReport(ctx context.Context, userId string) (string, error)
 }
