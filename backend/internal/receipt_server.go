@@ -11,6 +11,8 @@ import (
 //GRPCReceiptServer is server to use in backend service.
 type GRPCReceiptServer struct {
 	api.UnimplementedInternalApiServer
+	api.UnimplementedAccountApiServer
+	api.UnimplementedReceiptApiServer
 }
 
 //New constructs Server.
@@ -24,6 +26,8 @@ func Serve(bindingAddress string, creds credentials.TransportCredentials, accoun
 	grpcServer := grpc.NewServer(opts...)
 	s := newServer(accountProcessor, receiptProcessor)
 	api.RegisterInternalApiServer(grpcServer, &s)
+	api.RegisterAccountApiServer(grpcServer, &s)
+	api.RegisterReceiptApiServer(grpcServer, &s)
 
 	err = grpcServer.Serve(listen)
 	if err != nil {

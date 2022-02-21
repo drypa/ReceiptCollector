@@ -10,7 +10,9 @@ import (
 )
 
 type GrpcClient struct {
-	client *inside.InternalApiClient
+	internal *inside.InternalApiClient
+	account  *inside.AccountApiClient
+	receipt  *inside.ReceiptApiClient
 }
 
 //NewGrpcClient creates instance of grpcClient.
@@ -19,13 +21,15 @@ func NewGrpcClient(backendUrl string, creds credentials.TransportCredentials) *G
 	if err != nil {
 		log.Printf("Failed to create connection with %s. Error: %v", backendUrl, err)
 	}
-	client := inside.NewInternalApiClient(dial)
-	return &GrpcClient{client: &client}
+	internal := inside.NewInternalApiClient(dial)
+	account := inside.NewAccountApiClient(dial)
+	receipt := inside.NewReceiptApiClient(dial)
+	return &GrpcClient{internal: &internal, account: &account, receipt: &receipt}
 }
 
 //GetLoginLink returns link to login for telegram user.
 func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, error) {
-	client := c.client
+	client := c.account
 	request := inside.GetLoginLinkRequest{TelegramId: int32(telegramId)}
 	link, err := (*client).GetLoginLink(ctx, &request)
 	if err != nil {
@@ -36,7 +40,7 @@ func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, 
 
 //AddReceipt adds new receipt by bar code.
 func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (statusMessage string, e error) {
-	client := c.client
+	client := c.receipt
 	in := inside.AddReceiptRequest{
 		UserId:    userId,
 		ReceiptQr: qr,
@@ -52,7 +56,7 @@ func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (
 
 //GetUsers returns all users.
 func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
-	client := c.client
+	client := c.account
 
 	resp, err := (*client).GetUsers(ctx, &inside.NoParams{})
 	if err != nil {
@@ -72,7 +76,7 @@ func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
 
 //GetUser returns user by telegramId.
 func (c *GrpcClient) GetUser(ctx context.Context, telegramId int) (*User, error) {
-	client := c.client
+	client := c.account
 
 	in := inside.GetUserRequest{
 		TelegramId: int32(telegramId),

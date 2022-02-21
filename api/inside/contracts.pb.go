@@ -24,37 +24,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type NoParams struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *NoParams) Reset()         { *m = NoParams{} }
-func (m *NoParams) String() string { return proto.CompactTextString(m) }
-func (*NoParams) ProtoMessage()    {}
-func (*NoParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b6d125f880f9ca35, []int{0}
-}
-
-func (m *NoParams) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NoParams.Unmarshal(m, b)
-}
-func (m *NoParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NoParams.Marshal(b, m, deterministic)
-}
-func (m *NoParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NoParams.Merge(m, src)
-}
-func (m *NoParams) XXX_Size() int {
-	return xxx_messageInfo_NoParams.Size(m)
-}
-func (m *NoParams) XXX_DiscardUnknown() {
-	xxx_messageInfo_NoParams.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NoParams proto.InternalMessageInfo
-
 type ErrorResponse struct {
 	Error                string   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -66,7 +35,7 @@ func (m *ErrorResponse) Reset()         { *m = ErrorResponse{} }
 func (m *ErrorResponse) String() string { return proto.CompactTextString(m) }
 func (*ErrorResponse) ProtoMessage()    {}
 func (*ErrorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b6d125f880f9ca35, []int{1}
+	return fileDescriptor_b6d125f880f9ca35, []int{0}
 }
 
 func (m *ErrorResponse) XXX_Unmarshal(b []byte) error {
@@ -95,42 +64,43 @@ func (m *ErrorResponse) GetError() string {
 }
 
 func init() {
-	proto.RegisterType((*NoParams)(nil), "inside_api.NoParams")
 	proto.RegisterType((*ErrorResponse)(nil), "inside_api.ErrorResponse")
 }
 
 func init() { proto.RegisterFile("contracts.proto", fileDescriptor_b6d125f880f9ca35) }
 
 var fileDescriptor_b6d125f880f9ca35 = []byte{
-	// 443 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0x41, 0x6f, 0x13, 0x31,
-	0x10, 0x85, 0x93, 0x03, 0x10, 0x26, 0x69, 0x41, 0xa6, 0x87, 0x76, 0x81, 0x82, 0x16, 0x90, 0x38,
-	0x45, 0x08, 0xfe, 0x00, 0x85, 0xd2, 0x55, 0x51, 0xa8, 0xca, 0xa6, 0x11, 0x07, 0x0e, 0xc8, 0x78,
-	0x47, 0xc5, 0x0a, 0xd8, 0x8b, 0x3d, 0x0b, 0xea, 0x9d, 0x1f, 0x8e, 0xb2, 0xb6, 0x77, 0xed, 0x28,
-	0x85, 0x1c, 0x67, 0xbe, 0x37, 0x2f, 0x6f, 0x1c, 0x7b, 0xe1, 0x8e, 0xd0, 0x8a, 0x0c, 0x17, 0x64,
-	0xa7, 0xb5, 0xd1, 0xa4, 0x19, 0x48, 0x65, 0x65, 0x85, 0x5f, 0x78, 0x2d, 0xb3, 0x5d, 0x83, 0x02,
-	0x65, 0x1d, 0x58, 0xb6, 0xcb, 0x85, 0xd0, 0x8d, 0xea, 0x6b, 0x83, 0x3f, 0x1b, 0xb4, 0x5d, 0xbd,
-	0x53, 0xe1, 0x2f, 0x29, 0xd0, 0x97, 0x39, 0xc0, 0xe8, 0x4c, 0x9f, 0x73, 0xc3, 0x7f, 0xd8, 0xfc,
-	0x19, 0xec, 0xbc, 0x33, 0x46, 0x9b, 0x12, 0x6d, 0xad, 0x95, 0x45, 0xb6, 0x07, 0x37, 0x70, 0xd5,
-	0xd8, 0x1f, 0x3e, 0x1e, 0x3e, 0xbf, 0x5d, 0xba, 0xe2, 0xe5, 0x9f, 0x11, 0x8c, 0x4f, 0x15, 0xa1,
-	0x51, 0xfc, 0xfb, 0x51, 0x2d, 0xd9, 0x39, 0x4c, 0x0a, 0xa4, 0x99, 0xbe, 0x94, 0x6a, 0x26, 0xd5,
-	0x92, 0x3d, 0x9a, 0xf6, 0xf1, 0xa6, 0x31, 0x29, 0x5d, 0x92, 0xec, 0x61, 0x2c, 0x88, 0xa8, 0xfb,
-	0xd5, 0x7c, 0xc0, 0x3e, 0x00, 0x1c, 0x55, 0x55, 0xe9, 0x16, 0x63, 0x89, 0xbc, 0xef, 0x07, 0xb7,
-	0xc3, 0xeb, 0x70, 0x67, 0xf7, 0x1a, 0x46, 0x05, 0xd2, 0xc2, 0xa2, 0xb1, 0x6c, 0x2f, 0x56, 0x87,
-	0xcd, 0xb3, 0x07, 0x6b, 0x91, 0x5b, 0x6d, 0xe4, 0x70, 0x0c, 0xb7, 0x7c, 0x97, 0x65, 0x1b, 0xa4,
-	0x21, 0xca, 0xfd, 0x8d, 0xac, 0x73, 0xf9, 0x0c, 0x93, 0x12, 0x2f, 0xa5, 0x25, 0x34, 0xad, 0xd5,
-	0x93, 0x58, 0xee, 0xb4, 0x2b, 0x6a, 0x38, 0x49, 0xad, 0x82, 0xe7, 0xd3, 0x7f, 0x8b, 0x3a, 0xf3,
-	0x13, 0x18, 0x17, 0x48, 0x7e, 0x79, 0xcb, 0x0e, 0xd7, 0xa2, 0x04, 0x10, 0x6c, 0xef, 0xc5, 0xdc,
-	0xc3, 0x7c, 0xf0, 0x62, 0xc8, 0xce, 0x60, 0xbf, 0x40, 0x3a, 0x91, 0xc6, 0xd2, 0x42, 0x89, 0x25,
-	0x8a, 0x25, 0x56, 0x7e, 0xe8, 0x9a, 0xc3, 0xcb, 0x36, 0x58, 0xf9, 0x89, 0x7c, 0xc0, 0x2e, 0xe0,
-	0xee, 0x1c, 0x43, 0x3d, 0x27, 0x4e, 0x8d, 0x4d, 0x17, 0x5f, 0xa7, 0x21, 0xe1, 0x41, 0x2c, 0x4a,
-	0xee, 0x65, 0xeb, 0x7a, 0x10, 0x52, 0x7a, 0xfd, 0x27, 0x49, 0xdf, 0xbc, 0x7d, 0x32, 0xf9, 0xb1,
-	0x41, 0x73, 0xf5, 0xe6, 0xca, 0xa1, 0xff, 0x64, 0x7d, 0x0f, 0xe3, 0x39, 0xd2, 0x85, 0x14, 0x4b,
-	0xa4, 0xd3, 0x2a, 0x3d, 0xc3, 0x08, 0x6c, 0x95, 0x70, 0x06, 0x93, 0xd5, 0x65, 0xe4, 0xbf, 0xdd,
-	0x54, 0xfa, 0x2a, 0x62, 0xb2, 0x95, 0xdb, 0x5b, 0x80, 0x02, 0xe9, 0xd8, 0x3d, 0xdd, 0xf4, 0x45,
-	0xf4, 0xfd, 0xe0, 0xc4, 0x62, 0xec, 0x58, 0xfb, 0xd7, 0xce, 0x60, 0xb2, 0xa8, 0x2b, 0x4e, 0xe8,
-	0x7a, 0x69, 0xa4, 0x98, 0x6c, 0x13, 0xe9, 0xeb, 0xcd, 0xf6, 0x03, 0xf2, 0xea, 0x6f, 0x00, 0x00,
-	0x00, 0xff, 0xff, 0xa8, 0xd9, 0x89, 0x08, 0x9e, 0x04, 0x00, 0x00,
+	// 466 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0xdf, 0x6e, 0xd3, 0x30,
+	0x14, 0x87, 0x9b, 0x8b, 0xf1, 0xe7, 0xb4, 0x1b, 0xc8, 0xec, 0x62, 0x0b, 0x30, 0x50, 0x01, 0x89,
+	0xab, 0x0a, 0x95, 0x17, 0xa0, 0x30, 0x16, 0x0d, 0x95, 0x69, 0xa4, 0xab, 0xb8, 0xe0, 0x02, 0x19,
+	0xe7, 0x68, 0x58, 0x05, 0x3b, 0x1c, 0x9f, 0x82, 0xf6, 0x1c, 0x3c, 0x02, 0xef, 0xc6, 0x73, 0xa0,
+	0xd4, 0x71, 0xe3, 0x54, 0x2d, 0xeb, 0xe5, 0x39, 0xdf, 0xf1, 0xcf, 0x9f, 0x13, 0x27, 0x70, 0x47,
+	0x59, 0xc3, 0x24, 0x15, 0xbb, 0x41, 0x49, 0x96, 0xad, 0x00, 0x6d, 0x9c, 0x2e, 0xf0, 0xb3, 0x2c,
+	0x75, 0xba, 0x47, 0xa8, 0x50, 0x97, 0x81, 0xa5, 0x7b, 0x52, 0x29, 0x3b, 0x37, 0x4d, 0x4d, 0xf8,
+	0x63, 0x8e, 0x6e, 0x59, 0xef, 0x16, 0xf8, 0x53, 0x2b, 0x0c, 0x65, 0x8f, 0xb0, 0xb4, 0xc4, 0xbe,
+	0xea, 0x3f, 0x83, 0xdd, 0xb7, 0x44, 0x96, 0x72, 0x74, 0xa5, 0x35, 0x0e, 0xc5, 0x3e, 0xec, 0x60,
+	0xd5, 0x38, 0x48, 0x1e, 0x27, 0xcf, 0x6f, 0xe7, 0xbe, 0x18, 0xfe, 0x4d, 0x00, 0x46, 0x7e, 0x9b,
+	0x51, 0xa9, 0xc5, 0x39, 0xf4, 0x32, 0xe4, 0xb1, 0xbd, 0xd4, 0x66, 0xac, 0xcd, 0x4c, 0x3c, 0x1a,
+	0x34, 0x7e, 0x83, 0x98, 0xe4, 0x5e, 0x25, 0x7d, 0x18, 0x0f, 0x44, 0xd4, 0x6f, 0xda, 0xef, 0x88,
+	0x57, 0x70, 0x2b, 0x43, 0x9e, 0x3a, 0x24, 0x27, 0xf6, 0xe3, 0xe1, 0x33, 0x7b, 0x2e, 0x49, 0x7e,
+	0x77, 0xe9, 0x83, 0x95, 0x3d, 0x16, 0xb3, 0x51, 0xc2, 0x31, 0xdc, 0xac, 0xbb, 0x22, 0x5d, 0x33,
+	0x1a, 0x4c, 0xee, 0xaf, 0x65, 0x21, 0x65, 0xf8, 0x27, 0x01, 0xc8, 0xfd, 0xf3, 0xad, 0x0e, 0xfa,
+	0x1e, 0x60, 0x54, 0x14, 0x75, 0x43, 0xb4, 0x4e, 0xd1, 0xf4, 0x43, 0xf4, 0xd1, 0x26, 0xbc, 0x74,
+	0x3c, 0x81, 0x6e, 0x86, 0x5c, 0xf7, 0x9d, 0x38, 0x5a, 0x71, 0x09, 0x20, 0x04, 0xde, 0x8b, 0x79,
+	0x0d, 0xfb, 0x9d, 0x17, 0xc9, 0xf0, 0xf7, 0x0e, 0x74, 0x4f, 0x0d, 0x23, 0x19, 0xf9, 0xad, 0xd2,
+	0xfc, 0x04, 0xbd, 0x1c, 0x2f, 0xb5, 0x63, 0xa4, 0xc5, 0x03, 0x78, 0x12, 0x2f, 0xf4, 0x27, 0xac,
+	0x28, 0x49, 0xd6, 0xd6, 0x84, 0xf4, 0xa7, 0xff, 0x1f, 0x5a, 0x4a, 0x9f, 0xc1, 0x41, 0x86, 0x7c,
+	0xa2, 0xc9, 0xf1, 0xd4, 0xa8, 0x19, 0xaa, 0x19, 0x16, 0x75, 0xc6, 0x86, 0x57, 0x95, 0xae, 0xf1,
+	0xae, 0x57, 0xf4, 0x3b, 0xe2, 0x02, 0xee, 0x4e, 0x30, 0xd4, 0x13, 0x96, 0x3c, 0x77, 0x6d, 0xe1,
+	0x55, 0x1a, 0x84, 0x0f, 0xe3, 0xa1, 0xd6, 0xad, 0x5d, 0xa4, 0x1e, 0x06, 0xcb, 0x7a, 0xfe, 0xa3,
+	0xe6, 0xaf, 0x75, 0x7c, 0x6b, 0xe5, 0x87, 0x39, 0xd2, 0xd5, 0xeb, 0x2b, 0x8f, 0xae, 0x71, 0x7d,
+	0x07, 0xdd, 0x09, 0xf2, 0x85, 0x56, 0x33, 0xe4, 0xd3, 0xa2, 0xfd, 0xc2, 0x22, 0xb0, 0x95, 0xe1,
+	0x18, 0x7a, 0xd5, 0xa5, 0x90, 0xbf, 0xfc, 0xaa, 0xf6, 0x47, 0x13, 0x93, 0xad, 0xd2, 0xde, 0x00,
+	0x64, 0xc8, 0xc7, 0xfe, 0xd3, 0x6e, 0xdf, 0xcc, 0xa6, 0x1f, 0x92, 0x44, 0x8c, 0x3d, 0xab, 0xee,
+	0x51, 0xa5, 0x34, 0x2d, 0x0b, 0xc9, 0xe8, 0x7b, 0x6d, 0xa5, 0x98, 0x6c, 0xa3, 0xf4, 0xe5, 0xc6,
+	0xe2, 0x97, 0xf2, 0xf2, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc5, 0xac, 0x19, 0x1d, 0xbe, 0x04,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -141,16 +111,291 @@ var _ grpc.ClientConnInterface
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion6
 
+// AccountApiClient is the client API for AccountApi service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type AccountApiClient interface {
+	GetLoginLink(ctx context.Context, in *GetLoginLinkRequest, opts ...grpc.CallOption) (*LoginLinkResponse, error)
+	GetUsers(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*GetUsersResponse, error)
+	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
+}
+
+type accountApiClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAccountApiClient(cc grpc.ClientConnInterface) AccountApiClient {
+	return &accountApiClient{cc}
+}
+
+func (c *accountApiClient) GetLoginLink(ctx context.Context, in *GetLoginLinkRequest, opts ...grpc.CallOption) (*LoginLinkResponse, error) {
+	out := new(LoginLinkResponse)
+	err := c.cc.Invoke(ctx, "/inside_api.AccountApi/GetLoginLink", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accountApiClient) GetUsers(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*GetUsersResponse, error) {
+	out := new(GetUsersResponse)
+	err := c.cc.Invoke(ctx, "/inside_api.AccountApi/GetUsers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accountApiClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
+	out := new(GetUserResponse)
+	err := c.cc.Invoke(ctx, "/inside_api.AccountApi/GetUser", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AccountApiServer is the server API for AccountApi service.
+type AccountApiServer interface {
+	GetLoginLink(context.Context, *GetLoginLinkRequest) (*LoginLinkResponse, error)
+	GetUsers(context.Context, *NoParams) (*GetUsersResponse, error)
+	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
+}
+
+// UnimplementedAccountApiServer can be embedded to have forward compatible implementations.
+type UnimplementedAccountApiServer struct {
+}
+
+func (*UnimplementedAccountApiServer) GetLoginLink(ctx context.Context, req *GetLoginLinkRequest) (*LoginLinkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLoginLink not implemented")
+}
+func (*UnimplementedAccountApiServer) GetUsers(ctx context.Context, req *NoParams) (*GetUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUsers not implemented")
+}
+func (*UnimplementedAccountApiServer) GetUser(ctx context.Context, req *GetUserRequest) (*GetUserResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
+}
+
+func RegisterAccountApiServer(s *grpc.Server, srv AccountApiServer) {
+	s.RegisterService(&_AccountApi_serviceDesc, srv)
+}
+
+func _AccountApi_GetLoginLink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLoginLinkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountApiServer).GetLoginLink(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inside_api.AccountApi/GetLoginLink",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountApiServer).GetLoginLink(ctx, req.(*GetLoginLinkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AccountApi_GetUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoParams)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountApiServer).GetUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inside_api.AccountApi/GetUsers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountApiServer).GetUsers(ctx, req.(*NoParams))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AccountApi_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountApiServer).GetUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inside_api.AccountApi/GetUser",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountApiServer).GetUser(ctx, req.(*GetUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _AccountApi_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inside_api.AccountApi",
+	HandlerType: (*AccountApiServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetLoginLink",
+			Handler:    _AccountApi_GetLoginLink_Handler,
+		},
+		{
+			MethodName: "GetUsers",
+			Handler:    _AccountApi_GetUsers_Handler,
+		},
+		{
+			MethodName: "GetUser",
+			Handler:    _AccountApi_GetUser_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "contracts.proto",
+}
+
+// ReceiptApiClient is the client API for ReceiptApi service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ReceiptApiClient interface {
+	AddReceipt(ctx context.Context, in *AddReceiptRequest, opts ...grpc.CallOption) (*AddReceiptResponse, error)
+	GetReceipts(ctx context.Context, in *GetReceiptsRequest, opts ...grpc.CallOption) (ReceiptApi_GetReceiptsClient, error)
+}
+
+type receiptApiClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewReceiptApiClient(cc grpc.ClientConnInterface) ReceiptApiClient {
+	return &receiptApiClient{cc}
+}
+
+func (c *receiptApiClient) AddReceipt(ctx context.Context, in *AddReceiptRequest, opts ...grpc.CallOption) (*AddReceiptResponse, error) {
+	out := new(AddReceiptResponse)
+	err := c.cc.Invoke(ctx, "/inside_api.ReceiptApi/AddReceipt", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *receiptApiClient) GetReceipts(ctx context.Context, in *GetReceiptsRequest, opts ...grpc.CallOption) (ReceiptApi_GetReceiptsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ReceiptApi_serviceDesc.Streams[0], "/inside_api.ReceiptApi/GetReceipts", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &receiptApiGetReceiptsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ReceiptApi_GetReceiptsClient interface {
+	Recv() (*Receipt, error)
+	grpc.ClientStream
+}
+
+type receiptApiGetReceiptsClient struct {
+	grpc.ClientStream
+}
+
+func (x *receiptApiGetReceiptsClient) Recv() (*Receipt, error) {
+	m := new(Receipt)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// ReceiptApiServer is the server API for ReceiptApi service.
+type ReceiptApiServer interface {
+	AddReceipt(context.Context, *AddReceiptRequest) (*AddReceiptResponse, error)
+	GetReceipts(*GetReceiptsRequest, ReceiptApi_GetReceiptsServer) error
+}
+
+// UnimplementedReceiptApiServer can be embedded to have forward compatible implementations.
+type UnimplementedReceiptApiServer struct {
+}
+
+func (*UnimplementedReceiptApiServer) AddReceipt(ctx context.Context, req *AddReceiptRequest) (*AddReceiptResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddReceipt not implemented")
+}
+func (*UnimplementedReceiptApiServer) GetReceipts(req *GetReceiptsRequest, srv ReceiptApi_GetReceiptsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetReceipts not implemented")
+}
+
+func RegisterReceiptApiServer(s *grpc.Server, srv ReceiptApiServer) {
+	s.RegisterService(&_ReceiptApi_serviceDesc, srv)
+}
+
+func _ReceiptApi_AddReceipt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddReceiptRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReceiptApiServer).AddReceipt(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inside_api.ReceiptApi/AddReceipt",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReceiptApiServer).AddReceipt(ctx, req.(*AddReceiptRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ReceiptApi_GetReceipts_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetReceiptsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ReceiptApiServer).GetReceipts(m, &receiptApiGetReceiptsServer{stream})
+}
+
+type ReceiptApi_GetReceiptsServer interface {
+	Send(*Receipt) error
+	grpc.ServerStream
+}
+
+type receiptApiGetReceiptsServer struct {
+	grpc.ServerStream
+}
+
+func (x *receiptApiGetReceiptsServer) Send(m *Receipt) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+var _ReceiptApi_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inside_api.ReceiptApi",
+	HandlerType: (*ReceiptApiServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "AddReceipt",
+			Handler:    _ReceiptApi_AddReceipt_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetReceipts",
+			Handler:       _ReceiptApi_GetReceipts_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "contracts.proto",
+}
+
 // InternalApiClient is the client API for InternalApi service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type InternalApiClient interface {
-	GetLoginLink(ctx context.Context, in *GetLoginLinkRequest, opts ...grpc.CallOption) (*LoginLinkResponse, error)
-	AddReceipt(ctx context.Context, in *AddReceiptRequest, opts ...grpc.CallOption) (*AddReceiptResponse, error)
-	GetUsers(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*GetUsersResponse, error)
-	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
 	RegisterUser(ctx context.Context, in *UserRegistrationRequest, opts ...grpc.CallOption) (*UserRegistrationResponse, error)
-	GetReceipts(ctx context.Context, in *GetReceiptsRequest, opts ...grpc.CallOption) (InternalApi_GetReceiptsClient, error)
 	GetFirstUnckeckedRequest(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*ReceiptRequest, error)
 	SetRequestStatus(ctx context.Context, in *SetRequestStatusRequest, opts ...grpc.CallOption) (*ErrorResponse, error)
 	GetFirstRequestWithStatus(ctx context.Context, in *QueryByStatus, opts ...grpc.CallOption) (*ReceiptRequest, error)
@@ -168,42 +413,6 @@ func NewInternalApiClient(cc grpc.ClientConnInterface) InternalApiClient {
 	return &internalApiClient{cc}
 }
 
-func (c *internalApiClient) GetLoginLink(ctx context.Context, in *GetLoginLinkRequest, opts ...grpc.CallOption) (*LoginLinkResponse, error) {
-	out := new(LoginLinkResponse)
-	err := c.cc.Invoke(ctx, "/inside_api.InternalApi/GetLoginLink", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalApiClient) AddReceipt(ctx context.Context, in *AddReceiptRequest, opts ...grpc.CallOption) (*AddReceiptResponse, error) {
-	out := new(AddReceiptResponse)
-	err := c.cc.Invoke(ctx, "/inside_api.InternalApi/AddReceipt", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalApiClient) GetUsers(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*GetUsersResponse, error) {
-	out := new(GetUsersResponse)
-	err := c.cc.Invoke(ctx, "/inside_api.InternalApi/GetUsers", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalApiClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
-	out := new(GetUserResponse)
-	err := c.cc.Invoke(ctx, "/inside_api.InternalApi/GetUser", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *internalApiClient) RegisterUser(ctx context.Context, in *UserRegistrationRequest, opts ...grpc.CallOption) (*UserRegistrationResponse, error) {
 	out := new(UserRegistrationResponse)
 	err := c.cc.Invoke(ctx, "/inside_api.InternalApi/RegisterUser", in, out, opts...)
@@ -211,38 +420,6 @@ func (c *internalApiClient) RegisterUser(ctx context.Context, in *UserRegistrati
 		return nil, err
 	}
 	return out, nil
-}
-
-func (c *internalApiClient) GetReceipts(ctx context.Context, in *GetReceiptsRequest, opts ...grpc.CallOption) (InternalApi_GetReceiptsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_InternalApi_serviceDesc.Streams[0], "/inside_api.InternalApi/GetReceipts", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &internalApiGetReceiptsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type InternalApi_GetReceiptsClient interface {
-	Recv() (*Receipt, error)
-	grpc.ClientStream
-}
-
-type internalApiGetReceiptsClient struct {
-	grpc.ClientStream
-}
-
-func (x *internalApiGetReceiptsClient) Recv() (*Receipt, error) {
-	m := new(Receipt)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }
 
 func (c *internalApiClient) GetFirstUnckeckedRequest(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*ReceiptRequest, error) {
@@ -291,7 +468,7 @@ func (c *internalApiClient) AddRawTicket(ctx context.Context, in *AddRawTicketRe
 }
 
 func (c *internalApiClient) GetDevices(ctx context.Context, in *GetDevicesRequest, opts ...grpc.CallOption) (InternalApi_GetDevicesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_InternalApi_serviceDesc.Streams[1], "/inside_api.InternalApi/GetDevices", opts...)
+	stream, err := c.cc.NewStream(ctx, &_InternalApi_serviceDesc.Streams[0], "/inside_api.InternalApi/GetDevices", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -333,12 +510,7 @@ func (c *internalApiClient) UpdateDevice(ctx context.Context, in *UpdateDeviceRe
 
 // InternalApiServer is the server API for InternalApi service.
 type InternalApiServer interface {
-	GetLoginLink(context.Context, *GetLoginLinkRequest) (*LoginLinkResponse, error)
-	AddReceipt(context.Context, *AddReceiptRequest) (*AddReceiptResponse, error)
-	GetUsers(context.Context, *NoParams) (*GetUsersResponse, error)
-	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
 	RegisterUser(context.Context, *UserRegistrationRequest) (*UserRegistrationResponse, error)
-	GetReceipts(*GetReceiptsRequest, InternalApi_GetReceiptsServer) error
 	GetFirstUnckeckedRequest(context.Context, *NoParams) (*ReceiptRequest, error)
 	SetRequestStatus(context.Context, *SetRequestStatusRequest) (*ErrorResponse, error)
 	GetFirstRequestWithStatus(context.Context, *QueryByStatus) (*ReceiptRequest, error)
@@ -352,23 +524,8 @@ type InternalApiServer interface {
 type UnimplementedInternalApiServer struct {
 }
 
-func (*UnimplementedInternalApiServer) GetLoginLink(ctx context.Context, req *GetLoginLinkRequest) (*LoginLinkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetLoginLink not implemented")
-}
-func (*UnimplementedInternalApiServer) AddReceipt(ctx context.Context, req *AddReceiptRequest) (*AddReceiptResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddReceipt not implemented")
-}
-func (*UnimplementedInternalApiServer) GetUsers(ctx context.Context, req *NoParams) (*GetUsersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUsers not implemented")
-}
-func (*UnimplementedInternalApiServer) GetUser(ctx context.Context, req *GetUserRequest) (*GetUserResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
-}
 func (*UnimplementedInternalApiServer) RegisterUser(ctx context.Context, req *UserRegistrationRequest) (*UserRegistrationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterUser not implemented")
-}
-func (*UnimplementedInternalApiServer) GetReceipts(req *GetReceiptsRequest, srv InternalApi_GetReceiptsServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetReceipts not implemented")
 }
 func (*UnimplementedInternalApiServer) GetFirstUnckeckedRequest(ctx context.Context, req *NoParams) (*ReceiptRequest, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFirstUnckeckedRequest not implemented")
@@ -396,78 +553,6 @@ func RegisterInternalApiServer(s *grpc.Server, srv InternalApiServer) {
 	s.RegisterService(&_InternalApi_serviceDesc, srv)
 }
 
-func _InternalApi_GetLoginLink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetLoginLinkRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalApiServer).GetLoginLink(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inside_api.InternalApi/GetLoginLink",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalApiServer).GetLoginLink(ctx, req.(*GetLoginLinkRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalApi_AddReceipt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddReceiptRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalApiServer).AddReceipt(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inside_api.InternalApi/AddReceipt",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalApiServer).AddReceipt(ctx, req.(*AddReceiptRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalApi_GetUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NoParams)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalApiServer).GetUsers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inside_api.InternalApi/GetUsers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalApiServer).GetUsers(ctx, req.(*NoParams))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalApi_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalApiServer).GetUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inside_api.InternalApi/GetUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalApiServer).GetUser(ctx, req.(*GetUserRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _InternalApi_RegisterUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserRegistrationRequest)
 	if err := dec(in); err != nil {
@@ -484,27 +569,6 @@ func _InternalApi_RegisterUser_Handler(srv interface{}, ctx context.Context, dec
 		return srv.(InternalApiServer).RegisterUser(ctx, req.(*UserRegistrationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalApi_GetReceipts_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetReceiptsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(InternalApiServer).GetReceipts(m, &internalApiGetReceiptsServer{stream})
-}
-
-type InternalApi_GetReceiptsServer interface {
-	Send(*Receipt) error
-	grpc.ServerStream
-}
-
-type internalApiGetReceiptsServer struct {
-	grpc.ServerStream
-}
-
-func (x *internalApiGetReceiptsServer) Send(m *Receipt) error {
-	return x.ServerStream.SendMsg(m)
 }
 
 func _InternalApi_GetFirstUnckeckedRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -641,22 +705,6 @@ var _InternalApi_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*InternalApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetLoginLink",
-			Handler:    _InternalApi_GetLoginLink_Handler,
-		},
-		{
-			MethodName: "AddReceipt",
-			Handler:    _InternalApi_AddReceipt_Handler,
-		},
-		{
-			MethodName: "GetUsers",
-			Handler:    _InternalApi_GetUsers_Handler,
-		},
-		{
-			MethodName: "GetUser",
-			Handler:    _InternalApi_GetUser_Handler,
-		},
-		{
 			MethodName: "RegisterUser",
 			Handler:    _InternalApi_RegisterUser_Handler,
 		},
@@ -686,11 +734,6 @@ var _InternalApi_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "GetReceipts",
-			Handler:       _InternalApi_GetReceipts_Handler,
-			ServerStreams: true,
-		},
 		{
 			StreamName:    "GetDevices",
 			Handler:       _InternalApi_GetDevices_Handler,

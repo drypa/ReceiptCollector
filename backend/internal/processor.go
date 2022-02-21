@@ -16,5 +16,10 @@ type AccountProcessor interface {
 //ReceiptProcessor is an interface for process receipt requests.
 type ReceiptProcessor interface {
 	AddReceipt(ctx context.Context, in *api.AddReceiptRequest, opts ...grpc.CallOption) (*api.AddReceiptResponse, error)
-	GetReceipts(*api.GetReceiptsRequest, api.InternalApi_GetReceiptsServer) error
+	GetReceipts(*api.GetReceiptsRequest, api.ReceiptApi_GetReceiptsServer) error
+}
+
+//ReportProcessor is an interface to send notifications to clients.
+type ReportProcessor interface {
+	GetReports(*api.NoParams, api.ReportApi_GetReportsServer) error
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	api "github.com/drypa/ReceiptCollector/api/inside"
 	"github.com/drypa/ReceiptCollector/bot/backend"
+	"github.com/drypa/ReceiptCollector/bot/backend/report"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
@@ -29,14 +31,14 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, grpcClient *backend.GrpcClient) error {
+func start(options Options, grpcClient *backend.GrpcClient, reportsClient *report.Client) error {
 	provider, err := user.New(grpcClient)
 	if err != nil {
 		return err
 	}
 	bot, err := create(options)
 	if err != nil {
-		log.Println("Bot create error")
+		log.Printf("Bot create error: %v\n", err)
 		return err
 	}
 	bot.Debug = options.Debug
@@ -48,9 +50,23 @@ func start(options Options, grpcClient *backend.GrpcClient) error {
 		log.Println(err)
 		return err
 	}
-
+	go processNotifications(bot, reportsClient.Notifications)
 	processUpdates(updatesChan, bot, grpcClient, provider)
+
 	return nil
+}
+
+func processNotifications(bot *tgbotapi.BotAPI, notifications <-chan *api.Report) {
+	for {
+		select {
+		case r := <-notifications:
+			msg := tgbotapi.NewMessage(r.TelegramId, r.Message)
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Failed to send message '%s' to client %d. %v \n", r.Message, r.TelegramId, err)
+			}
+		}
+	}
 }
 
 func create(options Options) (*tgbotapi.BotAPI, error) {

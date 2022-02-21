@@ -22,7 +22,7 @@ func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, o
 	return &api.AddReceiptResponse{}, err
 }
 
-func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.InternalApi_GetReceiptsServer) error {
+func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.ReceiptApi_GetReceiptsServer) error {
 	//TODO: do not load all receipts. make streaming from cursor.
 	receipts, err := p.r.GetByUser(out.Context(), in.UserId)
 	if err != nil {

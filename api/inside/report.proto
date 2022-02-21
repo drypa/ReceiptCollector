@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package inside_api;
+
+message Report{
+  string message = 1;
+  int64 telegramId = 2;
+}
+
+message NoParams {
+}
+
+service ReportApi{
+  rpc GetReports(NoParams) returns (stream Report){
+  }
+}
