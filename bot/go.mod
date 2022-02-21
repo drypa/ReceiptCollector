@@ -2,8 +2,6 @@ module github.com/drypa/ReceiptCollector/bot
 
 go 1.16
 
-replace github.com/drypa/ReceiptCollector/api/inside => ../api/inside
-
 require (
 	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20210404083136-a84eb37996a9
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible

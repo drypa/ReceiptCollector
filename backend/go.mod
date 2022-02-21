@@ -1,7 +1,5 @@
 module receipt_collector
 
-replace github.com/drypa/ReceiptCollector/api/inside => ../api/inside
-
 go 1.16
 
 require (
