@@ -38,7 +38,7 @@ func (m *Monthly) GetReport(ctx context.Context, userId string) (string, error) 
 		sum = sum + float64(query.Sum)
 	}
 
-	return fmt.Sprintf("Your expenses for %s %d : %f", time.Month(month).String(), year, sum), nil
+	return fmt.Sprintf("Your expenses for %s %d : %.2f", time.Month(month).String(), year, sum), nil
 }
 
 func getPrevMonth() (y int, m int) {

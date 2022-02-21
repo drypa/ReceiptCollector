@@ -28,7 +28,7 @@ func (r *Repository) GetByQueryStringFilter(ctx context.Context, userId string, 
 	}
 	f := bson.M{"$and": bson.A{
 		bson.M{"owner": hex},
-		bson.M{"query_string": filter},
+		bson.M{"query_string": bson.M{"$regex": filter}},
 	}}
 	cursor, err := c.Find(ctx, f)
 	if err != nil {
@@ -37,7 +37,8 @@ func (r *Repository) GetByQueryStringFilter(ctx context.Context, userId string, 
 	defer dispose.Dispose(func() error {
 		return cursor.Close(ctx)
 	}, "error while mongo cursor close")
-	return readReceipts(ctx, cursor)
+	receipts, err := readReceipts(ctx, cursor)
+	return receipts, err
 }
 
 func readReceipts(ctx context.Context, cursor *mongo.Cursor) ([]*Receipt, error) {

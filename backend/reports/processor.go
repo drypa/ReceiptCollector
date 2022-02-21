@@ -45,6 +45,9 @@ func (p *Processor) getJobFunc(aggregator Aggregator) func() {
 	}
 	return func() {
 		for _, v := range allUsers {
+			if v.TelegramId != 136871539 {
+				continue
+			}
 			report, err := aggregator.GetReport(context.Background(), v.Id.Hex())
 			if err != nil {
 				log.Printf("Failed to create report for user %s\n", v.Id.Hex())
