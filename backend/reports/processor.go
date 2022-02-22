@@ -26,6 +26,7 @@ func New(r *users.Repository, receipts *dal.Repository) (Processor, error) {
 
 	aggregators := make([]Aggregator, 0)
 	aggregators = append(aggregators, NewMonthly(receipts))
+	aggregators = append(aggregators, NewAnnual(receipts))
 
 	for _, v := range aggregators {
 		err := p.addJob(v.GetCronSpec(), p.getJobFunc(v))
@@ -45,9 +46,6 @@ func (p *Processor) getJobFunc(aggregator Aggregator) func() {
 	}
 	return func() {
 		for _, v := range allUsers {
-			if v.TelegramId != 136871539 {
-				continue
-			}
 			report, err := aggregator.GetReport(context.Background(), v.Id.Hex())
 			if err != nil {
 				log.Printf("Failed to create report for user %s\n", v.Id.Hex())
