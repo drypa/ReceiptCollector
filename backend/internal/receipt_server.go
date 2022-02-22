@@ -15,7 +15,7 @@ type GRPCReceiptServer struct {
 	api.UnimplementedReceiptApiServer
 }
 
-//New constructs Server.
+//Serve constructs Server.
 func Serve(bindingAddress string, creds credentials.TransportCredentials, accountProcessor *AccountProcessor, receiptProcessor *ReceiptProcessor) *GRPCReceiptServer {
 	listen, err := net.Listen("tcp", bindingAddress)
 	if err != nil {
