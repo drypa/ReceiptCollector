@@ -2,7 +2,9 @@ package receipts
 
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	"receipt_collector/receipts/purchase"
+	"time"
 )
 
 type Receipt struct {
@@ -42,3 +44,11 @@ const (
 	Requested = RequestStatus("requested")
 	NotFound  = RequestStatus("not_found")
 )
+
+func (r *Receipt) GetDate() time.Time {
+	t, err := time.Parse("2006-01-02T15:04:05", r.DateTime)
+	if err != nil {
+		log.Printf("Error parsing Time: %s", r.DateTime)
+	}
+	return t
+}

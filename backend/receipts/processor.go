@@ -48,6 +48,8 @@ func toContract(receipt *UsersReceipt) api.Receipt {
 	}
 
 	return api.Receipt{
+		DateTime:             receipt.GetDate().UnixMilli(),
+		CashTotalSum:         receipt.CashTotalSum,
 		EcashTotalSum:        receipt.EcashTotalSum,
 		FiscalDocumentNumber: int32(receipt.FiscalDocumentNumber),
 		Items:                items,
@@ -57,6 +59,7 @@ func toContract(receipt *UsersReceipt) api.Receipt {
 		Operator:             receipt.Operator,
 		RetailPlaceAddress:   receipt.RetailPlaceAddress,
 		TotalSum:             int64(receipt.TotalSum),
+		User:                 receipt.User,
 	}
 }
 
