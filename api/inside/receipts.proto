@@ -52,6 +52,7 @@ message Receipt {
     string SenderAddress = 31;
     uint32 ShiftNumber = 32;
     uint32 TaxationType = 33;
+    string Id = 34;
 }
 
 message Item {
