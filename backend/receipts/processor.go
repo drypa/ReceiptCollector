@@ -48,6 +48,7 @@ func toContract(receipt *UsersReceipt) api.Receipt {
 	}
 
 	return api.Receipt{
+		Id:                   receipt.Id.Hex(),
 		DateTime:             receipt.GetDate().UnixMilli(),
 		CashTotalSum:         receipt.CashTotalSum,
 		EcashTotalSum:        receipt.EcashTotalSum,
