@@ -2,7 +2,7 @@
 FROM golang:alpine AS build
 COPY . /src
 WORKDIR /src
-RUN go build -o receipt_collector
+RUN CGO_ENABLED=0 go build -o receipt_collector
 
 #final
 FROM alpine
