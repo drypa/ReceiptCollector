@@ -17,30 +17,30 @@ type Repository struct {
 	client *mongo.Client
 }
 
-//NewRepository creates receipts repository.
+// NewRepository creates receipts repository.
 func NewRepository(client *mongo.Client) Repository {
 	repository := Repository{client: client}
 	return repository
 }
 
-func (repository Repository) getCollection() *mongo.Collection {
+func (repository *Repository) getCollection() *mongo.Collection {
 	return repository.client.Database("receipt_collection").Collection("receipt_requests")
 }
-func (repository Repository) getRawTicketCollection() *mongo.Collection {
+func (repository *Repository) getRawTicketCollection() *mongo.Collection {
 	return repository.client.
 		Database("receipt_collection").
 		Collection("raw_tickets")
 }
 
-//Insert - add new user receipt to collection.
-func (repository Repository) Insert(ctx context.Context, receipt UsersReceipt) error {
+// Insert - add new user receipt to collection.
+func (repository *Repository) Insert(ctx context.Context, receipt UsersReceipt) error {
 	collection := repository.getCollection()
 
 	_, err := collection.InsertOne(ctx, receipt)
 	return err
 }
 
-//InsertRawTicket - add new raw ticket to collection.
+// InsertRawTicket - add new raw ticket to collection.
 func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalogru.TicketDetails) error {
 	collection := repository.getRawTicketCollection()
 
@@ -51,8 +51,8 @@ func (repository *Repository) InsertRawTicket(ctx context.Context, details *nalo
 	return err
 }
 
-//GetByUser returns all user receipts for user.
-func (repository Repository) GetByUser(ctx context.Context, userId string) ([]UsersReceipt, error) {
+// GetByUser returns all user receipts for user.
+func (repository *Repository) GetByUser(ctx context.Context, userId string) ([]UsersReceipt, error) {
 	collection := repository.getCollection()
 
 	id, err := primitive.ObjectIDFromHex(userId)
@@ -81,8 +81,8 @@ func readReceipts(cursor *mongo.Cursor, context context.Context) []UsersReceipt 
 	return receipts
 }
 
-//Delete marks user receipt as deleted.
-func (repository Repository) Delete(ctx context.Context, userId string, receiptId string) error {
+// Delete marks user receipt as deleted.
+func (repository *Repository) Delete(ctx context.Context, userId string, receiptId string) error {
 	collection := repository.getCollection()
 	id, err := primitive.ObjectIDFromHex(receiptId)
 	if err != nil {
@@ -98,8 +98,8 @@ func (repository Repository) Delete(ctx context.Context, userId string, receiptI
 	return err
 }
 
-//GetByQueryString find user receipt by QR code query string.
-func (repository Repository) GetByQueryString(ctx context.Context, userId string, queryString string) (*UsersReceipt, error) {
+// GetByQueryString find user receipt by QR code query string.
+func (repository *Repository) GetByQueryString(ctx context.Context, userId string, queryString string) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
 	ownerId, err := primitive.ObjectIDFromHex(userId)
@@ -121,8 +121,8 @@ func (repository Repository) GetByQueryString(ctx context.Context, userId string
 
 }
 
-//GetById returns receipt by it's id.
-func (repository Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
+// GetById returns receipt by it's id.
+func (repository *Repository) GetById(ctx context.Context, userId string, receiptId string) (UsersReceipt, error) {
 	receipt := UsersReceipt{}
 	collection := repository.getCollection()
 
@@ -145,8 +145,8 @@ func (repository Repository) GetById(ctx context.Context, userId string, receipt
 	return receipt, err
 }
 
-//SetReceiptStatus updates status of receipt request.
-func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId string, status RequestStatus) error {
+// SetReceiptStatus updates status of receipt request.
+func (repository *Repository) SetReceiptStatus(ctx context.Context, receiptId string, status RequestStatus) error {
 	collection := repository.getCollection()
 
 	id, err := primitive.ObjectIDFromHex(receiptId)
@@ -159,8 +159,8 @@ func (repository Repository) SetReceiptStatus(ctx context.Context, receiptId str
 	return err
 }
 
-//UpdateCheckStatus set check receipt status.
-func (repository Repository) UpdateCheckStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
+// UpdateCheckStatus set check receipt status.
+func (repository *Repository) UpdateCheckStatus(ctx context.Context, receipt UsersReceipt, status RequestStatus) error {
 	collection := repository.getCollection()
 
 	update := bson.M{
@@ -174,8 +174,8 @@ func (repository Repository) UpdateCheckStatus(ctx context.Context, receipt User
 	return err
 }
 
-//GetWithoutCheckRequest returns first receipt without check performed.
-func (repository Repository) GetWithoutCheckRequest(ctx context.Context) (*UsersReceipt, error) {
+// GetWithoutCheckRequest returns first receipt without check performed.
+func (repository *Repository) GetWithoutCheckRequest(ctx context.Context) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
 	usersReceipt := UsersReceipt{}
@@ -192,7 +192,7 @@ func (repository Repository) GetWithoutCheckRequest(ctx context.Context) (*Users
 	return &usersReceipt, err
 }
 
-//GetWithoutTicket returns first user request without requested ticket.
+// GetWithoutTicket returns first user request without requested ticket.
 func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
@@ -213,7 +213,7 @@ func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersRecei
 	return &usersReceipt, err
 }
 
-//SetTicketId set ticket id in user receipt request collection.
+// SetTicketId set ticket id in user receipt request collection.
 func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersReceipt, ticketId string) error {
 	collection := repository.getCollection()
 
@@ -229,7 +229,7 @@ func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersRec
 
 }
 
-//GetRawReceiptWithoutTicket return first receipt without ticket body.
+// GetRawReceiptWithoutTicket return first receipt without ticket body.
 func (repository *Repository) GetRawReceiptWithoutTicket(ctx context.Context) (*nalogru.TicketDetails, error) {
 	collection := repository.getRawTicketCollection()
 	query := bson.M{"ticket": nil}
