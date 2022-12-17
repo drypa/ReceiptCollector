@@ -26,7 +26,7 @@ func (controller Controller) MarketsBaseHandler(writer http.ResponseWriter, requ
 		}
 	}
 	if request.Method == http.MethodPost {
-		err := controller.addMarketHandler(writer, request)
+		err := controller.addMarketHandler(request)
 		if err != nil {
 			onError(writer, err)
 			return
@@ -42,7 +42,7 @@ func onError(writer http.ResponseWriter, err error) {
 
 func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
-		market, err := controller.getMarketHandler(writer, request)
+		market, err := controller.getMarketHandler(request)
 		if err != nil {
 			onError(writer, err)
 			return
@@ -51,7 +51,7 @@ func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, r
 		return
 	}
 	if request.Method == http.MethodPut {
-		err := controller.updateMarketHandler(writer, request)
+		err := controller.updateMarketHandler(request)
 		if err != nil {
 			onError(writer, err)
 			return
@@ -69,19 +69,26 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	}
 }
 
-func (controller Controller) getMarketHandler(writer http.ResponseWriter, request *http.Request) (Market, error) {
-	request.ParseForm()
+func (controller Controller) getMarketHandler(request *http.Request) (*Market, error) {
+	err := request.ParseForm()
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := request.Context()
 	vars := mux.Vars(request)
 	id := vars["id"]
 	market, err := controller.repository.GetById(ctx, id)
-	return market, err
+	return &market, err
 }
 
-func (controller Controller) updateMarketHandler(writer http.ResponseWriter, request *http.Request) error {
+func (controller Controller) updateMarketHandler(request *http.Request) error {
 	ctx := request.Context()
-	market := controller.getMarketFromQuery(request)
-	err := controller.repository.Update(ctx, market)
+	market, err := controller.getMarketFromQuery(request)
+	if err != nil {
+		return err
+	}
+	err = controller.repository.Update(ctx, *market)
 	return err
 }
 
@@ -101,15 +108,18 @@ func (controller Controller) getMarketsHandler(writer http.ResponseWriter, reque
 	return err
 }
 
-func (controller Controller) addMarketHandler(writer http.ResponseWriter, request *http.Request) error {
+func (controller Controller) addMarketHandler(request *http.Request) error {
 	defer request.Body.Close()
 	ctx := request.Context()
-	market := controller.getMarketFromQuery(request)
-	return controller.repository.Insert(ctx, market)
+	market, err := controller.getMarketFromQuery(request)
+	if err != nil {
+		return err
+	}
+	return controller.repository.Insert(ctx, *market)
 }
 
-func (controller Controller) getMarketFromQuery(request *http.Request) Market {
+func (controller Controller) getMarketFromQuery(request *http.Request) (*Market, error) {
 	var market = Market{}
-	json.NewDecoder(request.Body).Decode(&market)
-	return market
+	err := json.NewDecoder(request.Body).Decode(&market)
+	return &market, err
 }
