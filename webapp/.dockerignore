@@ -1,9 +1,0 @@
-/node_modules/
-build.sh
-Dockerfile
-/dist/
-/.idea/
-.gitignore
-/.idea/
-npm_debug.log
-.dockerignore

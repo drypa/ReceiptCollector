@@ -15,14 +15,6 @@ jobs:
         password: ${{ secrets.DOCKER_SECRET }}
         workdir: backend
         snapshot: true
-    - name: Publish Frontend
-      uses: elgohr/Publish-Docker-Github-Action@3.04
-      with:
-        name: drypa/receipt-frontend
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_SECRET }}
-        workdir: webapp
-        snapshot: true
     - name: Publish Telegram bot
       uses: elgohr/Publish-Docker-Github-Action@3.04
       with:
