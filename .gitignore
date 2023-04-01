@@ -19,6 +19,7 @@
 .env
 vendor
 receipt_collector
+bot/bot
 ssl
 
 .run
