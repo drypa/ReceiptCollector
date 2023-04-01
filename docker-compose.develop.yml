@@ -10,7 +10,3 @@ services:
       - ${MONGO_BACKUP}:/backup
     ports:
       - "27017:27017"
-  nginx:
-    image: nginx-gateway:dev
-    ports:
-      - "80:80"

@@ -49,17 +49,5 @@ services:
       - collector-net
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
-
-  gateway:
-    container_name: receipt-webapp
-    build: webapp
-    image: drypa/receipt-frontend:latest
-    restart: unless-stopped
-    ports:
-      - "443:443"
-    volumes:
-      - "./ssl:/etc/nginx/ssl"
-    networks:
-      - collector-net
 networks:
   collector-net:
