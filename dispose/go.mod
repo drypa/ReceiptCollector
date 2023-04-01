@@ -1,3 +1,3 @@
 module github.com/drypa/ReceiptCollector/dispose
 
-go 1.16
+go 1.20
