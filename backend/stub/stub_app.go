@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -20,7 +19,7 @@ func main() {
 
 		fileNumber := rand.Intn(len(files))
 		randomFile := files[fileNumber]
-		content, err := ioutil.ReadFile(baseDir + randomFile.Name())
+		content, err := os.ReadFile(baseDir + randomFile.Name())
 		check(err)
 		_, _ = writer.Write(content)
 
@@ -29,8 +28,8 @@ func main() {
 	fmt.Println(http.ListenAndServe(":9999", nil))
 }
 
-func getFiles(directory string) []os.FileInfo {
-	files, err := ioutil.ReadDir(directory)
+func getFiles(directory string) []os.DirEntry {
+	files, err := os.ReadDir(directory)
 	check(err)
 
 	return files

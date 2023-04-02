@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
 	"time"
@@ -23,7 +23,7 @@ type Client struct {
 var AuthError = errors.New("auth failed")
 var InternalError = errors.New("internal failed")
 
-//NewClient - creates instance of Client.
+// NewClient - creates instance of Client.
 func NewClient(baseAddress string, device *device.Device) *Client {
 	return &Client{
 		BaseAddress: baseAddress,
@@ -35,7 +35,7 @@ const (
 	DailyLimitReached = "too_many_requests"
 )
 
-//CheckReceiptExist send request to check receipt exist in Nalog.ru api.
+// CheckReceiptExist send request to check receipt exist in Nalog.ru api.
 func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
 	client := createHttpClient()
 	url, err := buildCheckReceiptUrl(nalogruClient.BaseAddress, queryString)
@@ -70,20 +70,20 @@ func createHttpClient() *http.Client {
 	return &http.Client{Timeout: time.Second * 10}
 }
 
-//TicketIdRequest is request object to get Ticket id.
+// TicketIdRequest is request object to get Ticket id.
 type TicketIdRequest struct {
 	Qr          string      `json:"qr"`
 	Coordinates interface{} `json:"coordinates"`
 }
 
-//TicketIdResponse - response on TicketIdRequest.
+// TicketIdResponse - response on TicketIdRequest.
 type TicketIdResponse struct {
 	Kind   string `json:"kind"`
 	Id     string `json:"id"`
 	Status int    `json:"status"`
 }
 
-//GetTicketId - send ticket id request to nalog.ru API.
+// GetTicketId - send ticket id request to nalog.ru API.
 func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	client := createHttpClient()
 	payload := TicketIdRequest{Qr: queryString}
@@ -117,7 +117,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Get ticket id(%s) error: %d\n", queryString, res.StatusCode)
-		file, err := ioutil.TempFile("/var/lib/receipts/error/", "*.err")
+		file, err := os.CreateTemp("/var/lib/receipts/error/", "*.err")
 		if err != nil {
 			log.Println("failed to create error response file")
 			return "", err
@@ -172,10 +172,10 @@ func readBody(res *http.Response) ([]byte, error) {
 		bodyReader = res.Body
 	}
 
-	return ioutil.ReadAll(bodyReader)
+	return io.ReadAll(bodyReader)
 }
 
-//GetTicketById get ticket by id from nalog.ru api.
+// GetTicketById get ticket by id from nalog.ru api.
 func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	client := createHttpClient()
 
@@ -203,13 +203,13 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 
 	if res.StatusCode != http.StatusOK {
 		log.Printf("GET receipt error: %d\n", res.StatusCode)
-		err = ioutil.WriteFile("/var/lib/receipts/error/"+id+".json", all, 0644)
+		err = os.WriteFile("/var/lib/receipts/error/"+id+".json", all, 0644)
 		return nil, err
 	}
 
 	details := &TicketDetails{}
 
-	err = ioutil.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
+	err = os.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
 
 	err = json.Unmarshal(all, details)
 	if err != nil {
