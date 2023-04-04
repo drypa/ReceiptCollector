@@ -229,6 +229,26 @@ func (repository *Repository) SetTicketId(ctx context.Context, receipt *UsersRec
 
 }
 
+// GetRawReceipt return receipt by qr.
+func (repository *Repository) GetRawReceipt(ctx context.Context, qr string) (*nalogru.TicketDetails, error) {
+	collection := repository.getRawTicketCollection()
+	query := bson.M{"qr": qr}
+
+	res := collection.FindOne(ctx, query)
+	err := res.Err()
+
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	details := &nalogru.TicketDetails{}
+	err = res.Decode(details)
+	return details, err
+}
+
 // GetRawReceiptWithoutTicket return first receipt without ticket body.
 func (repository *Repository) GetRawReceiptWithoutTicket(ctx context.Context) (*nalogru.TicketDetails, error) {
 	collection := repository.getRawTicketCollection()
