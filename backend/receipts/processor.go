@@ -2,6 +2,7 @@ package receipts
 
 import (
 	"context"
+	"errors"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/receipts/purchase"
@@ -11,13 +12,13 @@ type Processor struct {
 	r *Repository
 }
 
-//NewProcessor constructs Processor.
+// NewProcessor constructs Processor.
 func NewProcessor(r *Repository) *Processor {
 	return &Processor{r: r}
 }
 
-//AddReceipt is used to add new receipt by bar code.
-func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, opts ...grpc.CallOption) (*api.AddReceiptResponse, error) {
+// AddReceipt is used to add new receipt by bar code.
+func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, _ ...grpc.CallOption) (*api.AddReceiptResponse, error) {
 	err := processReceiptQueryString(ctx, p.r, in.ReceiptQr, in.UserId)
 	return &api.AddReceiptResponse{}, err
 }
@@ -38,6 +39,25 @@ func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.ReceiptApi_G
 		}
 	}
 	return err
+}
+func (p *Processor) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptReportRequest) (*api.RawReceiptReport, error) {
+	qr, err := normalize(in.Qr)
+	if err != nil {
+		return nil, err
+	}
+	receipt, err := p.r.GetByQueryString(ctx, in.UserId, qr)
+	if err != nil {
+		return nil, err
+	}
+	if receipt == nil {
+		return nil, errors.New("not found")
+	}
+	_, err = p.r.GetRawReceipt(ctx, qr)
+	//TODO: build representation
+	return &api.RawReceiptReport{
+		Report:   []byte{1, 2, 3},
+		FileName: "report.pdf",
+	}, err
 }
 
 func toContract(receipt *UsersReceipt) api.Receipt {
