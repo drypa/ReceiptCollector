@@ -23,7 +23,9 @@ service AccountApi{
 service ReceiptApi{
   rpc AddReceipt (AddReceiptRequest) returns (AddReceiptResponse) {
   }
-  rpc GetReceipts (GetReceiptsRequest) returns (stream Receipt) {
+  rpc GetReceipts (GetRawReceiptReportRequest) returns (stream Receipt) {
+  }
+  rpc GetRawReceipt(GetRawReceiptReportRequest) returns (RawReceiptReport){
   }
 }
 

@@ -8,26 +8,36 @@ message AddReceiptRequest {
 }
 
 message AddReceiptResponse {
-    string error = 1;
+  string error = 1;
 }
 
 message GetReceiptsRequest {
-    string userId = 1;
+  string userId = 1;
 }
 
 message AddRawTicketRequest {
-    TicketDetails details = 1;
+  TicketDetails details = 1;
+}
+
+message GetRawReceiptReportRequest{
+  string userId = 1;
+  string qr = 2;
+}
+
+message RawReceiptReport{
+  bytes report = 1;
+  string fileName = 2;
 }
 
 
 message Receipt {
-    int64 DateTime = 1;
-    int64 CashTotalSum = 2;
-    int32 Code = 3;
-    int64 CreditSum = 4;
-    int64 EcashTotalSum = 5;
-    int32 FiscalDocumentNumber = 6;
-    string FnsUrl = 9;
+  int64 DateTime = 1;
+  int64 CashTotalSum = 2;
+  int32 Code = 3;
+  int64 CreditSum = 4;
+  int64 EcashTotalSum = 5;
+  int32 FiscalDocumentNumber = 6;
+  string FnsUrl = 9;
     repeated Item Items = 10;
     string UserInn = 11;
     int64 Nds10 = 12;
