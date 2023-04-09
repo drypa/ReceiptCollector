@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
+	"github.com/drypa/ReceiptCollector/bot/commands"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"net/http"
@@ -107,60 +107,17 @@ func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.
 	var err error
 	switch update.Message.Text {
 	case "":
-		_, err = sendTextMessage(update.Message.Chat.ID, bot, "Please enter a command.")
+		err = commands.Empty(update, bot, err)
 	case "/start":
-		_, err = sendTextMessage(update.Message.Chat.ID, bot, "I'm a bot to collect Your purchase tickets.")
+		err = commands.Start(update, bot, err)
 	case "/register":
-		err := register(update.Message.From.ID, provider)
-		responseText := "You are registered."
-		if err != nil {
-			responseText = err.Error()
-		}
-		_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+		err = commands.Register(update, bot, provider)
 	case "/login":
-		link, err := grpcClient.GetLoginLink(context.Background(), update.Message.From.ID)
-		responseText := link
-		if err != nil {
-			responseText = err.Error()
-		}
-		_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+		err = commands.Login(update, bot, grpcClient)
 	default:
-		_, err = addReceipt(update, bot, provider, grpcClient)
+		err = commands.AddReceipt(update, bot, provider, grpcClient)
 	}
 	if err != nil {
 		log.Printf("Error while sending response to user %d", update.Message.From.ID)
 	}
-}
-
-func addReceipt(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.Provider, grpcClient *backend.GrpcClient) (tgbotapi.Message, error) {
-	id, err := provider.GetUserId(update.Message.From.ID)
-	if err == nil {
-		err = tryAddReceipt(id, update.Message.Text, grpcClient)
-	}
-	responseText := "Added"
-	if err != nil {
-		responseText = err.Error()
-	}
-	return sendTextMessage(update.Message.Chat.ID, bot, responseText)
-}
-
-func sendTextMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string) (tgbotapi.Message, error) {
-	msg := tgbotapi.NewMessage(chatId, responseText)
-	return bot.Send(msg)
-}
-
-func tryAddReceipt(userId string, messageText string, grpc *backend.GrpcClient) error {
-	responseMessage, err := grpc.AddReceipt(context.Background(), userId, messageText)
-	if err != nil {
-		return err
-	}
-	if responseMessage != "" {
-		return errors.New(responseMessage)
-	}
-	return nil
-}
-
-func register(userId int, client user.Provider) error {
-	_, err := client.GetUserId(userId)
-	return err
 }
