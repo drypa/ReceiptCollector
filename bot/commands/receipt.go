@@ -16,7 +16,7 @@ func AddReceipt(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.Prov
 	if err != nil {
 		responseText = err.Error()
 	}
-	_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+	_, err = replyToMessage(update.Message.Chat.ID, bot, responseText, update.Message.MessageID)
 	return err
 }
 

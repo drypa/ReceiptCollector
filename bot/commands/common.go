@@ -16,6 +16,12 @@ func sendTextMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string) (t
 	return bot.Send(msg)
 }
 
+func replyToMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string, initialMessageId int) (tgbotapi.Message, error) {
+	msg := tgbotapi.NewMessage(chatId, responseText)
+	msg.ReplyToMessageID = initialMessageId
+	return bot.Send(msg)
+}
+
 func getContext() context.Context {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	return ctx
