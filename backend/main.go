@@ -82,7 +82,7 @@ func main() {
 	//go worker.UpdateRawReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
 
-	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.pem", "/usr/share/receipts/ssl/certs/private.key")
+	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}

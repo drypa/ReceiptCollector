@@ -114,6 +114,8 @@ func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.
 		err = commands.Register(update, bot, provider)
 	case "/login":
 		err = commands.Login(update, bot, grpcClient)
+	case "/get":
+		err = commands.GetReceiptReport(update, bot, provider, grpcClient)
 	default:
 		err = commands.AddReceipt(update, bot, provider, grpcClient)
 	}
