@@ -25,6 +25,7 @@ services:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_LOGIN=${MONGO_LOGIN}
       - MONGO_SECRET=${MONGO_SECRET}
+      - TEMPLATES_PATH=${TEMPLATES_PATH}
       - GET_RECEIPT_WORKER_INTERVAL=15m
       - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
     networks:
