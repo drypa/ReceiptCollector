@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 	"receipt_collector/nalogru"
+	"time"
 )
 
 // Render used to make report from templates
@@ -22,7 +23,11 @@ func New(templatesPath string) *Render {
 func (r *Render) Receipt(receipt *nalogru.Receipt) ([]byte, error) {
 	file := "receipt.html"
 	path := filepath.Join(r.templatesPath, file)
-	tmpl, err := template.New(file).Funcs(template.FuncMap{"money": money}).ParseFiles(path)
+	tmpl, err := template.New(file).Funcs(
+		template.FuncMap{
+			"money":    money,
+			"unixDate": unixDate,
+		}).ParseFiles(path)
 
 	if err != nil {
 		return nil, err
@@ -39,4 +44,8 @@ func (r *Render) Receipt(receipt *nalogru.Receipt) ([]byte, error) {
 
 func money(m int64) float64 {
 	return float64(m) / 100
+}
+
+func unixDate(dateTime int64) string {
+	return time.Unix(dateTime, 0).Format("02.01.2006 15:04:05")
 }

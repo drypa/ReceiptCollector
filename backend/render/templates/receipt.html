@@ -2,11 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ .DateTime}}</title>
+    <title>{{unixDate .DateTime}}</title>
+    <style>
+        .items {
+            margin: 5px 0;
+        }
+
+        td {
+            padding: 0 5px;
+        }
+    </style>
 </head>
 <body>
-<h1>{{ .DateTime}}</h1>
-<table>
+<h1>{{unixDate .DateTime}}</h1>
+<table class="items">
     <thead>
     <tr>
         <th>Название</th>
