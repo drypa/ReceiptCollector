@@ -4,19 +4,25 @@ import (
 	"bytes"
 	"html/template"
 	"log"
-	"os"
 	"path/filepath"
 	"receipt_collector/nalogru"
 )
 
-// Render receipt as HTML
-func Render(receipt *nalogru.Receipt) ([]byte, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(wd, "backend/render/templates/receipt.html")
-	tmpl, err := template.New("receipt.html").Funcs(template.FuncMap{"money": money}).ParseFiles(path)
+// Render used to make report from templates
+type Render struct {
+	templatesPath string
+}
+
+// New create Render
+func New(templatesPath string) *Render {
+	return &Render{templatesPath: templatesPath}
+}
+
+// Receipt render receipt as HTML
+func (r *Render) Receipt(receipt *nalogru.Receipt) ([]byte, error) {
+	file := "receipt.html"
+	path := filepath.Join(r.templatesPath, file)
+	tmpl, err := template.New(file).Funcs(template.FuncMap{"money": money}).ParseFiles(path)
 
 	if err != nil {
 		return nil, err
