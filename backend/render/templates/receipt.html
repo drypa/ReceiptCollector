@@ -20,13 +20,13 @@
     <tr>
         <td>{{ .Name}}</td>
         <td>{{ .Quantity}}</td>
-        <td>{{money .Price}}</td>
-        <td>{{money .Sum}}</td>
+        <td>{{money .Price}}₽</td>
+        <td>{{money .Sum}}₽</td>
     </tr>
     {{end}}
     </tbody>
 </table>
-Итого: {{money .TotalSum}}
+Итого: {{money .TotalSum}}₽
 <br>
 Адрес: {{ .RetailPlaceAddress}}
 </body>
