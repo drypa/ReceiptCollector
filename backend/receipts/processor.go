@@ -3,9 +3,11 @@ package receipts
 import (
 	"context"
 	"errors"
+	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/receipts/purchase"
+	"receipt_collector/render"
 )
 
 type Processor struct {
@@ -52,11 +54,12 @@ func (p *Processor) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptRepo
 	if receipt == nil {
 		return nil, errors.New("not found")
 	}
-	_, err = p.r.GetRawReceipt(ctx, qr)
-	//TODO: build representation
+	r, err := p.r.GetRawReceipt(ctx, qr)
+
+	bytes, err := render.Render(r.Ticket.Document.Receipt)
 	return &api.RawReceiptReport{
-		Report:   []byte{1, 2, 3},
-		FileName: "report.pdf",
+		Report:   bytes,
+		FileName: fmt.Sprintf("%s_%s.html", r.Seller.Name, r.Query.Date),
 	}, err
 }
 

@@ -115,8 +115,6 @@ func (c *GrpcClient) GetReceiptReport(ctx context.Context, userId string, qr str
 
 	if resp == nil {
 		return nil, "", errors.New("not_found")
-	} else {
-		log.Printf("Report length %d\n", len(resp.Report))
 	}
 
 	return resp.Report, resp.FileName, err

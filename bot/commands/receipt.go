@@ -2,11 +2,9 @@ package commands
 
 import (
 	"errors"
-	"fmt"
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"log"
 )
 
 // AddReceipt executes add new receipt by QR code command.
@@ -40,15 +38,14 @@ func GetReceiptReport(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider use
 	if err != nil {
 		return err
 	}
-	log.Println("report is", len(report))
 	file := tgbotapi.FileBytes{
 		Name:  fileName,
-		Bytes: nil,
+		Bytes: report,
 	}
-	tgbotapi.NewDocumentUpload(update.Message.Chat.ID, file)
-	//TODO: return report file to chat
-	outMessage := fmt.Sprintf("got %d bytes file %s", len(file.Bytes), file.Name)
-	_, err = replyToMessage(update.Message.Chat.ID, bot, outMessage, update.Message.MessageID)
+	upload := tgbotapi.NewDocumentUpload(update.Message.Chat.ID, file)
+	upload.ReplyToMessageID = update.Message.MessageID
+	_, err = bot.Send(upload)
+
 	return err
 }
 
