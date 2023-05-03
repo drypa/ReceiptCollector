@@ -2,29 +2,33 @@ package receipts
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/receipts/purchase"
+	"receipt_collector/render"
 )
 
 type Processor struct {
-	r *Repository
+	repo   *Repository
+	render *render.Render
 }
 
-//NewProcessor constructs Processor.
-func NewProcessor(r *Repository) *Processor {
-	return &Processor{r: r}
+// NewProcessor constructs Processor.
+func NewProcessor(r *Repository, render *render.Render) *Processor {
+	return &Processor{repo: r, render: render}
 }
 
-//AddReceipt is used to add new receipt by bar code.
-func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, opts ...grpc.CallOption) (*api.AddReceiptResponse, error) {
-	err := processReceiptQueryString(ctx, p.r, in.ReceiptQr, in.UserId)
+// AddReceipt is used to add new receipt by bar code.
+func (p *Processor) AddReceipt(ctx context.Context, in *api.AddReceiptRequest, _ ...grpc.CallOption) (*api.AddReceiptResponse, error) {
+	err := processReceiptQueryString(ctx, p.repo, in.ReceiptQr, in.UserId)
 	return &api.AddReceiptResponse{}, err
 }
 
 func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.ReceiptApi_GetReceiptsServer) error {
 	//TODO: do not load all receipts. make streaming from cursor.
-	receipts, err := p.r.GetByUser(out.Context(), in.UserId)
+	receipts, err := p.repo.GetByUser(out.Context(), in.UserId)
 	if err != nil {
 		return err
 	}
@@ -38,6 +42,26 @@ func (p *Processor) GetReceipts(in *api.GetReceiptsRequest, out api.ReceiptApi_G
 		}
 	}
 	return err
+}
+func (p *Processor) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptReportRequest) (*api.RawReceiptReport, error) {
+	qr, err := normalize(in.Qr)
+	if err != nil {
+		return nil, err
+	}
+	receipt, err := p.repo.GetByQueryString(ctx, in.UserId, qr)
+	if err != nil {
+		return nil, err
+	}
+	if receipt == nil {
+		return nil, errors.New("not found")
+	}
+	r, err := p.repo.GetRawReceipt(ctx, qr)
+
+	bytes, err := p.render.Receipt(r.Ticket.Document.Receipt)
+	return &api.RawReceiptReport{
+		Report:   bytes,
+		FileName: fmt.Sprintf("%s_%s.html", r.Seller.Name, r.Query.Date),
+	}, err
 }
 
 func toContract(receipt *UsersReceipt) api.Receipt {

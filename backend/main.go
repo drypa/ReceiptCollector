@@ -19,6 +19,7 @@ import (
 	"receipt_collector/mongo_client"
 	"receipt_collector/nalogru"
 	"receipt_collector/receipts"
+	"receipt_collector/render"
 	"receipt_collector/reports"
 	"receipt_collector/reports/dal"
 	"receipt_collector/users"
@@ -34,6 +35,7 @@ var mongoURL = os.Getenv("MONGO_URL")
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
 var openUrl = os.Getenv("OPEN_URL")
+var templatePath = os.Getenv("TEMPLATES_PATH")
 
 func main() {
 	log.SetOutput(os.Stdout)
@@ -82,12 +84,14 @@ func main() {
 	//go worker.UpdateRawReceiptStart(ctx, settings)
 	generator := login_url.New(openUrl)
 
-	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.pem", "/usr/share/receipts/ssl/certs/private.key")
+	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
 	var accountProcessor internal.AccountProcessor = login_url.NewProcessor(&userRepository, generator)
-	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository)
+	r := render.New(templatePath)
+
+	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
 
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
 	go reports.Serve(":15001", creds, &userRepository, &receiptReportRepository)

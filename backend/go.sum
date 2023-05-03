@@ -1,8 +1,8 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230401140024-d19b1b654eb3 h1:NxegEtlE7ZXqJZKB3PhvWZW5sVjUenyuPeCQd4k3Ex4=
-github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230401140024-d19b1b654eb3/go.mod h1:4ULoAoegdVc7I/NgQ6izbBbXhqheKj8JbANBQ3xfVN0=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230405091352-65e1efb55137 h1:2gSdtAgn/1SzR3jIxQybz+G8hFlLLPgwBpwe5se5kf4=
+github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230405091352-65e1efb55137/go.mod h1:4ULoAoegdVc7I/NgQ6izbBbXhqheKj8JbANBQ3xfVN0=
 github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d h1:lBXNCxVENCipq4D1Is42JVOP4eQjlB8TQ6H69Yx5J9Q=
 github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d/go.mod h1:nnjvkQ9ptGaCkuDUx6wNykzzlUixGxvkme+H/lnzb+A=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=

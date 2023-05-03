@@ -15,7 +15,7 @@ type GrpcClient struct {
 	receipt  *inside.ReceiptApiClient
 }
 
-//NewGrpcClient creates instance of grpcClient.
+// NewGrpcClient creates instance of grpcClient.
 func NewGrpcClient(backendUrl string, creds credentials.TransportCredentials) *GrpcClient {
 	dial, err := grpc.Dial(backendUrl, grpc.WithTransportCredentials(creds))
 	if err != nil {
@@ -27,7 +27,7 @@ func NewGrpcClient(backendUrl string, creds credentials.TransportCredentials) *G
 	return &GrpcClient{internal: &internal, account: &account, receipt: &receipt}
 }
 
-//GetLoginLink returns link to login for telegram user.
+// GetLoginLink returns link to login for telegram user.
 func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, error) {
 	client := c.account
 	request := inside.GetLoginLinkRequest{TelegramId: int32(telegramId)}
@@ -38,7 +38,7 @@ func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, 
 	return link.Url, nil
 }
 
-//AddReceipt adds new receipt by bar code.
+// AddReceipt adds new receipt by bar code.
 func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (statusMessage string, e error) {
 	client := c.receipt
 	in := inside.AddReceiptRequest{
@@ -54,7 +54,7 @@ func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (
 
 }
 
-//GetUsers returns all users.
+// GetUsers returns all users.
 func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
 	client := c.account
 
@@ -74,7 +74,7 @@ func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
 
 }
 
-//GetUser returns user by telegramId.
+// GetUser returns user by telegramId.
 func (c *GrpcClient) GetUser(ctx context.Context, telegramId int) (*User, error) {
 	client := c.account
 
@@ -97,4 +97,25 @@ func (c *GrpcClient) GetUser(ctx context.Context, telegramId int) (*User, error)
 		TelegramId: int(resp.User.TelegramId),
 	}
 	return &user, err
+}
+
+// GetReceiptReport return receipt details as file.
+func (c *GrpcClient) GetReceiptReport(ctx context.Context, userId string, qr string) ([]byte, string, error) {
+	client := c.receipt
+
+	in := inside.GetRawReceiptReportRequest{
+		UserId: userId,
+		Qr:     qr,
+	}
+	resp, err := (*client).GetRawReceipt(ctx, &in)
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	if resp == nil {
+		return nil, "", errors.New("not_found")
+	}
+
+	return resp.Report, resp.FileName, err
 }

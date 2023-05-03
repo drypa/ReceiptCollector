@@ -20,7 +20,7 @@ type Controller struct {
 	nalogruClient *nalogru.Client
 }
 
-//New creates controller.
+// New creates controller.
 func New(repository Repository, nalogruClient *nalogru.Client) Controller {
 	return Controller{
 		repository:    repository,
@@ -48,25 +48,32 @@ func processReceiptQueryString(ctx context.Context,
 	r *Repository,
 	queryString string,
 	userId string) error {
-	receiptString := strings.TrimSpace(queryString)
-	result, err := qr.Parse(receiptString)
+	receiptString, err := normalize(queryString)
 	if err != nil {
 		return err
 	}
 
-	err = result.Validate()
-	if err != nil {
-		return err
-	}
-
-	err = saveRequest(ctx, r, result.ToString(), userId)
+	err = saveRequest(ctx, r, receiptString, userId)
 	if err != nil {
 		return err
 	}
 	return nil
 }
+func normalize(queryString string) (string, error) {
+	receiptString := strings.TrimSpace(queryString)
+	result, err := qr.Parse(receiptString)
+	if err != nil {
+		return "", err
+	}
 
-//BatchAddReceiptHandler allow add many receipts at same time.
+	err = result.Validate()
+	if err != nil {
+		return "", err
+	}
+	return result.ToString(), nil
+}
+
+// BatchAddReceiptHandler allow add many receipts at same time.
 func (controller Controller) BatchAddReceiptHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 	ctx := request.Context()
