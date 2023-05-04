@@ -12,9 +12,11 @@ import (
 var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
 var sessionId = "INSERT SESSION ID HERE"
 var deviceId = primitive.NewObjectID().Hex()
+var secret = "INSERT SECRET HERE"
+var refreshToken = "INSERT REFRESH TOKEN HERE"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -39,7 +41,36 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 
 }
 
-func createDevice(secret string, token string) (*device.Device, error) {
+func IgnoreTestClient_GetElectronicTickets(t *testing.T) {
+	d, err := createDevice()
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress, d)
+
+	tickets, err := client.GetElectronicTickets()
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+
+	if tickets == nil {
+		log.Println("Tickets not found")
+		t.Fail()
+		return
+	}
+	if len(tickets) == 0 {
+		log.Println("Tickets empty")
+		t.Fail()
+		return
+	}
+
+}
+
+func createDevice() (*device.Device, error) {
 	id, err := primitive.ObjectIDFromHex(deviceId)
 	if err != nil {
 		return nil, err
@@ -48,13 +79,13 @@ func createDevice(secret string, token string) (*device.Device, error) {
 		SessionId:    sessionId,
 		Id:           id,
 		ClientSecret: secret,
-		RefreshToken: token,
+		RefreshToken: refreshToken,
 	}
 	return d, err
 }
 
 func IgnoreTestClient_GetTicketById(t *testing.T) {
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -77,9 +108,7 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 }
 
 func IgnoreTestClient_RefreshSession(t *testing.T) {
-	secret := "PASS CLIENT SECRET HERE"
-	refreshToken := "PASS REFRESH TOKEN HERE"
-	d, err := createDevice(secret, refreshToken)
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -109,7 +138,7 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 
 func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 	queryString := "INSERT VALID QUERY STRING HERE"
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()

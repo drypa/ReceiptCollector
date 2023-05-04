@@ -221,6 +221,49 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	return details, nil
 }
 
+// GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
+func (nalogruClient *Client) GetElectronicTickets() ([]*TicketDetails, error) {
+	client := createHttpClient()
+
+	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+
+	addHeaders(request, nalogruClient.device.Id.Hex())
+	addAuth(request, nalogruClient.device.SessionId)
+	res, err := sendRequest(request, client)
+
+	if err != nil {
+		log.Printf("Can't GET %s\n", url)
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusUnauthorized {
+		return nil, AuthError
+	}
+
+	if res.StatusCode != http.StatusOK {
+		log.Printf("GET electronic receipts error: %d\n", res.StatusCode)
+		return nil, err
+	}
+	all, err := readBody(res)
+	if err != nil {
+		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
+		return nil, err
+	}
+	err = os.WriteFile("/var/lib/receipts/electro/1.json", all, 0644)
+	var tickets []*TicketDetails
+
+	err = json.Unmarshal(all, &tickets)
+	if err != nil {
+		log.Println("Can't decode response body")
+
+		return nil, err
+	}
+
+	return tickets, nil
+}
+
 type RefreshRequest struct {
 	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`
