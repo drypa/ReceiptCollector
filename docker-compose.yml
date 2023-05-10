@@ -25,7 +25,7 @@ services:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_LOGIN=${MONGO_LOGIN}
       - MONGO_SECRET=${MONGO_SECRET}
-      - TEMPLATES_PATH=${TEMPLATES_PATH}
+      - TEMPLATES_PATH=/usr/share/receipts/templates
       - GET_RECEIPT_WORKER_INTERVAL=15m
       - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
     networks:
@@ -34,6 +34,7 @@ services:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
       - "${RAW_TICKET_DUMP_PATH}:/var/lib/receipts/raw/"
       - "${GET_TICKET_ERROR_PATH}:/var/lib/receipts/error/"
+      - "${TEMPLATES_PATH}:/usr/share/receipts/templates"
 
   bot:
     container_name: receipt-bot
