@@ -6,6 +6,7 @@ import (
 	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
+	"log"
 	"receipt_collector/receipts/purchase"
 	"receipt_collector/render"
 )
@@ -50,12 +51,18 @@ func (p *Processor) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptRepo
 	}
 	receipt, err := p.repo.GetByQueryString(ctx, in.UserId, qr)
 	if err != nil {
+		log.Printf("failed to find receipt with QR '%s'. %v\n", qr, err)
 		return nil, err
 	}
 	if receipt == nil {
+		log.Printf("receipt with QR '%s' not found\n", qr)
 		return nil, errors.New("not found")
 	}
 	r, err := p.repo.GetRawReceipt(ctx, qr)
+	if err != nil {
+		log.Printf("receipt with QR '%s' is not loaded from nalog.ru API\n", qr)
+		return nil, errors.New("raw receipt not found")
+	}
 
 	bytes, err := p.render.Receipt(r.Ticket.Document.Receipt)
 	return &api.RawReceiptReport{

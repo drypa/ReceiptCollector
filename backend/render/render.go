@@ -30,12 +30,14 @@ func (r *Render) Receipt(receipt *nalogru.Receipt) ([]byte, error) {
 		}).ParseFiles(path)
 
 	if err != nil {
+		log.Printf("failed to load receipt template %v\n", err)
 		return nil, err
 	}
 
 	var tpl bytes.Buffer
 	err = tmpl.Execute(&tpl, receipt)
 	if err != nil {
+		log.Printf("failed to render receipt %v\n", err)
 		return nil, err
 	}
 	log.Println(tpl.String())
