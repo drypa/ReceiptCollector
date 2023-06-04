@@ -222,14 +222,14 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 }
 
 // GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
-func (nalogruClient *Client) GetElectronicTickets() ([]*TicketDetails, error) {
+func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*TicketDetails, error) {
 	client := createHttpClient()
 
 	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
+	addHeaders(request, device.Id.Hex())
+	addAuth(request, device.SessionId)
 	res, err := sendRequest(request, client)
 
 	if err != nil {

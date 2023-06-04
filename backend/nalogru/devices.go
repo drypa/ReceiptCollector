@@ -11,4 +11,5 @@ type Devices interface {
 	Rent(ctx context.Context) (*device.Device, error)
 	Update(ctx context.Context, device *device.Device) error
 	Free(ctx context.Context, device *device.Device) error
+	All(ctx context.Context) []*device.Device
 }

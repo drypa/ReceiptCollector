@@ -50,7 +50,7 @@ func IgnoreTestClient_GetElectronicTickets(t *testing.T) {
 	}
 	client := NewClient(baseAddress, d)
 
-	tickets, err := client.GetElectronicTickets()
+	tickets, err := client.GetElectronicTickets(nil)
 	if err != nil {
 		log.Println(err)
 		t.Fail()

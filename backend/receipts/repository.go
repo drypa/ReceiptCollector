@@ -110,7 +110,8 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 	query := bson.D{{"owner", ownerId}, {"query_string", queryString}}
 
 	result := collection.FindOne(ctx, query)
-	if result.Err() != nil {
+	err = result.Err()
+	if err != nil {
 		return nil, err
 	}
 
@@ -119,6 +120,24 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 
 	return &receipt, err
 
+}
+
+// GetAllOwnersByQueryString find user receipt by QR code query string.
+func (repository *Repository) GetAllOwnersByQueryString(ctx context.Context, queryString string) (*UsersReceipt, error) {
+	collection := repository.getCollection()
+
+	query := bson.D{{"query_string", queryString}}
+
+	result := collection.FindOne(ctx, query)
+	err := result.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	receipt := UsersReceipt{}
+	err = result.Decode(&receipt)
+
+	return &receipt, err
 }
 
 // GetById returns receipt by it's id.

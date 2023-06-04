@@ -7,13 +7,13 @@ import (
 	"receipt_collector/nalogru/device"
 )
 
-//Service to manage devices.
+// Service to manage devices.
 type Service struct {
 	r       *repository.Repository
 	devices []ForRent
 }
 
-//NewService creates instance of Service.
+// NewService creates instance of Service.
 func NewService(ctx context.Context, r *repository.Repository) (*Service, error) {
 	all, err := r.All(ctx)
 	if err != nil {
@@ -32,7 +32,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 	return s, nil
 }
 
-//Add adds new device.
+// Add adds new device.
 func (s *Service) Add(ctx context.Context, d device.Device) error {
 	for _, v := range s.devices {
 		if v.ClientSecret == d.ClientSecret {
@@ -42,12 +42,12 @@ func (s *Service) Add(ctx context.Context, d device.Device) error {
 	return s.r.Add(ctx, d)
 }
 
-//Count returns devices count.
+// Count returns devices count.
 func (s *Service) Count(ctx context.Context) (int, error) {
 	return len(s.devices), nil
 }
 
-//Rent device.
+// Rent device.
 func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	for _, v := range s.devices {
 		if v.IsRent == false {
@@ -67,6 +67,7 @@ func (s *Service) Update(ctx context.Context, device *device.Device) error {
 	return s.r.Update(ctx, device)
 }
 
+// Free release the rented device
 func (s *Service) Free(ctx context.Context, device *device.Device) error {
 	for _, v := range s.devices {
 		if device.Id == v.Id {
@@ -75,4 +76,13 @@ func (s *Service) Free(ctx context.Context, device *device.Device) error {
 		}
 	}
 	return errors.New("device not found")
+}
+
+// All return all registered devices
+func (s *Service) All(ctx context.Context) []*device.Device {
+	res := make([]*device.Device, len(s.devices))
+	for i, d := range s.devices {
+		res[i] = &d.Device
+	}
+	return res
 }
