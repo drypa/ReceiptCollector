@@ -11,9 +11,15 @@ import (
 
 // GetElectronicReceiptStart receives electronic receipts for all devices.
 func (worker *Worker) GetElectronicReceiptStart(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
 	s := gocron.NewScheduler(time.Local)
 
-	s.Every(1).Days().Do(worker.getElectronic)
+	_, err := s.Every(1).Days().Do(worker.getElectronic)
+	if err != nil {
+		log.Printf("failed to create job %v\n", err)
+	}
 
 	s.StartBlocking()
 }

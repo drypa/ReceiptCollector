@@ -44,11 +44,17 @@ func (s *Service) Add(ctx context.Context, d device.Device) error {
 
 // Count returns devices count.
 func (s *Service) Count(ctx context.Context) (int, error) {
+	if ctx.Err() != nil {
+		return -1, ctx.Err()
+	}
 	return len(s.devices), nil
 }
 
 // Rent device.
 func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	for _, v := range s.devices {
 		if v.IsRent == false {
 			v.IsRent = true
