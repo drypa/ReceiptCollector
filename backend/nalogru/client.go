@@ -20,7 +20,6 @@ type Client struct {
 	device      *device.Device
 }
 
-var AuthError = errors.New("auth failed")
 var InternalError = errors.New("internal failed")
 
 // NewClient - creates instance of Client.
@@ -36,7 +35,7 @@ const (
 )
 
 // CheckReceiptExist send request to check receipt exist in Nalog.ru api.
-func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
+func (nalogruClient *Client) CheckReceiptExist(queryString string) (bool, error) {
 	client := createHttpClient()
 	url, err := buildCheckReceiptUrl(nalogruClient.BaseAddress, queryString)
 	if err != nil {
@@ -85,7 +84,6 @@ type TicketIdResponse struct {
 
 // GetTicketId - send ticket id request to nalog.ru API.
 func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
-	client := createHttpClient()
 	payload := TicketIdRequest{Qr: queryString}
 
 	req, err := json.Marshal(payload)
@@ -95,9 +93,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(req)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
-	res, err := sendRequest(request, client)
+	res, err := nalogruClient.sendAuthenticatedRequest(request)
 
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
@@ -129,11 +125,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 			return "", err
 		}
 
-		if res.StatusCode == http.StatusUnauthorized {
-			err = AuthError
-		} else {
-			err = InternalError
-		}
+		err = InternalError
 
 		return "", err
 	}
@@ -177,13 +169,10 @@ func readBody(res *http.Response) ([]byte, error) {
 
 // GetTicketById get ticket by id from nalog.ru api.
 func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
-	client := createHttpClient()
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
-	res, err := sendRequest(request, client)
+	res, err := nalogruClient.sendAuthenticatedRequest(request)
 
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
@@ -195,10 +184,6 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	if err != nil {
 		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusUnauthorized {
-		return nil, AuthError
 	}
 
 	if res.StatusCode != http.StatusOK {
@@ -222,25 +207,18 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 }
 
 // GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
-func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*TicketDetails, error) {
-	client := createHttpClient()
+func (nalogruClient *Client) GetElectronicTickets() ([]*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 
-	addHeaders(request, device.Id.Hex())
-	addAuth(request, device.SessionId)
-	res, err := sendRequest(request, client)
+	res, err := nalogruClient.sendAuthenticatedRequest(request)
 
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
-	defer res.Body.Close()
-
-	if res.StatusCode == http.StatusUnauthorized {
-		return nil, AuthError
-	}
+	defer dispose.Dispose(res.Body.Close, "Can't close response body")
 
 	if res.StatusCode != http.StatusOK {
 		log.Printf("GET electronic receipts error: %d\n", res.StatusCode)
@@ -262,6 +240,27 @@ func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*Tic
 	}
 
 	return tickets, nil
+}
+
+func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request) (*http.Response, error) {
+	addHeaders(r, nalogruClient.device.Id.Hex())
+	addAuth(r, nalogruClient.device.SessionId)
+	client := createHttpClient()
+	res, err := sendRequest(r, client)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusUnauthorized {
+		err = nalogruClient.RefreshSession()
+		if err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return nil, err
+		}
+		res, err = sendRequest(r, client)
+	}
+	return res, err
 }
 
 type RefreshRequest struct {

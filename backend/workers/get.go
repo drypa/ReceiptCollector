@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//GetReceiptStart starts get receipt worker.
+// GetReceiptStart starts get receipt worker.
 func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
@@ -73,15 +73,6 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 		return err
 	}
 
-	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx)
-		if err != nil {
-			log.Printf("failed to refresh session. %v\n", err)
-			return err
-		}
-		id, err = worker.nalogruClient.GetTicketId(normalizedQr)
-	}
-
 	if err != nil {
 		log.Printf("failed get receipt id %v\n", err)
 		err := worker.repository.SetReceiptStatus(ctx, receipt.Id.Hex(), receipts.Error)
@@ -99,15 +90,6 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 
 func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
 	details, err := worker.nalogruClient.GetTicketById(id)
-
-	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx)
-		if err != nil {
-			log.Printf("failed to refresh session. %v\n", err)
-			return err
-		}
-		details, err = worker.nalogruClient.GetTicketById(id)
-	}
 
 	if err != nil {
 		log.Printf("get ticket by id %s failed: %v", id, err)
