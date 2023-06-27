@@ -66,7 +66,7 @@ func (nalogruClient *Client) CheckReceiptExist(queryString string) (bool, error)
 }
 
 func createHttpClient() *http.Client {
-	return &http.Client{Timeout: time.Second * 10}
+	return &http.Client{Timeout: time.Minute}
 }
 
 // TicketIdRequest is request object to get Ticket id.
@@ -226,7 +226,7 @@ func (nalogruClient *Client) GetElectronicTickets() ([]*TicketDetails, error) {
 	}
 	all, err := readBody(res)
 	if err != nil {
-		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
+		log.Printf("failed to read response body. status code %d error: %v\n", res.StatusCode, err)
 		return nil, err
 	}
 	err = os.WriteFile("/var/lib/receipts/electro/1.json", all, 0644)
