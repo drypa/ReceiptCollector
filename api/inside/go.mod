@@ -3,13 +3,14 @@ module github.com/drypa/ReceiptCollector/api/inside
 go 1.20
 
 require (
-	github.com/golang/protobuf v1.3.5
-	google.golang.org/grpc v1.28.1
+	github.com/golang/protobuf v1.5.2
+	google.golang.org/grpc v1.53.0
 )
 
 require (
-	golang.org/x/net v0.0.0-20190311183353-d8887717615a // indirect
-	golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a // indirect
-	golang.org/x/text v0.3.0 // indirect
-	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 )
