@@ -3,9 +3,11 @@ package workers
 import (
 	"context"
 	"github.com/go-co-op/gocron"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"receipt_collector/nalogru"
 	"receipt_collector/nalogru/qr"
+	"receipt_collector/receipts"
 	"time"
 )
 
@@ -50,7 +52,16 @@ func (worker *Worker) insertTicketsIfNeeded(ctx context.Context, tickets []*nalo
 			return err
 		}
 		if receipt == nil {
-			//TODO: add ticket & raw ticket
+			receiptRequest := receipts.UsersReceipt{
+				Owner:       primitive.NilObjectID, //TODO: owner needed
+				QueryString: query.ToString(),
+				//Without ticketId would process by get-worker
+			}
+			err := worker.repository.Insert(ctx, receiptRequest)
+			if err != nil {
+				log.Printf("Failed to insert receipt request for %s", query.ToString()) //TODO: add owner to output
+				return err
+			}
 		}
 	}
 	return nil
