@@ -122,7 +122,7 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 
 }
 
-// GetAllOwnersByQueryString find user receipt by QR code query string.
+// GetAllOwnersByQueryString find user receipt by QR code query string without filtering by owner.
 func (repository *Repository) GetAllOwnersByQueryString(ctx context.Context, queryString string) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
