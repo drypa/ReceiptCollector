@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
 	"testing"
 )
@@ -206,7 +207,7 @@ func createServer(t *testing.T) *httptest.Server {
 func callServerWithCloseBody(client http.Client, svr *httptest.Server) error {
 	m, err := client.Get(svr.URL)
 	if m != nil {
-		defer m.Body.Close()
+		defer dispose.Dispose(m.Body.Close, "Can't close HTTP response body")
 	}
 	return err
 

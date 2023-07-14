@@ -54,7 +54,7 @@ func (nalogruClient *Client) CheckReceiptExist(queryString string, device *devic
 		log.Printf("Could't check receipt %s", url)
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer dispose.Dispose(resp.Body.Close, "Can't close HTTP response body")
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
 		log.Println("Check passed")
 		return true, nil
@@ -97,7 +97,7 @@ func (nalogruClient *Client) GetTicketId(queryString string, device *device.Devi
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	body, err := readBody(res)
 	if err != nil {
@@ -167,7 +167,7 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	all, err := readBody(res)
 	if err != nil {
@@ -285,7 +285,7 @@ func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 		log.Printf("Can't POST %s\n", url)
 		return err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Refresh session error: %d\n", res.StatusCode)
