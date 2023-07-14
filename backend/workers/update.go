@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//UpdateRawReceiptStart fetch tickets with wrong status.
+// UpdateRawReceiptStart fetch tickets with wrong status.
 func (worker *Worker) UpdateRawReceiptStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
@@ -33,7 +33,7 @@ func (worker *Worker) UpdateRawReceiptStart(ctx context.Context, settings Settin
 			if receipt == nil {
 				break
 			}
-			err = worker.loadRawReceipt(ctx, receipt.Id)
+			err = worker.loadRawReceipt(ctx, receipt.Id, nil)
 			if err != nil {
 				log.Printf("Failed to reload raw ticket. %v\n", err)
 			}

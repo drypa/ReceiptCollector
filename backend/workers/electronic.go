@@ -16,12 +16,12 @@ func (worker *Worker) GetElectronicReceiptStart(ctx context.Context) {
 	}
 	s := gocron.NewScheduler(time.Local)
 
-	_, err := s.Every(1).Days().Do(worker.getElectronic)
+	_, err := s.Every(1).Day().At("01:00").Do(worker.getElectronic, ctx)
 	if err != nil {
 		log.Printf("failed to create job %v\n", err)
 	}
 
-	s.StartBlocking()
+	s.StartAsync()
 }
 func (worker *Worker) getElectronic(ctx context.Context) {
 	for _, d := range worker.devices.All(ctx) {

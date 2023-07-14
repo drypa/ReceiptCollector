@@ -7,4 +7,5 @@ type Device struct {
 	SessionId    string             `bson:"session_id"`
 	RefreshToken string             `bson:"refresh_token"`
 	Id           primitive.ObjectID `bson:"_id,omitempty"`
+	Update       func(string, string) error
 }

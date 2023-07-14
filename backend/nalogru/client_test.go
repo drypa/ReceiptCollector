@@ -22,10 +22,10 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 	queryString := "INSERT BARCODE TEST HERE"
 
-	id, err := client.GetTicketId(queryString)
+	id, err := client.GetTicketId(queryString, d)
 
 	if err != nil {
 		log.Println(err)
@@ -48,9 +48,9 @@ func IgnoreTestClient_GetElectronicTickets(t *testing.T) {
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 
-	tickets, err := client.GetElectronicTickets(nil)
+	tickets, err := client.GetElectronicTickets(d)
 	if err != nil {
 		log.Println(err)
 		t.Fail()
@@ -80,6 +80,9 @@ func createDevice() (*device.Device, error) {
 		Id:           id,
 		ClientSecret: secret,
 		RefreshToken: refreshToken,
+		Update: func(string, string) error {
+			return nil
+		},
 	}
 	return d, err
 }
@@ -91,10 +94,10 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 
 	ticketId := "INSERT TICKET ID HERE"
-	details, err := client.GetTicketById(ticketId)
+	details, err := client.GetTicketById(ticketId, d)
 
 	if err != nil {
 		log.Println(err)
@@ -114,9 +117,9 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 
-	err = client.RefreshSession()
+	err = client.RefreshSession(d)
 
 	if err != nil {
 		log.Println(err)
@@ -144,8 +147,8 @@ func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
-	exist, err := client.CheckReceiptExist(queryString)
+	client := NewClient(baseAddress)
+	exist, err := client.CheckReceiptExist(queryString, d)
 
 	if err != nil {
 		log.Println(err)
