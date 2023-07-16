@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
+	"github.com/drypa/ReceiptCollector/bot/backend/user"
+	"github.com/drypa/ReceiptCollector/bot/commands"
 	"google.golang.org/grpc/credentials"
 	"log"
 	"os"
@@ -19,8 +21,37 @@ func main() {
 	}
 	grpcClient := backend.NewGrpcClient(backendGrpcAddress, creds)
 	reportsClient := report.New(reportsGrpcAddress, creds)
-	err = start(options, grpcClient, reportsClient)
+	provider, err := user.New(grpcClient)
 	if err != nil {
 		log.Fatal(err)
 	}
+	registrar := createCommandsRegistrar(grpcClient, &provider)
+	err = start(options, grpcClient, reportsClient, registrar)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func createCommandsRegistrar(grpcClient *backend.GrpcClient, users *user.Provider) *commands.Registrar {
+	registrar := commands.Registrar{}
+
+	empty := commands.EmptyCommand{}
+	registrar.Register(empty)
+
+	start := commands.StartCommand{}
+	registrar.Register(start)
+
+	register := commands.NewRegisterCommand(users)
+	registrar.Register(register)
+
+	getReceiptReport := commands.NewGetReceiptReportCommand(users, grpcClient)
+	registrar.Register(getReceiptReport)
+
+	addReceiptCommand := commands.NewAddReceiptCommand(users, grpcClient)
+	registrar.Register(addReceiptCommand)
+
+	wrongCommand := commands.WrongCommand{}
+	registrar.RegisterDefault(wrongCommand)
+
+	return &registrar
 }

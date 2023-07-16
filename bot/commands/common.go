@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-func Empty(update tgbotapi.Update, bot *tgbotapi.BotAPI, err error) error {
-	_, err = sendTextMessage(update.Message.Chat.ID, bot, "Please enter a command.")
-	return err
+type Command interface {
+	Accepted(message string) bool
+	Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error
 }
 
 func sendTextMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string) (tgbotapi.Message, error) {
