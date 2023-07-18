@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 func validateEmpty(value string, emptyErrorMessage string) error {
@@ -102,11 +103,12 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 }
 
 func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, registrar *commands.Registrar) {
-	c := registrar.Get(update.Message.Text)
+	text := strings.TrimSpace(update.Message.Text)
+	c := registrar.Get(text)
 	if c != nil {
 		err := (*c).Execute(update, bot)
 		if err != nil {
-			log.Printf("Error while process request '%s' from %d. %v", update.Message.Text, update.Message.From.ID, err)
+			log.Printf("Error while process request '%s' from %d. %v", text, update.Message.From.ID, err)
 		}
 
 	}

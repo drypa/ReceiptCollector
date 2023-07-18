@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"regexp"
 )
 
 type RegisterCommand struct {
@@ -14,7 +15,9 @@ func NewRegisterCommand(provider *user.Provider) *RegisterCommand {
 }
 
 func (r RegisterCommand) Accepted(message string) bool {
-	return message == "/register"
+	re := regexp.MustCompile(`^\/register\s+\+(\d{10})$`)
+
+	return re.MatchString(message)
 }
 
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
