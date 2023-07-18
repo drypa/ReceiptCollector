@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
-	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
 	"github.com/drypa/ReceiptCollector/bot/commands"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -31,11 +30,7 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, grpcClient *backend.GrpcClient, reportsClient *report.Client, registrar *commands.Registrar) error {
-	//provider, err := user.New(grpcClient)
-	//if err != nil {
-	//	return err
-	//}
+func start(options Options, reportsClient *report.Client, registrar *commands.Registrar) error {
 	bot, err := create(options)
 	if err != nil {
 		log.Printf("Bot create error: %v\n", err)

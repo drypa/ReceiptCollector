@@ -11,10 +11,10 @@ import (
 )
 
 var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
-var sessionId = "INSERT SESSION ID HERE"
+var sessionId = "606c4bb41d8f48ff57bfd021:6ca239ba-0885-4cc9-a7d9-be801253ac7d"
 var deviceId = primitive.NewObjectID().Hex()
-var secret = "INSERT SECRET HERE"
-var refreshToken = "INSERT REFRESH TOKEN HERE"
+var secret = "mnALjKobrqT/sC9um4wXlamXnOo="
+var refreshToken = "c55bdf44-acf6-46b3-be9a-8422bda7032d"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
 	d, err := createDevice()

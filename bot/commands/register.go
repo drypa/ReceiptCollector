@@ -15,7 +15,7 @@ func NewRegisterCommand(provider *user.Provider) *RegisterCommand {
 }
 
 func (r RegisterCommand) Accepted(message string) bool {
-	re := regexp.MustCompile(`^\/register\s+\+(\d{10})$`)
+	re := regexp.MustCompile(`^/register\s+\+(\d{10})$`)
 
 	return re.MatchString(message)
 }

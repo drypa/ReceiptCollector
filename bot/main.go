@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 	registrar := createCommandsRegistrar(grpcClient, &provider)
-	err = start(options, grpcClient, reportsClient, registrar)
+	err = start(options, reportsClient, registrar)
 	if err != nil {
 		log.Fatal(err)
 	}
