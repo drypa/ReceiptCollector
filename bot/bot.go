@@ -93,7 +93,6 @@ func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	bot *tgbotapi.BotAPI,
 	registrar *commands.Registrar) {
 	for update := range updatesChan {
-		log.Printf("%v\n", update)
 		if update.Message == nil {
 			continue
 		}
