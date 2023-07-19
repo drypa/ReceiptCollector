@@ -8,16 +8,18 @@ import (
 
 type RegisterCommand struct {
 	provider *user.Provider
+	regexp   *regexp.Regexp
 }
 
 func NewRegisterCommand(provider *user.Provider) *RegisterCommand {
-	return &RegisterCommand{provider: provider}
+	return &RegisterCommand{
+		provider: provider,
+		regexp:   regexp.MustCompile(`^/register\s+\+(?P<phone>\d{10})$`),
+	}
 }
 
 func (r RegisterCommand) Accepted(message string) bool {
-	re := regexp.MustCompile(`^/register\s+\+(\d{10})$`)
-
-	return re.MatchString(message)
+	return r.regexp.MatchString(message)
 }
 
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
@@ -28,6 +30,13 @@ func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) e
 	}
 	_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
 	return err
+}
+
+func (r RegisterCommand) getPhoneFromRequest(message string) string {
+	matches := r.regexp.FindStringSubmatch(message)
+	index := r.regexp.SubexpIndex("phone")
+	phone := matches[index]
+	return phone
 }
 
 func register(userId int, client *user.Provider) error {
