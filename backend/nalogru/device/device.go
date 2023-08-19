@@ -8,4 +8,6 @@ type Device struct {
 	RefreshToken string             `bson:"refresh_token"`
 	Id           primitive.ObjectID `bson:"_id,omitempty"`
 	Update       func(string, string) error
+	UserId       string `bson:"user_id"`
+	Phone        string `bson:"phone"`
 }

@@ -50,3 +50,8 @@ func (s *server) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptReportR
 	processor := *(s.receiptProcessor)
 	return processor.GetRawReceipt(ctx, in)
 }
+
+func (s *server) RegisterUser(ctx context.Context, req *api.UserRegistrationRequest) (*api.UserRegistrationResponse, error) {
+	processor := *(s.accountProcessor)
+	return processor.RegisterUser(ctx, req)
+}

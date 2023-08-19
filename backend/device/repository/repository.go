@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
@@ -12,18 +13,19 @@ type Repository struct {
 	m *mongo.Client
 }
 
-//NewRepository creates Repository.
+// NewRepository creates Repository.
 func NewRepository(m *mongo.Client) *Repository {
 	return &Repository{m: m}
 }
 
-func (r *Repository) Add(ctx context.Context, d device.Device) error {
+func (r *Repository) Add(ctx context.Context, d *device.Device) error {
 	collection := r.getCollection()
-	_, err := collection.InsertOne(ctx, d)
+	document, err := collection.InsertOne(ctx, d)
+	d.Id = document.InsertedID.(primitive.ObjectID)
 	return err
 }
 
-//All returns all devices.
+// All returns all devices.
 func (r *Repository) All(ctx context.Context) ([]device.Device, error) {
 	collection := r.getCollection()
 	cursor, err := collection.Find(ctx, bson.D{})
