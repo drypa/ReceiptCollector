@@ -14,7 +14,7 @@ type RegisterCommand struct {
 func NewRegisterCommand(provider *user.Provider) *RegisterCommand {
 	return &RegisterCommand{
 		provider: provider,
-		regexp:   regexp.MustCompile(`^/register\s+\+(?P<phone>\d{10})$`),
+		regexp:   regexp.MustCompile(`^/register\s+\+(?P<phone>\d{11})$`),
 	}
 }
 
