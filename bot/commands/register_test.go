@@ -3,7 +3,7 @@ package commands
 import "testing"
 
 func TestAccepted_RegisterCommand_Success(t *testing.T) {
-	command := NewRegisterCommand(nil)
+	command := NewRegisterCommand(nil, nil)
 
 	variants := make([]string, 0)
 	variants = append(variants, "/register +71234567890")
@@ -21,7 +21,7 @@ func TestAccepted_RegisterCommand_Success(t *testing.T) {
 }
 
 func TestAccepted_RegisterCommand_Failed(t *testing.T) {
-	command := NewRegisterCommand(nil)
+	command := NewRegisterCommand(nil, nil)
 
 	variants := make([]string, 0)
 	variants = append(variants, "")
@@ -47,12 +47,12 @@ func TestAccepted_RegisterCommand_Failed(t *testing.T) {
 }
 
 func Test_getPhoneFromRequest_Success(t *testing.T) {
-	command := NewRegisterCommand(nil)
+	command := NewRegisterCommand(nil, nil)
 
-	message := "/register +1234567890"
+	message := "/register +71234567890"
 
 	phone := command.getPhoneFromRequest(message)
-	expected := "1234567890"
+	expected := "71234567890"
 	if phone != expected {
 		t.Fatalf("wrong phone returned from getPhoneFromRequest. Expeced '%s' but got '%s'", expected, phone)
 	}

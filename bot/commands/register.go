@@ -1,20 +1,24 @@
 package commands
 
 import (
+	"context"
+	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"regexp"
 )
 
 type RegisterCommand struct {
-	provider *user.Provider
-	regexp   *regexp.Regexp
+	provider   *user.Provider
+	regexp     *regexp.Regexp
+	grpcClient *backend.GrpcClient
 }
 
-func NewRegisterCommand(provider *user.Provider) *RegisterCommand {
+func NewRegisterCommand(provider *user.Provider, grpcClient *backend.GrpcClient) *RegisterCommand {
 	return &RegisterCommand{
-		provider: provider,
-		regexp:   regexp.MustCompile(`^/register\s+\+(?P<phone>\d{11})$`),
+		provider:   provider,
+		grpcClient: grpcClient,
+		regexp:     regexp.MustCompile(`^/register\s+\+(?P<phone>\d{11})$`),
 	}
 }
 
@@ -23,7 +27,8 @@ func (r RegisterCommand) Accepted(message string) bool {
 }
 
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
-	err := register(update.Message.From.ID, r.provider)
+	phone := r.getPhoneFromRequest(update.Message.Text)
+	err := r.register(update.Message.From.ID, phone, r.provider)
 	responseText := "You are registered."
 	if err != nil {
 		responseText = err.Error()
@@ -39,7 +44,7 @@ func (r RegisterCommand) getPhoneFromRequest(message string) string {
 	return phone
 }
 
-func register(userId int, client *user.Provider) error {
-	_, err := client.GetUserId(userId)
+func (r RegisterCommand) register(telegramId int, phone string, client *user.Provider) error {
+	err := r.grpcClient.RegisterUser(context.Background(), telegramId, phone)
 	return err
 }
