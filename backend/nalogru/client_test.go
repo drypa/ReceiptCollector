@@ -11,10 +11,11 @@ import (
 )
 
 var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
-var sessionId = "606c4bb41d8f48ff57bfd021:6ca239ba-0885-4cc9-a7d9-be801253ac7d"
+var sessionId = "INSERT SESSION ID HERE"
 var deviceId = primitive.NewObjectID().Hex()
-var secret = "mnALjKobrqT/sC9um4wXlamXnOo="
-var refreshToken = "c55bdf44-acf6-46b3-be9a-8422bda7032d"
+var secret = "INSERT SECRET HERE"
+var refreshToken = "INSERT REFRESH TOKEN HERE"
+var phone = "INSERT PHONE HERE"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
 	d, err := createDevice()
@@ -84,6 +85,7 @@ func createDevice() (*device.Device, error) {
 		Update: func(string, string) error {
 			return nil
 		},
+		Phone: phone,
 	}
 	return d, err
 }
@@ -191,6 +193,20 @@ func IgnoreTestHttpClient_Error(t *testing.T) {
 			log.Println(err.Error())
 			t.FailNow()
 		}
+	}
+}
+
+func IgnoreTest_AuthByPhone(t *testing.T) {
+	d, err := createDevice()
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress)
+	err = client.AuthByPhone(d)
+	if err != nil {
+		t.Fatalf("Error auth by phone %v", err)
 	}
 }
 

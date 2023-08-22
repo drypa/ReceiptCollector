@@ -80,6 +80,12 @@ type TicketIdResponse struct {
 	Status int    `json:"status"`
 }
 
+type PhoneAuthRequest struct {
+	ClientSecret string `json:"client_secret"`
+	Os           string `json:"os"`
+	Phone        string `json:"phone"`
+}
+
 // GetTicketId - send ticket id request to nalog.ru API.
 func (nalogruClient *Client) GetTicketId(queryString string, device *device.Device) (string, error) {
 	payload := TicketIdRequest{Qr: queryString}
@@ -231,6 +237,33 @@ func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*Tic
 	return tickets, nil
 }
 
+func (nalogruClient *Client) AuthByPhone(device *device.Device) error {
+	payload := PhoneAuthRequest{
+		ClientSecret: device.ClientSecret,
+		Os:           "android",
+		Phone:        device.Phone,
+	}
+
+	req, err := json.Marshal(payload)
+	if err != nil {
+		log.Println("Unable to serialize request")
+		return err
+	}
+	reader := bytes.NewReader(req)
+	url := nalogruClient.BaseAddress + "/v2/auth/phone/request"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, device.Id.Hex())
+	client := createHttpClient()
+	_, err = sendRequest(request, client)
+
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return err
+	}
+
+	return nil
+}
+
 func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *device.Device) (*http.Response, error) {
 	addHeaders(r, device.Id.Hex())
 	addAuth(r, device.SessionId)
@@ -262,6 +295,7 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// RefreshSession used to refresh session by RefreshToken.
 func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	client := createHttpClient()
 
