@@ -52,7 +52,7 @@ func Test_getPhoneFromRequest_Success(t *testing.T) {
 	message := "/register +71234567890"
 
 	phone := command.getPhoneFromRequest(message)
-	expected := "71234567890"
+	expected := "+71234567890"
 	if phone != expected {
 		t.Fatalf("wrong phone returned from getPhoneFromRequest. Expeced '%s' but got '%s'", expected, phone)
 	}

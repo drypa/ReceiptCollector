@@ -18,7 +18,7 @@ func NewRegisterCommand(provider *user.Provider, grpcClient *backend.GrpcClient)
 	return &RegisterCommand{
 		provider:   provider,
 		grpcClient: grpcClient,
-		regexp:     regexp.MustCompile(`^/register\s+\+(?P<phone>\d{11})$`),
+		regexp:     regexp.MustCompile(`^/register\s+(?P<phone>\+\d{11})$`),
 	}
 }
 
