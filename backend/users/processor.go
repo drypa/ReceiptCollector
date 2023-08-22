@@ -1,4 +1,4 @@
-package login_url
+package users
 
 import (
 	"context"
@@ -6,19 +6,18 @@ import (
 	"google.golang.org/grpc"
 	"receipt_collector/device"
 	nalogDevice "receipt_collector/nalogru/device"
-	"receipt_collector/users"
 	"time"
 )
 
 // Processor provides method to return login link.
 type Processor struct {
-	repository    *users.Repository
-	linkGenerator users.LinkGenerator
+	repository    *Repository
+	linkGenerator LinkGenerator
 	d             *device.Service
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *users.Repository, linkGenerator users.LinkGenerator) *Processor {
+func NewProcessor(repository *Repository, linkGenerator LinkGenerator) *Processor {
 	return &Processor{repository: repository, linkGenerator: linkGenerator}
 }
 
@@ -41,6 +40,7 @@ func (p Processor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest
 	}, nil
 }
 
+// GetUsers returns all registered users.
 func (p Processor) GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUsersResponse, error) {
 	all, err := p.repository.GetAll(ctx)
 	if err != nil {
@@ -105,12 +105,13 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 		if err != nil {
 			return nil, err
 		}
+		//TODO: send request: POST https://irkkt-mobile.nalog.ru:8888/v2/auth/phone/request
 	}
 	return &api.UserRegistrationResponse{UserId: userId}, nil
 }
 
-func (p Processor) addNewUser(ctx context.Context, telegramId int) (*users.User, error) {
-	u := users.User{
+func (p Processor) addNewUser(ctx context.Context, telegramId int) (*User, error) {
+	u := User{
 		TelegramId: telegramId,
 	}
 	err := p.repository.Insert(ctx, &u)

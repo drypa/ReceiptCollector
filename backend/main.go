@@ -82,7 +82,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = login_url.NewProcessor(&userRepository, generator)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
