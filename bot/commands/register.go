@@ -28,8 +28,8 @@ func (r RegisterCommand) Accepted(message string) bool {
 
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
 	phone := r.getPhoneFromRequest(update.Message.Text)
-	err := r.register(update.Message.From.ID, phone, r.provider)
-	responseText := "You are registered."
+	err := r.register(update.Message.From.ID, phone)
+	responseText := "You are registered.\n Wait SMS from KKT.NALOG and please send the verification code from it as reply to current message"
 	if err != nil {
 		responseText = err.Error()
 	}
@@ -44,7 +44,6 @@ func (r RegisterCommand) getPhoneFromRequest(message string) string {
 	return phone
 }
 
-func (r RegisterCommand) register(telegramId int, phone string, client *user.Provider) error {
-	err := r.grpcClient.RegisterUser(context.Background(), telegramId, phone)
-	return err
+func (r RegisterCommand) register(telegramId int, phone string) error {
+	return r.grpcClient.RegisterUser(context.Background(), telegramId, phone)
 }
