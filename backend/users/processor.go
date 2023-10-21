@@ -2,8 +2,11 @@ package users
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
+	"log"
 	"receipt_collector/device"
 	"receipt_collector/nalogru"
 	nalogDevice "receipt_collector/nalogru/device"
@@ -95,8 +98,14 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 		return nil, err
 	}
 	if d == nil {
+		secret, err := generateRandomSecret()
+		if err != nil {
+			log.Printf("error while generating random string: %v", err)
+			return nil, err
+		}
+
 		d := &nalogDevice.Device{
-			ClientSecret: "", //TODO: generate random(or not) secret
+			ClientSecret: *secret,
 			SessionId:    "",
 			RefreshToken: "",
 			Update:       nil,
@@ -115,6 +124,16 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 	err = p.nalogClient.AuthByPhone(d)
 
 	return &api.UserRegistrationResponse{UserId: userId}, nil
+}
+
+func generateRandomSecret() (*string, error) {
+	buf := make([]byte, 20)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	encoded := base64.StdEncoding.EncodeToString(buf)
+	return &encoded, nil
 }
 
 func (p Processor) addNewUser(ctx context.Context, telegramId int) (*User, error) {
