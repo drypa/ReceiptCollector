@@ -90,22 +90,27 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 		}
 	}
 	userId := user.Id.Hex()
-
-	d := &nalogDevice.Device{
-		ClientSecret: "", //TODO: generate random(or not) secret
-		SessionId:    "",
-		RefreshToken: "",
-		Update:       nil,
-		UserId:       userId,
-		Phone:        in.PhoneNumber,
-	}
-	d.Update = func(sessionId string, refreshToken string) error {
-		return p.d.Update(ctx, d, sessionId, refreshToken)
-	}
-
-	err = p.d.Add(ctx, d)
+	d, err := p.d.GetByUserId(ctx, userId)
 	if err != nil {
 		return nil, err
+	}
+	if d == nil {
+		d := &nalogDevice.Device{
+			ClientSecret: "", //TODO: generate random(or not) secret
+			SessionId:    "",
+			RefreshToken: "",
+			Update:       nil,
+			UserId:       userId,
+			Phone:        in.PhoneNumber,
+		}
+		d.Update = func(sessionId string, refreshToken string) error {
+			return p.d.Update(ctx, d, sessionId, refreshToken)
+		}
+
+		err = p.d.Add(ctx, d)
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = p.nalogClient.AuthByPhone(d)
 
