@@ -36,6 +36,7 @@ var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
 var openUrl = os.Getenv("OPEN_URL")
 var templatePath = os.Getenv("TEMPLATES_PATH")
+var clientSecret = os.Getenv("CLIENT_SECRET")
 
 func main() {
 	log.SetOutput(os.Stdout)
@@ -82,7 +83,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator, nalogruClient, deviceService)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator, nalogruClient, deviceService, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)

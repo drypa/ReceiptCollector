@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
-	"log"
 	"receipt_collector/device"
 	"receipt_collector/nalogru"
 	nalogDevice "receipt_collector/nalogru/device"
@@ -17,13 +16,19 @@ import (
 type Processor struct {
 	repository    *Repository
 	linkGenerator LinkGenerator
-	d             *device.Service
+	deviceService *device.Service
 	nalogClient   *nalogru.Client
+	clientSecret  string
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *Repository, linkGenerator LinkGenerator, nalogClient *nalogru.Client, d *device.Service) *Processor {
-	return &Processor{repository: repository, linkGenerator: linkGenerator, nalogClient: nalogClient, d: d}
+func NewProcessor(repository *Repository, linkGenerator LinkGenerator, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
+	return &Processor{
+		repository:    repository,
+		linkGenerator: linkGenerator,
+		nalogClient:   nalogClient,
+		deviceService: d,
+		clientSecret:  secret}
 }
 
 // GetLoginLink returns login link for user in request.
@@ -93,19 +98,13 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 		}
 	}
 	userId := user.Id.Hex()
-	d, err := p.d.GetByUserId(ctx, userId)
+	d, err := p.deviceService.GetByUserId(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 	if d == nil {
-		secret, err := generateRandomSecret()
-		if err != nil {
-			log.Printf("error while generating random string: %v", err)
-			return nil, err
-		}
-
 		d := &nalogDevice.Device{
-			ClientSecret: *secret,
+			ClientSecret: p.clientSecret,
 			SessionId:    "",
 			RefreshToken: "",
 			Update:       nil,
@@ -113,10 +112,10 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 			Phone:        in.PhoneNumber,
 		}
 		d.Update = func(sessionId string, refreshToken string) error {
-			return p.d.Update(ctx, d, sessionId, refreshToken)
+			return p.deviceService.Update(ctx, d, sessionId, refreshToken)
 		}
 
-		err = p.d.Add(ctx, d)
+		err = p.deviceService.Add(ctx, d)
 		if err != nil {
 			return nil, err
 		}
