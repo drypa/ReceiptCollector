@@ -31,7 +31,7 @@ func (c ConfirmationCodeCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (c ConfirmationCodeCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+func (c ConfirmationCodeCommand) Execute(update tgbotapi.Update, _ *tgbotapi.BotAPI) error {
 	userId, err := c.provider.GetUserId(update.Message.From.ID)
 	if err != nil {
 		return err
