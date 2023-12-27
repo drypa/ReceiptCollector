@@ -26,6 +26,7 @@ func (r RegisterCommand) Accepted(message string) bool {
 	return r.regexp.MatchString(message)
 }
 
+// Execute command
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
 	phone := r.getPhoneFromRequest(update.Message.Text)
 	err := r.register(update.Message.From.ID, phone)

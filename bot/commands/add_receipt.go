@@ -25,6 +25,7 @@ func (a AddReceiptCommand) Accepted(message string) bool {
 		strings.Contains(message, "n=")
 }
 
+// Execute command
 func (a AddReceiptCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
 	id, err := a.provider.GetUserId(update.Message.From.ID)
 	if err != nil {

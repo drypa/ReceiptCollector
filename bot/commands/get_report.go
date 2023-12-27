@@ -19,6 +19,7 @@ func (g GetReceiptReportCommand) Accepted(message string) bool {
 	return message == "/get"
 }
 
+// Execute command
 func (g GetReceiptReportCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
 	id, err := g.provider.GetUserId(update.Message.From.ID)
 	if err != nil {

@@ -9,6 +9,7 @@ func (e EmptyCommand) Accepted(message string) bool {
 	return message == ""
 }
 
+// Execute command
 func (e EmptyCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
 	_, err := sendTextMessage(update.Message.Chat.ID, bot, "Please enter a command.")
 	return err
