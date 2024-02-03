@@ -40,7 +40,6 @@ func (r *Render) Receipt(receipt *nalogru.Receipt) ([]byte, error) {
 		log.Printf("failed to render receipt %v\n", err)
 		return nil, err
 	}
-	log.Println(tpl.String())
 	return tpl.Bytes(), nil
 }
 
