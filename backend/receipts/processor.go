@@ -63,6 +63,10 @@ func (p *Processor) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptRepo
 		log.Printf("receipt with QR '%s' is not loaded from nalog.ru API\n", qr)
 		return nil, errors.New("raw receipt not found")
 	}
+	if r == nil || r.Ticket == nil || r.Ticket.Document == nil || r.Ticket.Document.Receipt == nil {
+		log.Printf("receipt document  '%s' absent\n", qr)
+		return nil, errors.New("receipt document absent")
+	}
 
 	bytes, err := p.render.Receipt(r.Ticket.Document.Receipt)
 	return &api.RawReceiptReport{

@@ -30,8 +30,15 @@ message GetUsersResponse {
 
 message UserRegistrationRequest {
     int32 telegramId = 1;
+    string phoneNumber = 2;
 }
 
 message UserRegistrationResponse {
     string userId = 1;
 }
+
+message PhoneVerificationRequest {
+    int32 telegramId = 1;
+    string code = 2;
+}
+
