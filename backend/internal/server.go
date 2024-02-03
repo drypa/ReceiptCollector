@@ -51,7 +51,14 @@ func (s *server) GetRawReceipt(ctx context.Context, in *api.GetRawReceiptReportR
 	return processor.GetRawReceipt(ctx, in)
 }
 
+// RegisterUser add new user and send registration by phone request to nalog api.
 func (s *server) RegisterUser(ctx context.Context, req *api.UserRegistrationRequest) (*api.UserRegistrationResponse, error) {
 	processor := *(s.accountProcessor)
 	return processor.RegisterUser(ctx, req)
+}
+
+// VerifyPhone validate phone number through SMS.
+func (s *server) VerifyPhone(ctx context.Context, req *api.PhoneVerificationRequest) (*api.ErrorResponse, error) {
+	processor := *(s.accountProcessor)
+	return processor.VerifyPhone(ctx, req)
 }

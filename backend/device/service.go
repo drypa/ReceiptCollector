@@ -39,6 +39,8 @@ func (s *Service) Add(ctx context.Context, d *device.Device) error {
 			return errors.New("that device already added")
 		}
 	}
+	d.Update = s.updateDeviceFunc(ctx, *d)
+
 	forRent := ForRent{
 		Device: *d,
 		IsRent: false,
@@ -62,7 +64,7 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	}
 	for _, v := range s.devices {
 		if v.IsRent == false {
-			s.rent(ctx, &v)
+			s.rent(&v)
 			return &v.Device, nil
 		}
 	}
@@ -79,18 +81,15 @@ func (s *Service) RentDevice(ctx context.Context, d *device.Device) error {
 			if v.IsRent {
 				return errors.New("device is already used")
 			} else {
-				s.rent(ctx, &v)
+				s.rent(&v)
 			}
 		}
 	}
 	return errors.New("device not found")
 }
 
-func (s *Service) rent(ctx context.Context, v *ForRent) {
+func (s *Service) rent(v *ForRent) {
 	v.IsRent = true
-	v.Update = func(sessionId string, refreshToken string) error {
-		return s.Update(ctx, &v.Device, sessionId, refreshToken)
-	}
 }
 
 func (s *Service) Update(ctx context.Context, device *device.Device, sessionId string, refreshToken string) error {
@@ -100,7 +99,7 @@ func (s *Service) Update(ctx context.Context, device *device.Device, sessionId s
 }
 
 // Free release the rented device
-func (s *Service) Free(ctx context.Context, device *device.Device) error {
+func (s *Service) Free(_ context.Context, device *device.Device) error {
 	for _, v := range s.devices {
 		if device.Id == v.Id {
 			v.IsRent = false
@@ -111,7 +110,7 @@ func (s *Service) Free(ctx context.Context, device *device.Device) error {
 }
 
 // All return all registered devices
-func (s *Service) All(ctx context.Context) []*device.Device {
+func (s *Service) All(_ context.Context) []*device.Device {
 	res := make([]*device.Device, len(s.devices))
 	for i, d := range s.devices {
 		res[i] = &d.Device
@@ -126,8 +125,15 @@ func (s *Service) GetByUserId(ctx context.Context, userId string) (*device.Devic
 	}
 	for _, d := range devices {
 		if d.UserId == userId {
+			d.Update = s.updateDeviceFunc(ctx, d)
 			return &d, nil
 		}
 	}
 	return nil, nil
+}
+
+func (s *Service) updateDeviceFunc(ctx context.Context, d device.Device) func(sessionId string, refreshToken string) error {
+	return func(sessionId string, refreshToken string) error {
+		return s.Update(ctx, &d, sessionId, refreshToken)
+	}
 }

@@ -2,8 +2,6 @@ package users
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/device"
@@ -51,7 +49,7 @@ func (p Processor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest
 }
 
 // GetUsers returns all registered users.
-func (p Processor) GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUsersResponse, error) {
+func (p Processor) GetUsers(ctx context.Context, _ *api.NoParams) (*api.GetUsersResponse, error) {
 	all, err := p.repository.GetAll(ctx)
 	if err != nil {
 		return nil, err
@@ -72,7 +70,7 @@ func (p Processor) GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUse
 }
 
 // GetUser get user by telegramId.
-func (p Processor) GetUser(ctx context.Context, in *api.GetUserRequest, opts ...grpc.CallOption) (*api.GetUserResponse, error) {
+func (p Processor) GetUser(ctx context.Context, in *api.GetUserRequest, _ ...grpc.CallOption) (*api.GetUserResponse, error) {
 	user, err := p.repository.GetByTelegramId(ctx, int(in.TelegramId))
 	if err != nil {
 		return nil, err
@@ -86,7 +84,7 @@ func (p Processor) GetUser(ctx context.Context, in *api.GetUserRequest, opts ...
 	return &response, err
 }
 
-func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationRequest, opts ...grpc.CallOption) (*api.UserRegistrationResponse, error) {
+func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationRequest, _ ...grpc.CallOption) (*api.UserRegistrationResponse, error) {
 	user, err := p.repository.GetByTelegramId(ctx, int(in.TelegramId))
 	if err != nil {
 		return nil, err
@@ -103,19 +101,7 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 		return nil, err
 	}
 	if d == nil {
-		d := &nalogDevice.Device{
-			ClientSecret: p.clientSecret,
-			SessionId:    "",
-			RefreshToken: "",
-			Update:       nil,
-			UserId:       userId,
-			Phone:        in.PhoneNumber,
-		}
-		d.Update = func(sessionId string, refreshToken string) error {
-			return p.deviceService.Update(ctx, d, sessionId, refreshToken)
-		}
-
-		err = p.deviceService.Add(ctx, d)
+		err := p.addNewDevice(ctx, in.PhoneNumber, userId)
 		if err != nil {
 			return nil, err
 		}
@@ -125,14 +111,45 @@ func (p Processor) RegisterUser(ctx context.Context, in *api.UserRegistrationReq
 	return &api.UserRegistrationResponse{UserId: userId}, nil
 }
 
-func generateRandomSecret() (*string, error) {
-	buf := make([]byte, 20)
-	_, err := rand.Read(buf)
+func (p Processor) addNewDevice(ctx context.Context, phoneNumber string, userId string) error {
+	d := &nalogDevice.Device{
+		ClientSecret: p.clientSecret,
+		SessionId:    "",
+		RefreshToken: "",
+		Update:       nil,
+		UserId:       userId,
+		Phone:        phoneNumber,
+	}
+	err := p.deviceService.Add(ctx, d)
+	return err
+}
+
+// VerifyPhone validate phone number through SMS.
+func (p Processor) VerifyPhone(ctx context.Context, req *api.PhoneVerificationRequest) (*api.ErrorResponse, error) {
+	user, err := p.repository.GetByTelegramId(ctx, int(req.TelegramId))
 	if err != nil {
 		return nil, err
 	}
-	encoded := base64.StdEncoding.EncodeToString(buf)
-	return &encoded, nil
+	if user == nil {
+		response := api.ErrorResponse{
+			Error: "User not found",
+		}
+		return &response, nil
+	}
+	userId := user.Id.Hex()
+	d, err := p.deviceService.GetByUserId(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	if d == nil {
+		response := api.ErrorResponse{
+			Error: "Registration process not started",
+		}
+		return &response, nil
+	}
+
+	err = p.nalogClient.VerifyPhone(d, req.Code)
+	return &api.ErrorResponse{Error: "TODO"}, err
 }
 
 func (p Processor) addNewUser(ctx context.Context, telegramId int) (*User, error) {

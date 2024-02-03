@@ -295,6 +295,19 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type PhoneVerificationRequest struct {
+	ClientSecret string `json:"client_secret"`
+	Code         string `json:"code"`
+	Phone        string `json:"phone"`
+}
+type PhoneVerificationResponse struct {
+	SessionId    string `json:"sessionId"`
+	RefreshToken string `json:"refresh_token"`
+	Phone        string `json:"phone"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+}
+
 // RefreshSession used to refresh session by RefreshToken.
 func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	client := createHttpClient()
@@ -337,6 +350,48 @@ func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	return device.Update(response.SessionId, response.RefreshToken)
 }
 
+func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) error {
+	client := createHttpClient()
+
+	payload := PhoneVerificationRequest{
+		ClientSecret: device.ClientSecret,
+		Code:         code,
+		Phone:        device.Phone,
+	}
+
+	resp, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(resp)
+
+	url := nalogruClient.BaseAddress + "/v2/auth/phone/verify"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, device.Id.Hex())
+	res, err := sendRequest(request, client)
+
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return err
+	}
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
+
+	if res.StatusCode != http.StatusOK {
+		log.Printf("Phone verification error: %d\n", res.StatusCode)
+		return errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))
+	}
+
+	response := &PhoneVerificationResponse{}
+	err = json.NewDecoder(res.Body).Decode(response)
+	if err != nil {
+		log.Println("Can't decode response body")
+		return err
+	}
+	log.Printf("%+v\n", response)
+	err = device.Update(response.SessionId, response.RefreshToken)
+	return err
+}
+
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
 	return client.Do(request)
 }
@@ -346,11 +401,11 @@ func addAuth(request *http.Request, sessionId string) {
 }
 
 func addHeaders(request *http.Request, deviceId string) {
-	request.Header.Add("ClientVersion", "2.13.0")
+	request.Header.Add("ClientVersion", "2.24.1")
 	request.Header.Add("Device-Id", deviceId)
 	request.Header.Add("Device-OS", "Android")
 	request.Header.Add("Connection", "Keep-Alive")
 	request.Header.Add("Accept-Encoding", "gzip")
-	request.Header.Add("User-Agent", "okhttp/4.9.0")
+	request.Header.Add("User-Agent", "okhttp/5.0.0-alpha.2")
 	request.Header.Add("Content-Type", "application/json; charset=utf-8")
 }
