@@ -44,6 +44,9 @@ func createCommandsRegistrar(grpcClient *backend.GrpcClient, users *user.Provide
 	register := commands.NewRegisterCommand(users, grpcClient)
 	registrar.Register(register)
 
+	code := commands.NewConfirmationCodeCommand(users, grpcClient)
+	registrar.Register(code)
+
 	getReceiptReport := commands.NewGetReceiptReportCommand(users, grpcClient)
 	registrar.Register(getReceiptReport)
 
