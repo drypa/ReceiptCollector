@@ -401,11 +401,11 @@ func addAuth(request *http.Request, sessionId string) {
 }
 
 func addHeaders(request *http.Request, deviceId string) {
-	request.Header.Add("ClientVersion", "2.24.1")
+	request.Header.Add("ClientVersion", "2.13.0")
 	request.Header.Add("Device-Id", deviceId)
 	request.Header.Add("Device-OS", "Android")
 	request.Header.Add("Connection", "Keep-Alive")
 	request.Header.Add("Accept-Encoding", "gzip")
-	request.Header.Add("User-Agent", "okhttp/5.0.0-alpha.2")
+	request.Header.Add("User-Agent", "okhttp/4.9.0")
 	request.Header.Add("Content-Type", "application/json; charset=utf-8")
 }
