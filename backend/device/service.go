@@ -34,11 +34,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 
 // Add adds new device.
 func (s *Service) Add(ctx context.Context, d *device.Device) error {
-	for _, v := range s.devices {
-		if v.ClientSecret == d.ClientSecret {
-			return errors.New("that device already added")
-		}
-	}
+	//TODO: may be add some checks
 	d.Update = s.updateDeviceFunc(ctx, *d)
 
 	forRent := ForRent{
