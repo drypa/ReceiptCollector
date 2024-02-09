@@ -3,7 +3,8 @@ module receipt_collector
 go 1.20
 
 require (
-	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230405091352-65e1efb55137
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230819122429-dfb6fd2c5a01
+	github.com/go-co-op/gocron v1.28.2
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
@@ -24,6 +25,7 @@ require (
 	github.com/xdg-go/scram v1.1.1 // indirect
 	github.com/xdg-go/stringprep v1.0.3 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.6.0 // indirect

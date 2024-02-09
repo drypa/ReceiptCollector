@@ -17,17 +17,14 @@ import (
 
 type Client struct {
 	BaseAddress string
-	device      *device.Device
 }
 
-var AuthError = errors.New("auth failed")
 var InternalError = errors.New("internal failed")
 
 // NewClient - creates instance of Client.
-func NewClient(baseAddress string, device *device.Device) *Client {
+func NewClient(baseAddress string) *Client {
 	return &Client{
 		BaseAddress: baseAddress,
-		device:      device,
 	}
 }
 
@@ -36,7 +33,7 @@ const (
 )
 
 // CheckReceiptExist send request to check receipt exist in Nalog.ru api.
-func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) {
+func (nalogruClient *Client) CheckReceiptExist(queryString string, device *device.Device) (bool, error) {
 	client := createHttpClient()
 	url, err := buildCheckReceiptUrl(nalogruClient.BaseAddress, queryString)
 	if err != nil {
@@ -50,14 +47,14 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 		log.Printf("Could't not create request for %s", url)
 		return false, err
 	}
-	addHeaders(request, nalogruClient.device.Id.Hex())
+	addHeaders(request, device.Id.Hex())
 	resp, err := client.Do(request)
 
 	if err != nil {
 		log.Printf("Could't check receipt %s", url)
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer dispose.Dispose(resp.Body.Close, "Can't close HTTP response body")
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
 		log.Println("Check passed")
 		return true, nil
@@ -67,7 +64,7 @@ func (nalogruClient Client) CheckReceiptExist(queryString string) (bool, error) 
 }
 
 func createHttpClient() *http.Client {
-	return &http.Client{Timeout: time.Second * 10}
+	return &http.Client{Timeout: time.Minute}
 }
 
 // TicketIdRequest is request object to get Ticket id.
@@ -83,9 +80,14 @@ type TicketIdResponse struct {
 	Status int    `json:"status"`
 }
 
+type PhoneAuthRequest struct {
+	ClientSecret string `json:"client_secret"`
+	Os           string `json:"os"`
+	Phone        string `json:"phone"`
+}
+
 // GetTicketId - send ticket id request to nalog.ru API.
-func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
-	client := createHttpClient()
+func (nalogruClient *Client) GetTicketId(queryString string, device *device.Device) (string, error) {
 	payload := TicketIdRequest{Qr: queryString}
 
 	req, err := json.Marshal(payload)
@@ -95,15 +97,13 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 	reader := bytes.NewReader(req)
 	url := nalogruClient.BaseAddress + "/v2/ticket"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
-	res, err := sendRequest(request, client)
+	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
 
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	body, err := readBody(res)
 	if err != nil {
@@ -129,11 +129,7 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 			return "", err
 		}
 
-		if res.StatusCode == http.StatusUnauthorized {
-			err = AuthError
-		} else {
-			err = InternalError
-		}
+		err = InternalError
 
 		return "", err
 	}
@@ -145,15 +141,6 @@ func (nalogruClient *Client) GetTicketId(queryString string) (string, error) {
 		return "", err
 	}
 	return ticketIdResp.Id, nil
-}
-
-func (nalogruClient *Client) GetDevice() device.Device {
-	return device.Device{
-		ClientSecret: nalogruClient.device.ClientSecret,
-		SessionId:    nalogruClient.device.SessionId,
-		RefreshToken: nalogruClient.device.RefreshToken,
-		Id:           nalogruClient.device.Id,
-	}
 }
 
 func readBody(res *http.Response) ([]byte, error) {
@@ -176,29 +163,22 @@ func readBody(res *http.Response) ([]byte, error) {
 }
 
 // GetTicketById get ticket by id from nalog.ru api.
-func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
-	client := createHttpClient()
+func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*TicketDetails, error) {
 
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
-	addHeaders(request, nalogruClient.device.Id.Hex())
-	addAuth(request, nalogruClient.device.SessionId)
-	res, err := sendRequest(request, client)
+	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
 
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	all, err := readBody(res)
 	if err != nil {
 		log.Printf("failed to read response body. status code %d\n", res.StatusCode)
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusUnauthorized {
-		return nil, AuthError
 	}
 
 	if res.StatusCode != http.StatusOK {
@@ -221,6 +201,90 @@ func (nalogruClient *Client) GetTicketById(id string) (*TicketDetails, error) {
 	return details, nil
 }
 
+// GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
+func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*TicketDetails, error) {
+
+	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+
+	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
+
+	if err != nil {
+		log.Printf("Can't GET %s\n", url)
+		return nil, err
+	}
+	defer dispose.Dispose(res.Body.Close, "Can't close response body")
+
+	if res.StatusCode != http.StatusOK {
+		log.Printf("GET electronic receipts error: %d\n", res.StatusCode)
+		return nil, err
+	}
+	all, err := readBody(res)
+	if err != nil {
+		log.Printf("failed to read response body. status code %d error: %v\n", res.StatusCode, err)
+		return nil, err
+	}
+	err = os.WriteFile("/var/lib/receipts/electro/1.json", all, 0644)
+	var tickets []*TicketDetails
+
+	err = json.Unmarshal(all, &tickets)
+	if err != nil {
+		log.Println("Can't decode response body")
+
+		return nil, err
+	}
+
+	return tickets, nil
+}
+
+func (nalogruClient *Client) AuthByPhone(device *device.Device) error {
+	payload := PhoneAuthRequest{
+		ClientSecret: device.ClientSecret,
+		Os:           "android",
+		Phone:        device.Phone,
+	}
+
+	req, err := json.Marshal(payload)
+	if err != nil {
+		log.Println("Unable to serialize request")
+		return err
+	}
+	reader := bytes.NewReader(req)
+	url := nalogruClient.BaseAddress + "/v2/auth/phone/request"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, device.Id.Hex())
+	client := createHttpClient()
+	_, err = sendRequest(request, client)
+
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return err
+	}
+
+	return nil
+}
+
+func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *device.Device) (*http.Response, error) {
+	addHeaders(r, device.Id.Hex())
+	addAuth(r, device.SessionId)
+	client := createHttpClient()
+	res, err := sendRequest(r, client)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusUnauthorized {
+		err = nalogruClient.RefreshSession(device)
+		if err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return nil, err
+		}
+		res, err = sendRequest(r, client)
+	}
+	return res, err
+}
+
 type RefreshRequest struct {
 	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`
@@ -231,12 +295,26 @@ type RefreshResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (nalogruClient *Client) RefreshSession() error {
+type PhoneVerificationRequest struct {
+	ClientSecret string `json:"client_secret"`
+	Code         string `json:"code"`
+	Phone        string `json:"phone"`
+}
+type PhoneVerificationResponse struct {
+	SessionId    string `json:"sessionId"`
+	RefreshToken string `json:"refresh_token"`
+	Phone        string `json:"phone"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+}
+
+// RefreshSession used to refresh session by RefreshToken.
+func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	client := createHttpClient()
 
 	payload := RefreshRequest{
-		ClientSecret: nalogruClient.device.ClientSecret,
-		RefreshToken: nalogruClient.device.RefreshToken,
+		ClientSecret: device.ClientSecret,
+		RefreshToken: device.RefreshToken,
 	}
 
 	resp, err := json.Marshal(payload)
@@ -247,14 +325,14 @@ func (nalogruClient *Client) RefreshSession() error {
 
 	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
-	addHeaders(request, nalogruClient.device.Id.Hex())
+	addHeaders(request, device.Id.Hex())
 	res, err := sendRequest(request, client)
 
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return err
 	}
-	defer res.Body.Close()
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
 
 	if res.StatusCode != http.StatusOK {
 		log.Printf("Refresh session error: %d\n", res.StatusCode)
@@ -268,9 +346,50 @@ func (nalogruClient *Client) RefreshSession() error {
 		return err
 	}
 	log.Printf("%+v\n", response)
-	nalogruClient.device.RefreshToken = response.RefreshToken
-	nalogruClient.device.SessionId = response.SessionId
-	return nil
+
+	return device.Update(response.SessionId, response.RefreshToken)
+}
+
+func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) error {
+	client := createHttpClient()
+
+	payload := PhoneVerificationRequest{
+		ClientSecret: device.ClientSecret,
+		Code:         code,
+		Phone:        device.Phone,
+	}
+
+	resp, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(resp)
+
+	url := nalogruClient.BaseAddress + "/v2/auth/phone/verify"
+	request, err := http.NewRequest(http.MethodPost, url, reader)
+	addHeaders(request, device.Id.Hex())
+	res, err := sendRequest(request, client)
+
+	if err != nil {
+		log.Printf("Can't POST %s\n", url)
+		return err
+	}
+	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
+
+	if res.StatusCode != http.StatusOK {
+		log.Printf("Phone verification error: %d\n", res.StatusCode)
+		return errors.New(fmt.Sprintf("HTTP error: %d", res.StatusCode))
+	}
+
+	response := &PhoneVerificationResponse{}
+	err = json.NewDecoder(res.Body).Decode(response)
+	if err != nil {
+		log.Println("Can't decode response body")
+		return err
+	}
+	log.Printf("%+v\n", response)
+	err = device.Update(response.SessionId, response.RefreshToken)
+	return err
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {

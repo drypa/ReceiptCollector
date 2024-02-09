@@ -6,7 +6,7 @@ import (
 	"receipt_collector/waste"
 )
 
-//Worker for any background job.
+// Worker for any background job.
 type Worker struct {
 	nalogruClient   *nalogru.Client
 	repository      receipts.Repository
@@ -14,10 +14,9 @@ type Worker struct {
 	devices         nalogru.Devices
 }
 
-//New constructs Worker.
+// New constructs Worker.
 func New(nalogruClient *nalogru.Client, repository receipts.Repository, wasteRepository *waste.Repository, devices nalogru.Devices) Worker {
 	return Worker{
-		//TODO: nalogruClient is not required here
 		nalogruClient:   nalogruClient,
 		repository:      repository,
 		wasteRepository: wasteRepository,

@@ -10,21 +10,18 @@ import (
 	"net/http"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
-	"receipt_collector/nalogru"
 	"receipt_collector/nalogru/qr"
 	"strings"
 )
 
 type Controller struct {
-	repository    Repository
-	nalogruClient *nalogru.Client
+	repository Repository
 }
 
 // New creates controller.
-func New(repository Repository, nalogruClient *nalogru.Client) Controller {
+func New(repository Repository) Controller {
 	return Controller{
-		repository:    repository,
-		nalogruClient: nalogruClient,
+		repository: repository,
 	}
 }
 func onError(writer http.ResponseWriter, err error) {

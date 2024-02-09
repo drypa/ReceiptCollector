@@ -4,12 +4,13 @@ import (
 	"context"
 	"log"
 	"receipt_collector/nalogru"
+	"receipt_collector/nalogru/device"
 	"receipt_collector/nalogru/qr"
 	"receipt_collector/receipts"
 	"time"
 )
 
-//GetReceiptStart starts get receipt worker.
+// GetReceiptStart starts get receipt worker.
 func (worker *Worker) GetReceiptStart(ctx context.Context, settings Settings) {
 	ticker := time.NewTicker(settings.Interval)
 
@@ -67,19 +68,12 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 		return err
 	}
 	normalizedQr := query.ToString()
-	id, err := worker.nalogruClient.GetTicketId(normalizedQr)
+	device, err := worker.devices.Rent(ctx)
+	defer worker.devices.Free(ctx, device)
+	id, err := worker.nalogruClient.GetTicketId(normalizedQr, device)
 
 	if err != nil && err.Error() == nalogru.DailyLimitReached {
 		return err
-	}
-
-	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx)
-		if err != nil {
-			log.Printf("failed to refresh session. %v\n", err)
-			return err
-		}
-		id, err = worker.nalogruClient.GetTicketId(normalizedQr)
 	}
 
 	if err != nil {
@@ -94,20 +88,11 @@ func (worker *Worker) getReceipt(ctx context.Context) error {
 		return err
 	}
 
-	return worker.loadRawReceipt(ctx, id)
+	return worker.loadRawReceipt(ctx, id, device)
 }
 
-func (worker *Worker) loadRawReceipt(ctx context.Context, id string) error {
-	details, err := worker.nalogruClient.GetTicketById(id)
-
-	if err == nalogru.AuthError {
-		err = worker.refreshSession(ctx)
-		if err != nil {
-			log.Printf("failed to refresh session. %v\n", err)
-			return err
-		}
-		details, err = worker.nalogruClient.GetTicketById(id)
-	}
+func (worker *Worker) loadRawReceipt(ctx context.Context, id string, device *device.Device) error {
+	details, err := worker.nalogruClient.GetTicketById(id, device)
 
 	if err != nil {
 		log.Printf("get ticket by id %s failed: %v", id, err)
@@ -128,18 +113,18 @@ func getTicketExistence(details *nalogru.TicketDetails) string {
 	return ticket
 }
 
-func (worker *Worker) refreshSession(ctx context.Context) error {
-	err := worker.nalogruClient.RefreshSession()
-	if err != nil {
-		log.Printf("failed to refresh session: %v", err)
-		return err
-	}
-	device := worker.nalogruClient.GetDevice()
-	err = worker.devices.Update(ctx, &device)
-	if err != nil {
-		log.Printf("failed to update device: %v", err)
-		return err
-	}
-	log.Printf("device %s updated\n", device.Id.Hex())
-	return nil
-}
+//func (worker *Worker) refreshSession(ctx context.Context) error {
+//	err := worker.nalogruClient.RefreshSession()
+//	if err != nil {
+//		log.Printf("failed to refresh session: %v", err)
+//		return err
+//	}
+//	device := worker.nalogruClient.GetDevice()
+//	err = worker.devices.Update(ctx, &device)
+//	if err != nil {
+//		log.Printf("failed to update device: %v", err)
+//		return err
+//	}
+//	log.Printf("device %s updated\n", device.Id.Hex())
+//	return nil
+//}

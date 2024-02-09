@@ -4,15 +4,14 @@ import (
 	"errors"
 	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
-	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
-	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	"github.com/drypa/ReceiptCollector/bot/commands"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 func validateEmpty(value string, emptyErrorMessage string) error {
@@ -31,11 +30,7 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, grpcClient *backend.GrpcClient, reportsClient *report.Client) error {
-	provider, err := user.New(grpcClient)
-	if err != nil {
-		return err
-	}
+func start(options Options, reportsClient *report.Client, registrar *commands.Registrar) error {
 	bot, err := create(options)
 	if err != nil {
 		log.Printf("Bot create error: %v\n", err)
@@ -51,7 +46,7 @@ func start(options Options, grpcClient *backend.GrpcClient, reportsClient *repor
 		return err
 	}
 	go processNotifications(bot, reportsClient.Notifications)
-	processUpdates(updatesChan, bot, grpcClient, provider)
+	processUpdates(updatesChan, bot, registrar)
 
 	return nil
 }
@@ -92,34 +87,25 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 
 func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	bot *tgbotapi.BotAPI,
-	grpcClient *backend.GrpcClient,
-	provider user.Provider) {
+	registrar *commands.Registrar) {
 	for update := range updatesChan {
-		log.Printf("%v\n", update)
 		if update.Message == nil {
 			continue
 		}
-		processMessage(update, bot, provider, grpcClient)
+
+		processMessage(update, bot, registrar)
 	}
 }
 
-func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, provider user.Provider, grpcClient *backend.GrpcClient) {
-	var err error
-	switch update.Message.Text {
-	case "":
-		err = commands.Empty(update, bot, err)
-	case "/start":
-		err = commands.Start(update, bot, err)
-	case "/register":
-		err = commands.Register(update, bot, provider)
-	case "/login":
-		err = commands.Login(update, bot, grpcClient)
-	case "/get":
-		err = commands.GetReceiptReport(update, bot, provider, grpcClient)
-	default:
-		err = commands.AddReceipt(update, bot, provider, grpcClient)
+func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, registrar *commands.Registrar) {
+	text := strings.TrimSpace(update.Message.Text)
+	c := registrar.Get(text)
+	if c != nil {
+		err := (*c).Execute(update, bot)
+		if err != nil {
+			log.Printf("Error while process request '%s' from %d. %v", text, update.Message.From.ID, err)
+		}
+
 	}
-	if err != nil {
-		log.Printf("Error while sending response to user %d", update.Message.From.ID)
-	}
+
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
 	"testing"
 )
@@ -12,18 +13,21 @@ import (
 var baseAddress = "https://irkkt-mobile.nalog.ru:8888"
 var sessionId = "INSERT SESSION ID HERE"
 var deviceId = primitive.NewObjectID().Hex()
+var secret = "INSERT SECRET HERE"
+var refreshToken = "INSERT REFRESH TOKEN HERE"
+var phone = "INSERT PHONE HERE"
 
 func IgnoreTestClient_GetTicketId(t *testing.T) {
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 	queryString := "INSERT BARCODE TEST HERE"
 
-	id, err := client.GetTicketId(queryString)
+	id, err := client.GetTicketId(queryString, d)
 
 	if err != nil {
 		log.Println(err)
@@ -39,7 +43,36 @@ func IgnoreTestClient_GetTicketId(t *testing.T) {
 
 }
 
-func createDevice(secret string, token string) (*device.Device, error) {
+func IgnoreTestClient_GetElectronicTickets(t *testing.T) {
+	d, err := createDevice()
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress)
+
+	tickets, err := client.GetElectronicTickets(d)
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+
+	if tickets == nil {
+		log.Println("Tickets not found")
+		t.Fail()
+		return
+	}
+	if len(tickets) == 0 {
+		log.Println("Tickets empty")
+		t.Fail()
+		return
+	}
+
+}
+
+func createDevice() (*device.Device, error) {
 	id, err := primitive.ObjectIDFromHex(deviceId)
 	if err != nil {
 		return nil, err
@@ -48,22 +81,26 @@ func createDevice(secret string, token string) (*device.Device, error) {
 		SessionId:    sessionId,
 		Id:           id,
 		ClientSecret: secret,
-		RefreshToken: token,
+		RefreshToken: refreshToken,
+		Update: func(string, string) error {
+			return nil
+		},
+		Phone: phone,
 	}
 	return d, err
 }
 
 func IgnoreTestClient_GetTicketById(t *testing.T) {
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 
 	ticketId := "INSERT TICKET ID HERE"
-	details, err := client.GetTicketById(ticketId)
+	details, err := client.GetTicketById(ticketId, d)
 
 	if err != nil {
 		log.Println(err)
@@ -77,17 +114,15 @@ func IgnoreTestClient_GetTicketById(t *testing.T) {
 }
 
 func IgnoreTestClient_RefreshSession(t *testing.T) {
-	secret := "PASS CLIENT SECRET HERE"
-	refreshToken := "PASS REFRESH TOKEN HERE"
-	d, err := createDevice(secret, refreshToken)
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
+	client := NewClient(baseAddress)
 
-	err = client.RefreshSession()
+	err = client.RefreshSession(d)
 
 	if err != nil {
 		log.Println(err)
@@ -109,14 +144,14 @@ func IgnoreTestClient_RefreshSession(t *testing.T) {
 
 func IgnoreTestClient_CheckReceiptExist(t *testing.T) {
 	queryString := "INSERT VALID QUERY STRING HERE"
-	d, err := createDevice("", "")
+	d, err := createDevice()
 	if err != nil {
 		log.Println(err)
 		t.Fail()
 		return
 	}
-	client := NewClient(baseAddress, d)
-	exist, err := client.CheckReceiptExist(queryString)
+	client := NewClient(baseAddress)
+	exist, err := client.CheckReceiptExist(queryString, d)
 
 	if err != nil {
 		log.Println(err)
@@ -161,6 +196,20 @@ func IgnoreTestHttpClient_Error(t *testing.T) {
 	}
 }
 
+func IgnoreTest_AuthByPhone(t *testing.T) {
+	d, err := createDevice()
+	if err != nil {
+		log.Println(err)
+		t.Fail()
+		return
+	}
+	client := NewClient(baseAddress)
+	err = client.AuthByPhone(d)
+	if err != nil {
+		t.Fatalf("Error auth by phone %v", err)
+	}
+}
+
 func createServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte("Hello"))
@@ -174,7 +223,7 @@ func createServer(t *testing.T) *httptest.Server {
 func callServerWithCloseBody(client http.Client, svr *httptest.Server) error {
 	m, err := client.Get(svr.URL)
 	if m != nil {
-		defer m.Body.Close()
+		defer dispose.Dispose(m.Body.Close, "Can't close HTTP response body")
 	}
 	return err
 

@@ -36,6 +36,7 @@ var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
 var openUrl = os.Getenv("OPEN_URL")
 var templatePath = os.Getenv("TEMPLATES_PATH")
+var clientSecret = os.Getenv("CLIENT_SECRET")
 
 func main() {
 	log.SetOutput(os.Stdout)
@@ -56,14 +57,7 @@ func main() {
 		log.Printf("Failed to create device service: %v\n", err)
 		return
 	}
-
-	d, err := deviceService.Rent(ctx)
-	if err != nil {
-		log.Println("Failed to rent device")
-		//return
-	}
-
-	nalogruClient := nalogru.NewClient(baseAddress, d)
+	nalogruClient := nalogru.NewClient(baseAddress)
 	receiptRepository := receipts.NewRepository(client)
 	userRepository := users.NewRepository(client)
 	marketRepository := markets.NewRepository(client)
@@ -80,15 +74,16 @@ func main() {
 	//	}
 	//}()
 
-	go worker.GetReceiptStart(ctx, settings)
+	//go worker.GetReceiptStart(ctx, settings)
 	//go worker.UpdateRawReceiptStart(ctx, settings)
+	worker.GetElectronicReceiptStart(ctx)
 	generator := login_url.New(openUrl)
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = login_url.NewProcessor(&userRepository, generator)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator, nalogruClient, deviceService, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
@@ -96,7 +91,7 @@ func main() {
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
 	go reports.Serve(":15001", creds, &userRepository, &receiptReportRepository)
 
-	server := startServer(nalogruClient, receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
+	server := startServer(receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Kill)
@@ -120,8 +115,7 @@ func getMongoClient() (*mongo.Client, error) {
 	return mongo_client.New(settings)
 }
 
-func startServer(nalogruClient *nalogru.Client,
-	receiptRepository receipts.Repository,
+func startServer(receiptRepository receipts.Repository,
 	userRepository users.Repository,
 	marketRepository markets.Repository,
 	wasteRepository waste.Repository,
@@ -129,7 +123,7 @@ func startServer(nalogruClient *nalogru.Client,
 	marketsController := markets.New(marketRepository)
 	deviceController := controller.NewController(devices)
 
-	receiptsController := receipts.New(receiptRepository, nalogruClient)
+	receiptsController := receipts.New(receiptRepository)
 	usersController := users.New(userRepository)
 	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)

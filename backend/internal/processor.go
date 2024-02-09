@@ -11,6 +11,8 @@ type AccountProcessor interface {
 	GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error)
 	GetUsers(ctx context.Context, req *api.NoParams) (*api.GetUsersResponse, error)
 	GetUser(ctx context.Context, in *api.GetUserRequest, opts ...grpc.CallOption) (*api.GetUserResponse, error)
+	RegisterUser(ctx context.Context, in *api.UserRegistrationRequest, opts ...grpc.CallOption) (*api.UserRegistrationResponse, error)
+	VerifyPhone(ctx context.Context, req *api.PhoneVerificationRequest) (*api.ErrorResponse, error)
 }
 
 // ReceiptProcessor is an interface for process receipt requests.

@@ -119,3 +119,25 @@ func (c *GrpcClient) GetReceiptReport(ctx context.Context, userId string, qr str
 
 	return resp.Report, resp.FileName, err
 }
+
+func (c *GrpcClient) RegisterUser(ctx context.Context, telegramId int, phone string) error {
+	client := c.internal
+	request := inside.UserRegistrationRequest{
+		TelegramId:  int32(telegramId),
+		PhoneNumber: phone,
+	}
+	_, err := (*client).RegisterUser(ctx, &request)
+
+	return err
+}
+
+func (c *GrpcClient) VerifyPhone(ctx context.Context, telegramId int, code string) error {
+	client := c.internal
+	request := inside.PhoneVerificationRequest{
+		TelegramId: int32(telegramId),
+		Code:       code,
+	}
+	_, err := (*client).VerifyPhone(ctx, &request)
+
+	return err
+}

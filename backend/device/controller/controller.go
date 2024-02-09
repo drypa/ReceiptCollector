@@ -32,7 +32,7 @@ func (c *Controller) AddDeviceHandler(writer http.ResponseWriter, request *http.
 			SessionId:    request.SessionId,
 			RefreshToken: request.RefreshToken,
 		}
-		err = c.service.Add(ctx, d)
+		err = c.service.Add(ctx, &d)
 		if err != nil {
 			onError(writer, err)
 			return
