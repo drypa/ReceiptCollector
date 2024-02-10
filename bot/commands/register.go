@@ -5,6 +5,7 @@ import (
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"log"
 	"regexp"
 )
 
@@ -28,6 +29,7 @@ func (r RegisterCommand) Accepted(message string) bool {
 
 // Execute command
 func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+	log.Printf("RegisterCommand: %s", update.Message.Text)
 	phone := r.getPhoneFromRequest(update.Message.Text)
 	err := r.register(update.Message.From.ID, phone)
 	responseText := "You are registered.\n Wait SMS from KKT.NALOG and please send the verification code from it as reply to current message"

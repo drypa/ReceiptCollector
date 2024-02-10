@@ -4,6 +4,7 @@ import (
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"log"
 	"strings"
 )
 
@@ -27,6 +28,7 @@ func (a AddReceiptCommand) Accepted(message string) bool {
 
 // Execute command
 func (a AddReceiptCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+	log.Printf("AddReceiptCommand: %s", update.Message.Text)
 	id, err := a.provider.GetUserId(update.Message.From.ID)
 	if err != nil {
 		return err
