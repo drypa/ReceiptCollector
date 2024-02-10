@@ -2,6 +2,7 @@ package receipts
 
 import (
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -111,6 +112,9 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 
 	result := collection.FindOne(ctx, query)
 	err = result.Err()
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
