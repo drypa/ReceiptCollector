@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru/device"
@@ -393,6 +394,13 @@ func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) err
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(request, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%q", dump)
+
 	return client.Do(request)
 }
 
