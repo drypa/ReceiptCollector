@@ -64,3 +64,11 @@ db.getCollection('devices').updateOne({"_id": ObjectId("000000000000000000000000
     }
 })
 ```
+
+```javascript
+//reset receipts error status
+db.receipt_requests.updateMany({
+    "query_string": /t=2024/,
+    "check_request_status": "error"
+}, {$set: {"check_request_status": null}}, {})
+```
