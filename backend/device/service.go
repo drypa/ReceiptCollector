@@ -23,6 +23,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 	s.devices = make([]ForRent, len(all))
 
 	for i, v := range all {
+		v.Update = s.updateDeviceFunc(ctx, v)
 		s.devices[i] = ForRent{
 			Device: v,
 			IsRent: false,
