@@ -23,7 +23,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 	s.devices = make([]ForRent, len(all))
 
 	for i, v := range all {
-		v.Update = s.updateDeviceFunc(ctx, v)
+		v.Update = s.updateDeviceFunc(ctx, &v)
 		s.devices[i] = ForRent{
 			Device: v,
 			IsRent: false,
@@ -36,7 +36,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 // Add adds new device.
 func (s *Service) Add(ctx context.Context, d *device.Device) error {
 	//TODO: may be add some checks
-	d.Update = s.updateDeviceFunc(ctx, *d)
+	d.Update = s.updateDeviceFunc(ctx, d)
 
 	forRent := ForRent{
 		Device: *d,
@@ -122,15 +122,15 @@ func (s *Service) GetByUserId(ctx context.Context, userId string) (*device.Devic
 	}
 	for _, d := range devices {
 		if d.UserId == userId {
-			d.Update = s.updateDeviceFunc(ctx, d)
+			d.Update = s.updateDeviceFunc(ctx, &d)
 			return &d, nil
 		}
 	}
 	return nil, nil
 }
 
-func (s *Service) updateDeviceFunc(ctx context.Context, d device.Device) func(sessionId string, refreshToken string) error {
+func (s *Service) updateDeviceFunc(ctx context.Context, d *device.Device) func(sessionId string, refreshToken string) error {
 	return func(sessionId string, refreshToken string) error {
-		return s.Update(ctx, &d, sessionId, refreshToken)
+		return s.Update(ctx, d, sessionId, refreshToken)
 	}
 }
