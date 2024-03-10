@@ -9,9 +9,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"receipt_collector/dispose"
+	"receipt_collector/logging"
 	"receipt_collector/nalogru/device"
 	"time"
 )
@@ -65,7 +65,10 @@ func (nalogruClient *Client) CheckReceiptExist(queryString string, device *devic
 }
 
 func createHttpClient() *http.Client {
-	return &http.Client{Timeout: time.Minute}
+	return &http.Client{
+		Timeout:   time.Minute,
+		Transport: logging.RoundTripper{Proxied: http.DefaultTransport},
+	}
 }
 
 // TicketIdRequest is request object to get Ticket id.
@@ -124,8 +127,8 @@ func (nalogruClient *Client) GetTicketId(queryString string, device *device.Devi
 			return "", err
 		}
 		defer dispose.Dispose(file.Close, "failed to close error file.")
-		_, err = file.Write(body)
-		if err != nil {
+
+		if _, err = file.Write(body); err != nil {
 			log.Println("failed to write response to file")
 			return "", err
 		}
@@ -136,8 +139,7 @@ func (nalogruClient *Client) GetTicketId(queryString string, device *device.Devi
 	}
 
 	ticketIdResp := &TicketIdResponse{}
-	err = json.Unmarshal(body, ticketIdResp)
-	if err != nil {
+	if err = json.Unmarshal(body, ticketIdResp); err != nil {
 		log.Println("Can't unmarshal response")
 		return "", err
 	}
@@ -189,11 +191,9 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 	}
 
 	details := &TicketDetails{}
-
 	err = os.WriteFile("/var/lib/receipts/raw/"+id+".json", all, 0644)
 
-	err = json.Unmarshal(all, details)
-	if err != nil {
+	if err = json.Unmarshal(all, details); err != nil {
 		log.Println("Can't decode response body")
 
 		return nil, err
@@ -228,8 +228,7 @@ func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*Tic
 	err = os.WriteFile("/var/lib/receipts/electro/1.json", all, 0644)
 	var tickets []*TicketDetails
 
-	err = json.Unmarshal(all, &tickets)
-	if err != nil {
+	if err = json.Unmarshal(all, &tickets); err != nil {
 		log.Println("Can't decode response body")
 
 		return nil, err
@@ -255,9 +254,8 @@ func (nalogruClient *Client) AuthByPhone(device *device.Device) error {
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, device.Id.Hex())
 	client := createHttpClient()
-	_, err = sendRequest(request, client)
 
-	if err != nil {
+	if _, err = sendRequest(request, client); err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return err
 	}
@@ -276,8 +274,7 @@ func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *d
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
-		err = nalogruClient.RefreshSession(device)
-		if err != nil {
+		if err = nalogruClient.RefreshSession(device); err != nil {
 			log.Printf("failed to refresh session. %v\n", err)
 			return nil, err
 		}
@@ -330,7 +327,6 @@ func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	res, err := sendRequest(request, client)
 
 	if err != nil {
-		log.Printf("Can't POST %s\n", url)
 		return err
 	}
 	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
@@ -372,7 +368,6 @@ func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) err
 	res, err := sendRequest(request, client)
 
 	if err != nil {
-		log.Printf("Can't POST %s\n", url)
 		return err
 	}
 	defer dispose.Dispose(res.Body.Close, "Can't close HTTP response body")
@@ -394,13 +389,6 @@ func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) err
 }
 
 func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
-	dump, err := httputil.DumpRequestOut(request, true)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("%q", dump)
-
 	return client.Do(request)
 }
 
