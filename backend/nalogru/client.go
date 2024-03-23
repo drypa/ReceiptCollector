@@ -278,6 +278,8 @@ func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *d
 			log.Printf("failed to refresh session. %v\n", err)
 			return nil, err
 		}
+		//update refreshed sessionId
+		r.Header.Set("sessionId", device.SessionId)
 		res, err = sendRequest(r, client)
 	}
 	return res, err
