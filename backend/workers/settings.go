@@ -8,12 +8,12 @@ import (
 
 const intervalEnvironmentVariable = "GET_RECEIPT_WORKER_INTERVAL"
 
-//Settings for Worker.
+// Settings for Worker.
 type Settings struct {
 	Interval time.Duration
 }
 
-//ReadFromEnvironment creates Settings from environment variables.
+// ReadFromEnvironment creates Settings from environment variables.
 func ReadFromEnvironment() Settings {
 	workerIntervalString := os.Getenv(intervalEnvironmentVariable)
 

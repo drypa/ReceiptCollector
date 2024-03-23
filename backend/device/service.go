@@ -25,7 +25,7 @@ func NewService(ctx context.Context, r *repository.Repository) (*Service, error)
 	for i, v := range all {
 		v.Update = s.updateDeviceFunc(ctx, &v)
 		s.devices[i] = ForRent{
-			Device: v,
+			Device: &v,
 			IsRent: false,
 		}
 	}
@@ -39,7 +39,7 @@ func (s *Service) Add(ctx context.Context, d *device.Device) error {
 	d.Update = s.updateDeviceFunc(ctx, d)
 
 	forRent := ForRent{
-		Device: *d,
+		Device: d,
 		IsRent: false,
 	}
 	s.devices = append(s.devices, forRent)
@@ -62,7 +62,7 @@ func (s *Service) Rent(ctx context.Context) (*device.Device, error) {
 	for _, v := range s.devices {
 		if v.IsRent == false {
 			s.rent(&v)
-			return &v.Device, nil
+			return v.Device, nil
 		}
 	}
 	return nil, errors.New("no available devices found")
@@ -110,20 +110,17 @@ func (s *Service) Free(_ context.Context, device *device.Device) error {
 func (s *Service) All(_ context.Context) []*device.Device {
 	res := make([]*device.Device, len(s.devices))
 	for i, d := range s.devices {
-		res[i] = &d.Device
+		res[i] = d.Device
 	}
 	return res
 }
 
 func (s *Service) GetByUserId(ctx context.Context, userId string) (*device.Device, error) {
-	devices, err := s.r.All(ctx)
-	if err != nil {
-		return nil, err
-	}
+	devices := s.All(ctx)
 	for _, d := range devices {
 		if d.UserId == userId {
-			d.Update = s.updateDeviceFunc(ctx, &d)
-			return &d, nil
+			d.Update = s.updateDeviceFunc(ctx, d)
+			return d, nil
 		}
 	}
 	return nil, nil
