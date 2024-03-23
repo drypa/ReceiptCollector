@@ -41,7 +41,7 @@ func main() {
 	}
 }
 
-func ticket(writer http.ResponseWriter, request *http.Request) {
+func ticket(writer http.ResponseWriter, _ *http.Request) {
 	//writer.WriteHeader(http.StatusUnauthorized)
 	writeFileToResponse("./ticket.json", writer)
 }
