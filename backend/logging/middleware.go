@@ -1,9 +1,10 @@
 package logging
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"net/http/httputil"
+	"time"
 )
 
 // RoundTripper implements the http.RoundTripper interface
@@ -16,14 +17,14 @@ func (lrt RoundTripper) RoundTrip(req *http.Request) (res *http.Response, err er
 	if err != nil {
 		return
 	}
-	fmt.Printf("%s", dump)
-
+	log.Printf("%s", dump)
+	start := time.Now()
 	res, err = lrt.Proxied.RoundTrip(req)
-
+	elapsed := time.Since(start)
 	if err != nil {
-		fmt.Printf("Error %s %s: %v", req.Method, req.URL.RawQuery, err)
+		log.Printf("Error %s %s took %s: %v", req.Method, req.URL.RawQuery, elapsed, err)
 	} else {
-		fmt.Printf("Received %v response\n", res.Status)
+		log.Printf("Received %v in %s\n", res.Status, elapsed)
 	}
 
 	return
