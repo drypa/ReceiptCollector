@@ -253,9 +253,8 @@ func (nalogruClient *Client) AuthByPhone(device *device.Device) error {
 	url := nalogruClient.BaseAddress + "/v2/auth/phone/request"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, device.Id.Hex())
-	client := createHttpClient()
 
-	if _, err = sendRequest(request, client); err != nil {
+	if _, err = sendRequest(request); err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return err
 	}
@@ -266,8 +265,8 @@ func (nalogruClient *Client) AuthByPhone(device *device.Device) error {
 func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *device.Device) (*http.Response, error) {
 	addHeaders(r, device.Id.Hex())
 	addAuth(r, device.SessionId)
-	client := createHttpClient()
-	res, err := sendRequest(r, client)
+
+	res, err := sendRequest(r)
 
 	if err != nil {
 		return nil, err
@@ -280,7 +279,7 @@ func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *d
 		}
 		//update refreshed sessionId
 		r.Header.Set("sessionId", device.SessionId)
-		res, err = sendRequest(r, client)
+		res, err = sendRequest(r)
 	}
 	return res, err
 }
@@ -310,8 +309,6 @@ type PhoneVerificationResponse struct {
 
 // RefreshSession used to refresh session by RefreshToken.
 func (nalogruClient *Client) RefreshSession(device *device.Device) error {
-	client := createHttpClient()
-
 	payload := RefreshRequest{
 		ClientSecret: device.ClientSecret,
 		RefreshToken: device.RefreshToken,
@@ -326,7 +323,7 @@ func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 	url := nalogruClient.BaseAddress + "/v2/mobile/users/refresh"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, device.Id.Hex())
-	res, err := sendRequest(request, client)
+	res, err := sendRequest(request)
 
 	if err != nil {
 		return err
@@ -350,8 +347,6 @@ func (nalogruClient *Client) RefreshSession(device *device.Device) error {
 }
 
 func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) error {
-	client := createHttpClient()
-
 	payload := PhoneVerificationRequest{
 		ClientSecret: device.ClientSecret,
 		Code:         code,
@@ -367,7 +362,7 @@ func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) err
 	url := nalogruClient.BaseAddress + "/v2/auth/phone/verify"
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	addHeaders(request, device.Id.Hex())
-	res, err := sendRequest(request, client)
+	res, err := sendRequest(request)
 
 	if err != nil {
 		return err
@@ -390,7 +385,8 @@ func (nalogruClient *Client) VerifyPhone(device *device.Device, code string) err
 	return err
 }
 
-func sendRequest(request *http.Request, client *http.Client) (*http.Response, error) {
+func sendRequest(request *http.Request) (*http.Response, error) {
+	client := createHttpClient()
 	return client.Do(request)
 }
 
