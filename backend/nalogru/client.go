@@ -22,6 +22,8 @@ type Client struct {
 
 var InternalError = errors.New("internal failed")
 var unauthorizedError = errors.New("unauthorized")
+var retryLimitError = errors.New("retry limit")
+var retryLimit = 3
 
 // NewClient - creates instance of Client.
 func NewClient(baseAddress string) *Client {
@@ -93,6 +95,13 @@ type PhoneAuthRequest struct {
 
 // GetTicketId - send ticket id request to nalog.ru API.
 func (nalogruClient *Client) GetTicketId(queryString string, device *device.Device) (string, error) {
+	return nalogruClient.getTicketId(queryString, device, 0)
+}
+
+func (nalogruClient *Client) getTicketId(queryString string, device *device.Device, retry int) (string, error) {
+	if retry >= retryLimit {
+		return "", retryLimitError
+	}
 	payload := TicketIdRequest{Qr: queryString}
 
 	req, err := json.Marshal(payload)
@@ -109,7 +118,7 @@ func (nalogruClient *Client) GetTicketId(queryString string, device *device.Devi
 			log.Printf("failed to refresh session. %v\n", err)
 			return "", err
 		}
-		return nalogruClient.GetTicketId(queryString, device)
+		return nalogruClient.getTicketId(queryString, device, retry+1)
 	}
 
 	if err != nil {
@@ -176,7 +185,13 @@ func readBody(res *http.Response) ([]byte, error) {
 
 // GetTicketById get ticket by id from nalog.ru api.
 func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*TicketDetails, error) {
+	return nalogruClient.getTicketById(id, device, 0)
+}
 
+func (nalogruClient *Client) getTicketById(id string, device *device.Device, retry int) (*TicketDetails, error) {
+	if retry >= retryLimit {
+		return nil, retryLimitError
+	}
 	url := nalogruClient.BaseAddress + "/v2/tickets/" + id
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
@@ -186,7 +201,7 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 			log.Printf("failed to refresh session. %v\n", err)
 			return nil, err
 		}
-		return nalogruClient.GetTicketById(id, device)
+		return nalogruClient.getTicketById(id, device, retry+1)
 	}
 
 	if err != nil {
@@ -221,7 +236,13 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 
 // GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
 func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*TicketDetails, error) {
-	errorCount := 0
+	return nalogruClient.getElectronicTickets(device, 0)
+}
+
+func (nalogruClient *Client) getElectronicTickets(device *device.Device, retry int) ([]*TicketDetails, error) {
+	if retry >= retryLimit {
+		return nil, retryLimitError
+	}
 	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
 
 	request, err := http.NewRequest(http.MethodGet, url, nil)
@@ -233,7 +254,7 @@ func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*Tic
 			log.Printf("failed to refresh session. %v\n", err)
 			return nil, err
 		}
-		return nalogruClient.GetElectronicTickets(device)
+		return nalogruClient.getElectronicTickets(device, retry+1)
 	}
 
 	if err != nil {
