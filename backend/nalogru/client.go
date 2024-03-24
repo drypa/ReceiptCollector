@@ -21,6 +21,7 @@ type Client struct {
 }
 
 var InternalError = errors.New("internal failed")
+var unauthorizedError = errors.New("unauthorized")
 
 // NewClient - creates instance of Client.
 func NewClient(baseAddress string) *Client {
@@ -103,6 +104,14 @@ func (nalogruClient *Client) GetTicketId(queryString string, device *device.Devi
 	request, err := http.NewRequest(http.MethodPost, url, reader)
 	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
 
+	if errors.Is(err, unauthorizedError) {
+		if err = nalogruClient.RefreshSession(device); err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return "", err
+		}
+		return nalogruClient.GetTicketId(queryString, device)
+	}
+
 	if err != nil {
 		log.Printf("Can't POST %s\n", url)
 		return "", err
@@ -172,6 +181,14 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
 
+	if errors.Is(err, unauthorizedError) {
+		if err = nalogruClient.RefreshSession(device); err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return nil, err
+		}
+		return nalogruClient.GetTicketById(id, device)
+	}
+
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
 		return nil, err
@@ -204,11 +221,20 @@ func (nalogruClient *Client) GetTicketById(id string, device *device.Device) (*T
 
 // GetElectronicTickets request all electronic receipts added by email or phone from nalog.ru api.
 func (nalogruClient *Client) GetElectronicTickets(device *device.Device) ([]*TicketDetails, error) {
-
+	errorCount := 0
 	url := nalogruClient.BaseAddress + "/v2/tickets-with-electro"
+
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 
 	res, err := nalogruClient.sendAuthenticatedRequest(request, device)
+
+	if errors.Is(err, unauthorizedError) {
+		if err = nalogruClient.RefreshSession(device); err != nil {
+			log.Printf("failed to refresh session. %v\n", err)
+			return nil, err
+		}
+		return nalogruClient.GetElectronicTickets(device)
+	}
 
 	if err != nil {
 		log.Printf("Can't GET %s\n", url)
@@ -273,13 +299,7 @@ func (nalogruClient *Client) sendAuthenticatedRequest(r *http.Request, device *d
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
-		if err = nalogruClient.RefreshSession(device); err != nil {
-			log.Printf("failed to refresh session. %v\n", err)
-			return nil, err
-		}
-		//update refreshed sessionId
-		r.Header.Set("sessionId", device.SessionId)
-		res, err = sendRequest(r)
+		return nil, unauthorizedError
 	}
 	return res, err
 }
