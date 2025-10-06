@@ -1,0 +1,11 @@
+@host= http://localhost:5039
+
+GET {{host}}/api/receipts/
+Accept: application/json
+
+###
+
+GET {{host}}/api/receipts/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+###

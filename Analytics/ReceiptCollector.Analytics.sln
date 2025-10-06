@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Api", "src\ReceiptCollector.Analytics.Api\ReceiptCollector.Analytics.Api.csproj", "{EFE057EF-0854-4C9C-A108-EDD441A67F50}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Application", "src\ReceiptCollector.Analytics.Application\ReceiptCollector.Analytics.Application.csproj", "{0C8F5353-C0A1-4112-BEB1-A14CF320BC43}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Domain", "src\ReceiptCollector.Analytics.Domain\ReceiptCollector.Analytics.Domain.csproj", "{BF848EA6-FBBE-407C-B239-ACE15456A160}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Infrastructure", "src\ReceiptCollector.Analytics.Infrastructure\ReceiptCollector.Analytics.Infrastructure.csproj", "{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DA6340AD-33D1-4710-9A5D-37C22782CFD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Api.Tests", "tests\ReceiptCollector.Analytics.Api.Tests\ReceiptCollector.Analytics.Api.Tests.csproj", "{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EFE057EF-0854-4C9C-A108-EDD441A67F50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EFE057EF-0854-4C9C-A108-EDD441A67F50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EFE057EF-0854-4C9C-A108-EDD441A67F50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EFE057EF-0854-4C9C-A108-EDD441A67F50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF848EA6-FBBE-407C-B239-ACE15456A160}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF848EA6-FBBE-407C-B239-ACE15456A160}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF848EA6-FBBE-407C-B239-ACE15456A160}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF848EA6-FBBE-407C-B239-ACE15456A160}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EFE057EF-0854-4C9C-A108-EDD441A67F50} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
+		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
+		{BF848EA6-FBBE-407C-B239-ACE15456A160} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
+		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
+		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2} = {DA6340AD-33D1-4710-9A5D-37C22782CFD5}
+	EndGlobalSection
+EndGlobal
