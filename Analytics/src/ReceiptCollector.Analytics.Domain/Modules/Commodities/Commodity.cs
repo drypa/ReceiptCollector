@@ -1,6 +1,6 @@
-﻿namespace ReceiptCollector.Analytics.Domain.Modules.Receipts;
+﻿namespace ReceiptCollector.Analytics.Domain.Modules.Commodities;
 
-public sealed class ReceiptItem
+public sealed class Commodity
 {
     public Guid Id { get; }
 
@@ -14,20 +14,20 @@ public sealed class ReceiptItem
 
     public decimal TotalPrice => Quantity * UnitPrice;
 
-    public Guid? CategoryId { get; private set; }
+    public Category? Category { get; private set; }
 
-    public ReceiptItem(Guid id, Guid receiptId, string name, decimal quantity, decimal unitPrice, Guid? categoryId = null)
+    public Commodity(Guid id, Guid receiptId, string name, decimal quantity, decimal unitPrice, Category? category = null)
     {
         Id = id;
         ReceiptId = receiptId;
         Name = name;
         Quantity = quantity;
         UnitPrice = unitPrice;
-        CategoryId = categoryId;
+        Category= category;
     }
 
-    public void AssignCategory(Guid categoryId)
+    public void AssignCategory(Category category)
     {
-        CategoryId = categoryId;
+        Category = category;
     }
 }

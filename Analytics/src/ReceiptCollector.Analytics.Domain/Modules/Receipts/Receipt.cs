@@ -1,4 +1,6 @@
-﻿namespace ReceiptCollector.Analytics.Domain.Modules.Receipts;
+﻿using ReceiptCollector.Analytics.Domain.Modules.Commodities;
+
+namespace ReceiptCollector.Analytics.Domain.Modules.Receipts;
 
 public sealed class Receipt
 {
@@ -12,9 +14,9 @@ public sealed class Receipt
 
     public DateTime PurchasedAt { get; }
 
-    private readonly List<ReceiptItem> _items = new();
+    private readonly List<Commodity> _items = new();
 
-    public IReadOnlyCollection<ReceiptItem> Items => _items;
+    public IReadOnlyCollection<Commodity> Items => _items;
 
     public Receipt(Guid id, Guid userId, string merchant, decimal totalAmount, DateTime purchasedAt)
     {
@@ -25,8 +27,4 @@ public sealed class Receipt
         PurchasedAt = purchasedAt;
     }
 
-    public void AddItem(ReceiptItem item)
-    {
-        _items.Add(item);
-    }
 }
