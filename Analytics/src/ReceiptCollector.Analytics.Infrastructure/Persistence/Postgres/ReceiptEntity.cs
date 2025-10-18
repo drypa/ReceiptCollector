@@ -1,3 +1,6 @@
+using ReceiptCollector.Analytics.Domain.Modules.Commodities;
+using ReceiptCollector.Analytics.Domain.Modules.Receipts;
+
 namespace ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 
 internal sealed class ReceiptEntity
@@ -8,6 +11,48 @@ internal sealed class ReceiptEntity
     public decimal TotalAmount { get; set; }
     public DateTime PurchasedAt { get; set; }
     public List<CommodityEntity> Items { get; set; } = new();
+    
+    internal static ReceiptEntity Create(Receipt receipt)
+    {
+        return new ReceiptEntity
+        {
+            Id = receipt.Id,
+            UserId = receipt.UserId,
+            Merchant = receipt.Merchant,
+            TotalAmount = receipt.TotalAmount,
+            PurchasedAt = receipt.PurchasedAt,
+            Items = receipt.Items.Select(CommodityEntity.Create).ToList()
+        };
+    }
+    
+    internal Receipt MapToDomain()
+    {
+        var items = Items.Select(item =>
+        {
+            Category? category = item.CategoryId.HasValue && item.CategoryName is not null
+                ? new Category(item.CategoryId.Value, item.CategoryName)
+                : null;
+
+            return new Commodity(
+                item.Id,
+                Id,
+                item.Name,
+                item.Quantity,
+                item.UnitPrice,
+                item.Nds,
+                item.NdsSum,
+                category);
+        }).ToList();
+
+        return new Receipt(
+            Id,
+            UserId,
+            Merchant,
+            TotalAmount,
+            PurchasedAt,
+            items);
+    }
+    
 }
 
 internal sealed class CommodityEntity
@@ -22,4 +67,20 @@ internal sealed class CommodityEntity
     public int? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public ReceiptEntity Receipt { get; set; } = null!;
+    
+    internal static CommodityEntity Create(Commodity commodity)
+    {
+        return new CommodityEntity
+        {
+            Id = commodity.Id,
+            ReceiptId = commodity.ReceiptId,
+            Name = commodity.Name,
+            Quantity = commodity.Quantity,
+            UnitPrice = commodity.UnitPrice,
+            Nds = commodity.Nds,
+            NdsSum = commodity.NdsSum,
+            CategoryId = commodity.Category?.Id,
+            CategoryName = commodity.Category?.Name ?? null
+        };
+    }
 }
