@@ -1,14 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Models;
+using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
+using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Configuration;
 
@@ -18,6 +17,7 @@ public static class DependencyInjectionExtensions
     {
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<IReceiptReadService, StubReceiptReadService>();
+        services.AddScoped<IReceiptRepository, ReceiptRepository>();
         return services;
     }
 
@@ -25,6 +25,21 @@ public static class DependencyInjectionExtensions
     {
         services.AddOptions<MongoReceiptSourceOptions>()
             .Bind(configuration.GetSection(MongoReceiptSourceOptions.SectionName));
+
+        services.AddOptions<PostgresOptions>()
+            .Bind(configuration.GetSection(PostgresOptions.SectionName));
+
+        services.AddDbContext<ReceiptDbContext>((sp, builder) =>
+        {
+            var options = sp.GetRequiredService<IOptions<PostgresOptions>>().Value;
+
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+            {
+                throw new InvalidOperationException("Postgres connection string is not configured.");
+            }
+
+            builder.UseNpgsql(options.ConnectionString);
+        });
 
         services.AddSingleton<IMongoReceiptBatchLoader, MongoReceiptBatchLoader>();
     }

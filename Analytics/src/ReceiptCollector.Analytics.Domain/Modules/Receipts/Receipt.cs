@@ -10,7 +10,7 @@ public sealed class Receipt
 
     public string Merchant { get; }
 
-    public decimal TotalAmount { get; }
+    public decimal TotalAmount { get; }     
 
     public DateTime PurchasedAt { get; }
 
@@ -18,13 +18,39 @@ public sealed class Receipt
 
     public IReadOnlyCollection<Commodity> Items => _items;
 
-    public Receipt(Guid id, Guid userId, string merchant, decimal totalAmount, DateTime purchasedAt)
+    public Receipt(
+        Guid id,
+        Guid userId,
+        string merchant,
+        decimal totalAmount,
+        DateTime purchasedAt,
+        IEnumerable<Commodity>? items = null)
     {
         Id = id;
         UserId = userId;
         Merchant = merchant;
         TotalAmount = totalAmount;
         PurchasedAt = purchasedAt;
+        if (items is not null)
+        {
+            _items.AddRange(items);
+        }
+    }
+
+    public void AddItem(Commodity item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        _items.Add(item);
+    }
+
+    public void AddItems(IEnumerable<Commodity> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        foreach (var item in items)
+        {
+            AddItem(item);
+        }
     }
 
 }
