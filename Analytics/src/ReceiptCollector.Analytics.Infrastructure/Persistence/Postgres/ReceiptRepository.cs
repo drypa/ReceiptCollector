@@ -16,45 +16,72 @@ internal sealed class ReceiptRepository : IReceiptRepository
     {
         ArgumentNullException.ThrowIfNull(receipt);
 
-        var existing = await _dbContext.Receipts
-            .FirstOrDefaultAsync(r => r.Id == receipt.Id, cancellationToken)
-            .ConfigureAwait(false);
+        _dbContext.SetCurrentUser(receipt.UserId);
 
-        if (existing is null)
+        try
         {
-            var entity = ReceiptEntity.Create(receipt);
-            await _dbContext.Receipts.AddAsync(entity, cancellationToken).ConfigureAwait(false);
+            var existing = await _dbContext.Receipts
+                .FirstOrDefaultAsync(r => r.Id == receipt.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existing is null)
+            {
+                var entity = ReceiptEntity.Create(receipt);
+                await _dbContext.Receipts.AddAsync(entity, cancellationToken).ConfigureAwait(false);
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                throw new ReceiptAlreadyExistsException(receipt.Id);
+            }
+        }
+        finally
+        {
+            _dbContext.ClearCurrentUser();
+        }
+    }
+
+    public async Task DeleteAsync(Guid receiptId, Guid userId, CancellationToken cancellationToken)
+    {
+        _dbContext.SetCurrentUser(userId);
+
+        try
+        {
+            var entity = await _dbContext.Receipts
+                .FirstOrDefaultAsync(r => r.Id == receiptId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (entity is null)
+            {
+                return;
+            }
+
+            _dbContext.Receipts.Remove(entity);
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
-        else
+        finally
         {
-            throw new ReceiptAlreadyExistsException(receipt.Id);
+            _dbContext.ClearCurrentUser();
         }
     }
 
-    public async Task DeleteAsync(Guid receiptId, CancellationToken cancellationToken)
+    public async Task<Receipt?> GetByIdAsync(Guid receiptId, Guid userId, CancellationToken cancellationToken)
     {
-        var entity = await _dbContext.Receipts
-            .FirstOrDefaultAsync(r => r.Id == receiptId, cancellationToken)
-            .ConfigureAwait(false);
+        _dbContext.SetCurrentUser(userId);
 
-        if (entity is null)
+        try
         {
-            return;
+            var entity = await _dbContext.Receipts
+                .AsNoTracking()
+                .Include(r => r.Items)
+                .FirstOrDefaultAsync(r => r.Id == receiptId, cancellationToken)
+                .ConfigureAwait(false);
+
+            return entity?.MapToDomain();
         }
-
-        _dbContext.Receipts.Remove(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<Receipt?> GetByIdAsync(Guid receiptId, CancellationToken cancellationToken)
-    {
-        var entity = await _dbContext.Receipts
-            .AsNoTracking()
-            .Include(r => r.Items)
-            .FirstOrDefaultAsync(r => r.Id == receiptId, cancellationToken)
-            .ConfigureAwait(false);
-
-        return entity?.MapToDomain();
+        finally
+        {
+            _dbContext.ClearCurrentUser();
+        }
     }
 }

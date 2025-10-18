@@ -36,7 +36,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
         await using (var context = CreateContext())
         {
             var repository = new ReceiptRepository(context);
-            var stored = await repository.GetByIdAsync(receipt.Id, CancellationToken.None);
+            var stored = await repository.GetByIdAsync(receipt.Id, receipt.UserId, CancellationToken.None);
 
             Assert.NotNull(stored);
             Assert.Equal(receipt.Id, stored!.Id);
@@ -73,14 +73,66 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
         await using (var context = CreateContext())
         {
             var repository = new ReceiptRepository(context);
-            await repository.DeleteAsync(receipt.Id, CancellationToken.None);
+            await repository.DeleteAsync(receipt.Id, receipt.UserId, CancellationToken.None);
         }
 
         await using (var context = CreateContext())
         {
             var repository = new ReceiptRepository(context);
-            var stored = await repository.GetByIdAsync(receipt.Id, CancellationToken.None);
+            var stored = await repository.GetByIdAsync(receipt.Id, receipt.UserId, CancellationToken.None);
             Assert.Null(stored);
+        }
+    }
+
+    [Fact]
+    public async Task Get_with_different_user_returns_null()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        var otherUserId = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            var stored = await repository.GetByIdAsync(receipt.Id, otherUserId, CancellationToken.None);
+            Assert.Null(stored);
+        }
+    }
+
+    [Fact]
+    public async Task Delete_with_different_user_does_not_remove_receipt()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        var otherUserId = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            await repository.DeleteAsync(receipt.Id, otherUserId, CancellationToken.None);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            var stored = await repository.GetByIdAsync(receipt.Id, receipt.UserId, CancellationToken.None);
+            Assert.NotNull(stored);
         }
     }
 
