@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -29,7 +28,7 @@ internal sealed class ReceiptRepository : IReceiptRepository
         }
         else
         {
-            //TODO: what to do?
+            throw new ReceiptAlreadyExistsException(receipt.Id);
         }
     }
 
