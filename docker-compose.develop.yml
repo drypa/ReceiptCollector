@@ -1,4 +1,3 @@
-version: '2'
 services:
   mongo:
     image: mongo:4.1
@@ -10,3 +9,14 @@ services:
       - ${MONGO_BACKUP}:/backup
     ports:
       - "27017:27017"
+  pg:
+    image: postgres:18.0
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${PG_LOGIN}
+      POSTGRES_PASSWORD: ${PG_SECRET}
+#    volumes:
+#      - "./postgres:/var/lib/postgresql/data"
+    ports:
+      - "5432:5432"
+    restart: always
