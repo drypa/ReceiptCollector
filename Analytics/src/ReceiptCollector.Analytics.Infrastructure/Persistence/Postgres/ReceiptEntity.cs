@@ -22,7 +22,7 @@ internal sealed class ReceiptEntity
             Merchant = receipt.Merchant,
             ExternalId = receipt.ExternalId,
             TotalAmount = receipt.TotalAmount,
-            PurchasedAt = receipt.PurchasedAt,
+            PurchasedAt = NormalizeUtc(receipt.PurchasedAt),
             Items = receipt.Items.Select(CommodityEntity.Create).ToList()
         };
     }
@@ -51,9 +51,20 @@ internal sealed class ReceiptEntity
             UserId,
             Merchant,
             TotalAmount,
-            PurchasedAt,
+            DateTime.SpecifyKind(PurchasedAt, DateTimeKind.Utc),
             ExternalId,
             items);
+    }
+    
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            _ => value
+        };
     }
     
 }
