@@ -32,8 +32,8 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
 
         await collection.InsertManyAsync(new[]
         {
-            CreateDocument("630f8d8087e76c7685c2113a"),
-            CreateDocument("630f8d8087e76c7685c2113b")
+            CreateDocument("doc-1"),
+            CreateDocument("doc-2"),
         });
 
         var options = Options.Create(new MongoReceiptSourceOptions
@@ -50,6 +50,36 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
 
         var informationLogs = logger.Entries.Where(entry => entry.Level == LogLevel.Information).ToList();
         Assert.Equal(2, informationLogs.Count);
+    }
+
+    [Fact]
+    public async Task LoadBatchAsync_respects_skip_and_batch_size()
+    {
+        var client = new MongoClient(_connectionString);
+        var database = client.GetDatabase(_databaseName);
+        var collection = database.GetCollection<MongoReceiptDocumentDto>(_collectionName);
+
+        await collection.InsertManyAsync(new[]
+        {
+            CreateDocument("doc-1"),
+            CreateDocument("doc-2"),
+            CreateDocument("doc-3"),
+        });
+
+        var options = Options.Create(new MongoReceiptSourceOptions
+        {
+            ConnectionString = _connectionString,
+            Database = _databaseName,
+            Collection = _collectionName
+        });
+
+        var loader = new MongoReceiptBatchLoader(options, new TestLogger<MongoReceiptBatchLoader>());
+
+        var batch = await loader.LoadBatchAsync(1, 2, CancellationToken.None);
+
+        Assert.Equal(2, batch.Count);
+        Assert.Equal("doc-2", batch[0].ExternalId);
+        Assert.Equal("doc-3", batch[1].ExternalId);
     }
 
     public async Task InitializeAsync()
@@ -69,74 +99,42 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
         {
             Id = ObjectId.GenerateNewId(),
             ExternalId = externalId,
-            Kind = "kkt",
-            Operation = new MongoReceiptDocumentDto.OperationDto
+            TicketId = "ticket-id",
+            QueryString = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+            Receipt = new MongoReceiptDocumentDto.ReceiptDto
             {
-                Date = "2022-07-30T16:41",
-                Type = 1,
-                Sum = 9998
-            },
-            Qr = "sample-qr",
-            Query = new MongoReceiptDocumentDto.QueryDto
-            {
-                OperationType = 1,
-                Sum = 9998,
-                DocumentId = 57686,
-                FiscMachineId = "9960440301394381",
-                FiscalSign = "2408500310",
-                Date = "2022-07-30T16:41"
-            },
-            Seller = new MongoReceiptDocumentDto.SellerDto
-            {
-                Name = "ООО \"Лента\"",
-                Inn = "7814148471"
-            },
-            Status = 2,
-            Ticket = new MongoReceiptDocumentDto.TicketDto
-            {
-                Document = new MongoReceiptDocumentDto.TicketDocumentDto
+                Datetime = "2019-10-05T15:48:00",
+                TimestampSeconds = 1570280880,
+                CashTotalSum = 0,
+                ECashTotalSum = 112700,
+                FiscalDocumentNumber = 11401,
+                FiscalDriveNumber = "9282000100254567",
+                FiscalSign = 371532793,
+                Items = new List<MongoReceiptDocumentDto.ReceiptItemDto>
                 {
-                    Receipt = new MongoReceiptDocumentDto.ReceiptDto
+                    new()
                     {
-                        TimestampSeconds = 1659188460,
-                        CashTotalSum = 0,
-                        Code = 3,
-                        CreditSum = 0,
-                        ECashTotalSum = 9998,
-                        FiscalDocumentNumber = 57686,
-                        FiscalDriveNumber = "9960440301394381",
-                        FiscalSign = 2408500310,
-                        FnsUrl = "www.nalog.ru",
-                        Items = new List<MongoReceiptDocumentDto.ReceiptItemDto>
-                        {
-                            new()
-                            {
-                                Name = "Напиток BORJOMI",
-                                Nds = 1,
-                                NdsSum = 833,
-                                PaymentType = 4,
-                                Price = 4999,
-                                ProductType = 1,
-                                Quantity = 1,
-                                Sum = 4999
-                            }
-                        },
-                        KktRegId = "0005998343044853",
-                        Nds10 = 454,
-                        Nds18 = 0,
-                        OperationType = 1,
-                        Operator = "Оператор",
-                        PrepaidSum = 0,
-                        ProvisionSum = 0,
-                        RequestNumber = 291,
-                        RetailPlace = "ТК ЛЕНТА-1360",
-                        RetailPlaceAddress = "Россия, Москва",
-                        ShiftNumber = 223,
-                        TotalSum = 9998,
-                        User = "ООО \"Лента\"",
-                        UserInn = "7814148471"
+                        Name = "ПАНЕЛЬ  250Х3000",
+                        Quantity = 6,
+                        Price = 14800,
+                        Sum = 88800,
+                        Nds = 0,
+                        NdsSum = 0
+                    },
+                    new()
+                    {
+                        Name = "МОМЕНТ МОНТАЖ 400 ГР",
+                        Quantity = 1,
+                        Price = 23900,
+                        Sum = 23900,
+                        Nds = 0,
+                        NdsSum = 0
                     }
-                }
+                },
+                RetailPlaceAddress = "117556 г. Москва, Варшавское шоссе, 97",
+                User = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+                TotalSum = 112700,
+                UserInn = "5003042456"
             }
         };
     }

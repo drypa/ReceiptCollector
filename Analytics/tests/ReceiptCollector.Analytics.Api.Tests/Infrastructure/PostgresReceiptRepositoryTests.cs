@@ -199,6 +199,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
             "Local Store",
             172,
             purchasedAt,
+            "external-id",
             new[] { firstItem, secondItem });
     }
 

@@ -8,6 +8,7 @@ internal sealed class ReceiptEntity
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
     public string Merchant { get; set; } = string.Empty;
+    public string ExternalId { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public DateTime PurchasedAt { get; set; }
     public List<CommodityEntity> Items { get; set; } = new();
@@ -19,6 +20,7 @@ internal sealed class ReceiptEntity
             Id = receipt.Id,
             UserId = receipt.UserId,
             Merchant = receipt.Merchant,
+            ExternalId = receipt.ExternalId,
             TotalAmount = receipt.TotalAmount,
             PurchasedAt = receipt.PurchasedAt,
             Items = receipt.Items.Select(CommodityEntity.Create).ToList()
@@ -50,6 +52,7 @@ internal sealed class ReceiptEntity
             Merchant,
             TotalAmount,
             PurchasedAt,
+            ExternalId,
             items);
     }
     

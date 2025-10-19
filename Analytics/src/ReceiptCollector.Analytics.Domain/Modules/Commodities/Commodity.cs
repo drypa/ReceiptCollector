@@ -37,7 +37,7 @@ public sealed class Commodity
         UnitPrice = unitPrice;
         Nds = nds;
         NdsSum = ndsSum;
-        Category= category;
+        Category = category;
     }
 
     public void AssignCategory(Category category)

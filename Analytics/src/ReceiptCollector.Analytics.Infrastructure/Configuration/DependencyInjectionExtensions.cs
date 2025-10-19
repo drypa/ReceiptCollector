@@ -8,6 +8,7 @@ using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
+using ReceiptCollector.Analytics.Infrastructure.Synchronization;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Configuration;
 
@@ -18,6 +19,8 @@ public static class DependencyInjectionExtensions
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<IReceiptReadService, StubReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
+        services.AddScoped<ReceiptSynchronizationService>();
+        services.AddHostedService<ReceiptSynchronizationHostedService>();
         return services;
     }
 
@@ -28,6 +31,9 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<PostgresOptions>()
             .Bind(configuration.GetSection(PostgresOptions.SectionName));
+
+        services.AddOptions<ReceiptSynchronizationOptions>()
+            .Bind(configuration.GetSection(ReceiptSynchronizationOptions.SectionName));
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {

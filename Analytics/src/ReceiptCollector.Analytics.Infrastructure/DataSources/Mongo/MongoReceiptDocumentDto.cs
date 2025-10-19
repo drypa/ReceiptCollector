@@ -12,6 +12,12 @@ public sealed class MongoReceiptDocumentDto
     [BsonElement("id")]
     public string ExternalId { get; init; } = string.Empty;
 
+    [BsonElement("ticket_id")]
+    public string TicketId { get; init; } = string.Empty;
+
+    [BsonElement("query_string")]
+    public string QueryString { get; init; } = string.Empty;
+
     [BsonElement("createdat")]
     public string CreatedAt { get; init; } = string.Empty;
 
@@ -19,22 +25,25 @@ public sealed class MongoReceiptDocumentDto
     public string Kind { get; init; } = string.Empty;
 
     [BsonElement("operation")]
-    public OperationDto Operation { get; init; } = new();
+    public OperationDto? Operation { get; init; }
 
     [BsonElement("qr")]
     public string Qr { get; init; } = string.Empty;
 
     [BsonElement("query")]
-    public QueryDto Query { get; init; } = new();
+    public QueryDto? Query { get; init; }
 
     [BsonElement("seller")]
-    public SellerDto Seller { get; init; } = new();
+    public SellerDto? Seller { get; init; }
 
     [BsonElement("status")]
     public int Status { get; init; }
 
     [BsonElement("ticket")]
-    public TicketDto Ticket { get; init; } = new();
+    public TicketDto? Ticket { get; init; }
+
+    [BsonElement("receipt")]
+    public ReceiptDto? Receipt { get; init; }
 
     [BsonIgnoreExtraElements]
     public sealed class OperationDto
@@ -85,20 +94,23 @@ public sealed class MongoReceiptDocumentDto
     public sealed class TicketDto
     {
         [BsonElement("document")]
-        public TicketDocumentDto Document { get; init; } = new();
+        public TicketDocumentDto? Document { get; init; }
     }
 
     [BsonIgnoreExtraElements]
     public sealed class TicketDocumentDto
     {
         [BsonElement("receipt")]
-        public ReceiptDto Receipt { get; init; } = new();
+        public ReceiptDto? Receipt { get; init; }
     }
 
     [BsonIgnoreExtraElements]
     public sealed class ReceiptDto
     {
-        [BsonElement("datetime"), BsonRepresentation(BsonType.Int64)]
+        [BsonElement("datetime")]
+        public string Datetime { get; init; } = string.Empty;
+
+        [BsonElement("timestamp"), BsonRepresentation(BsonType.Int64)]
         public long TimestampSeconds { get; init; }
 
         [BsonElement("cashtotalsum"), BsonRepresentation(BsonType.Int64)]
@@ -126,7 +138,7 @@ public sealed class MongoReceiptDocumentDto
         public string FnsUrl { get; init; } = string.Empty;
 
         [BsonElement("items")]
-        public List<ReceiptItemDto> Items { get; init; } = new();
+        public List<ReceiptItemDto>? Items { get; init; }
 
         [BsonElement("kktregid")]
         public string KktRegId { get; init; } = string.Empty;
@@ -197,5 +209,11 @@ public sealed class MongoReceiptDocumentDto
 
         [BsonElement("sum"), BsonRepresentation(BsonType.Int64)]
         public long Sum { get; init; }
+
+        [BsonElement("categories")]
+        public IReadOnlyList<string>? Categories { get; init; }
+
+        [BsonElement("external_id")]
+        public string ExternalId { get; init; } = string.Empty;
     }
 }

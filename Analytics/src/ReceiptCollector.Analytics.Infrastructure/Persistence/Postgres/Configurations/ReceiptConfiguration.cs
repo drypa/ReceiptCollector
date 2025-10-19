@@ -14,6 +14,10 @@ internal sealed class ReceiptConfiguration : IEntityTypeConfiguration<ReceiptEnt
             .IsRequired()
             .HasMaxLength(256);
 
+        builder.Property(r => r.ExternalId)
+            .IsRequired()
+            .HasMaxLength(128);
+
         builder.Property(r => r.TotalAmount)
             .HasColumnType("numeric(18,2)");
 

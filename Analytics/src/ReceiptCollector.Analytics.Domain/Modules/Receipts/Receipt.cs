@@ -9,6 +9,8 @@ public sealed class Receipt
     public Guid UserId { get; }
 
     public string Merchant { get; }
+    
+    public string ExternalId { get; }
 
     public decimal TotalAmount { get; }     
 
@@ -24,6 +26,7 @@ public sealed class Receipt
         string merchant,
         decimal totalAmount,
         DateTime purchasedAt,
+        string externalId,
         IEnumerable<Commodity>? items = null)
     {
         Id = id;
@@ -31,6 +34,7 @@ public sealed class Receipt
         Merchant = merchant;
         TotalAmount = totalAmount;
         PurchasedAt = purchasedAt;
+        ExternalId = externalId;
         if (items is not null)
         {
             _items.AddRange(items);

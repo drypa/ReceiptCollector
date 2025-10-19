@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
@@ -32,20 +33,43 @@ internal sealed class MongoReceiptBatchLoader : IMongoReceiptBatchLoader
 
     public async Task LoadAllAsync(int batchSize, CancellationToken cancellationToken)
     {
+        var processed = 0;
+        while (true)
+        {
+            var batch = await LoadBatchAsync(processed, batchSize, cancellationToken).ConfigureAwait(false);
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var document in batch)
+            {
+                _logger.LogInformation("Loaded receipt document {@ReceiptDocument}", document);
+            }
+
+            processed += batch.Count;
+        }
+    }
+
+    public async Task<IReadOnlyList<MongoReceiptDocumentDto>> LoadBatchAsync(int skip, int batchSize, CancellationToken cancellationToken)
+    {
+        if (skip < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(skip), skip, "Skip must be non-negative.");
+        }
+
         if (batchSize <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Batch size must be positive.");
         }
 
-        using var cursor = await _collection.FindAsync(FilterDefinition<MongoReceiptDocumentDto>.Empty,
-            new FindOptions<MongoReceiptDocumentDto> { BatchSize = batchSize }, cancellationToken).ConfigureAwait(false);
+        var documents = await _collection
+            .Find(FilterDefinition<MongoReceiptDocumentDto>.Empty)
+            .Skip(skip)
+            .Limit(batchSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        while (await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
-        {
-            foreach (var document in cursor.Current)
-            {
-                _logger.LogInformation("Loaded receipt document {@ReceiptDocument}", document);
-            }
-        }
+        return documents;
     }
 }
