@@ -17,11 +17,16 @@ public static class ReceiptEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAll([FromServices] IReceiptReadService service,
+    private static async Task<IResult> GetAll([FromQuery] Guid? userId,
+        [FromServices] IReceiptReadService service,
         CancellationToken cancellationToken)
     {
-        var userId = Guid.Empty;
-        var receipts = await service.GetRecentAsync(userId, 10, cancellationToken);
+        if (userId is null || userId == Guid.Empty)
+        {
+            return Results.BadRequest("userId is required.");
+        }
+
+        var receipts = await service.GetRecentAsync(userId.Value, 10, cancellationToken);
         return Results.Ok(receipts);
     }
 
