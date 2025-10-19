@@ -12,7 +12,7 @@ internal sealed class UserRepository : IUserRepository
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    public async Task<User> GetOrCreateAsync(string externalId, CancellationToken cancellationToken)
+    public async Task<User?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(externalId))
         {
@@ -24,21 +24,15 @@ internal sealed class UserRepository : IUserRepository
             .FirstOrDefaultAsync(user => user.ExternalId == externalId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (existing is not null)
-        {
-            return existing.MapToDomain();
-        }
+        return existing?.MapToDomain();
+    }
 
-        var user = new UserEntity
-        {
-            Id = Guid.NewGuid(),
-            Name = "<Unknown user>",
-            ExternalId = externalId
-        };
+    public async Task AddAsync(User user, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
 
-        _dbContext.Users.Add(user);
+        var entity = UserEntity.Create(user);
+        _dbContext.Users.Add(entity);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return user.MapToDomain();
     }
 }

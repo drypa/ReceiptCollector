@@ -89,6 +89,15 @@ internal sealed class ReceiptSynchronizationService
             throw new InvalidOperationException("Receipt document does not contain owner identifier.");
         }
 
-        return await _userRepository.GetOrCreateAsync(document.Owner, cancellationToken).ConfigureAwait(false);
+        var existing = await _userRepository.GetByExternalIdAsync(document.Owner, cancellationToken).ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var user = new User(Guid.NewGuid(), "<Unknown user>", document.Owner);
+        await _userRepository.AddAsync(user, cancellationToken).ConfigureAwait(false);
+        return user;
     }
 }
