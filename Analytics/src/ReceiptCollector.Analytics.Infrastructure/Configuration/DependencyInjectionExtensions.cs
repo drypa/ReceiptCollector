@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
+using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -19,6 +20,7 @@ public static class DependencyInjectionExtensions
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<IReceiptReadService, StubReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ReceiptSynchronizationService>();
         services.AddHostedService<ReceiptSynchronizationHostedService>();
         return services;

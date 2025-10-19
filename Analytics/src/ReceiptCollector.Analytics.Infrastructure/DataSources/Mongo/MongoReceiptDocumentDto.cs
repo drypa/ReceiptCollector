@@ -42,6 +42,10 @@ public sealed class MongoReceiptDocumentDto
     [BsonElement("ticket")]
     public TicketDto? Ticket { get; init; }
 
+    [BsonElement("owner")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Owner { get; init; } = string.Empty;
+
     [BsonElement("receipt")]
     public ReceiptDto? Receipt { get; init; }
 

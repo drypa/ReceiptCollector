@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
@@ -20,7 +21,6 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
     private string _postgresConnectionString = string.Empty;
     private readonly string _mongoDatabase = "analytics_sync_db";
     private readonly string _mongoCollection = "receipts";
-    private readonly Guid _userId = Guid.NewGuid();
 
     public ReceiptSynchronizationServiceTests()
     {
@@ -38,23 +38,37 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
     [Fact]
     public async Task SynchronizeAsync_imports_new_receipts_only_once()
     {
-        await SeedMongoAsync(CreateDocument("doc-1"));
-        await SeedMongoAsync(CreateDocument("doc-2"));
+        var owner1 = ObjectId.GenerateNewId().ToString();
+        var owner2 = ObjectId.GenerateNewId().ToString();
+
+        await SeedMongoAsync(CreateDocument("doc-1", owner1));
+        await SeedMongoAsync(CreateDocument("doc-2", owner2));
 
         await RunSynchronizationAsync();
 
         await using (var verificationContext = CreateContext())
         {
+            var users = await verificationContext.Users.ToListAsync();
+            Assert.Equal(2, users.Count);
+            foreach (var user in users)
+            {
+                Assert.Equal("<Unknown user>", user.Name);
+            }
+
             var storedAfterFirstRun = await verificationContext.Receipts
                 .IgnoreQueryFilters()
                 .Include(r => r.Items)
                 .ToListAsync();
 
             Assert.Equal(2, storedAfterFirstRun.Count);
-            Assert.All(storedAfterFirstRun, receipt => Assert.Equal(_userId, receipt.UserId));
+            Assert.All(storedAfterFirstRun, receipt =>
+            {
+                var matchingUser = users.Single(u => u.Id == receipt.UserId);
+                Assert.Contains(matchingUser.ExternalId, new[] { owner1, owner2 });
+            });
         }
 
-        await SeedMongoAsync(CreateDocument("doc-3"));
+        await SeedMongoAsync(CreateDocument("doc-3", owner1));
 
         await RunSynchronizationAsync();
 
@@ -90,17 +104,17 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
     {
         await using var context = CreateContext();
         var repository = new ReceiptRepository(context);
+        var userRepository = new UserRepository(context);
         var loader = CreateLoader();
         var syncOptions = Options.Create(new ReceiptSynchronizationOptions
         {
-            BatchSize = 10,
-            UserId = _userId
+            BatchSize = 10
         });
 
         var service = new ReceiptSynchronizationService(
             loader,
             repository,
-            context,
+            userRepository,
             syncOptions,
             NullLogger<ReceiptSynchronizationService>.Instance);
 
@@ -135,7 +149,7 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         await collection.InsertOneAsync(document);
     }
 
-    private static MongoReceiptDocumentDto CreateDocument(string externalId)
+    private static MongoReceiptDocumentDto CreateDocument(string externalId, string owner)
     {
         return new MongoReceiptDocumentDto
         {
@@ -143,6 +157,7 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
             ExternalId = externalId,
             TicketId = "ticket-id",
             QueryString = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+            Owner = owner,
             Receipt = new MongoReceiptDocumentDto.ReceiptDto
             {
                 Datetime = "2019-10-05T15:48:00",

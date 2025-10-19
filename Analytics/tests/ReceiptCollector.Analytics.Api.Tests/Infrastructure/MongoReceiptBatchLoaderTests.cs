@@ -101,6 +101,7 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
             ExternalId = externalId,
             TicketId = "ticket-id",
             QueryString = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+            Owner = ObjectId.GenerateNewId().ToString(),
             Receipt = new MongoReceiptDocumentDto.ReceiptDto
             {
                 Datetime = "2019-10-05T15:48:00",
