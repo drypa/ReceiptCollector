@@ -94,8 +94,8 @@ internal sealed class ReceiptSynchronizationService
             throw new InvalidOperationException("Receipt seller is not specified.");
         }
 
-        var merchantId = MongoReceiptMapper.CreateDeterministicGuid(document.Seller.Inn);
-        var existing = await _merchantRepository.GetByIdAsync(merchantId, cancellationToken).ConfigureAwait(false);
+        var inn = document.Seller.Inn.Trim();
+        var existing = await _merchantRepository.GetByInnAsync(inn, cancellationToken).ConfigureAwait(false);
 
         if (existing is not null)
         {
@@ -105,7 +105,7 @@ internal sealed class ReceiptSynchronizationService
         var name = MongoReceiptMapper.GetMerchantName(document);
         var address = ExtractAddress(document);
 
-        var merchant = new Merchant(merchantId, name, MerchantCategory.Undefined, address, document.Seller.Inn);
+        var merchant = new Merchant(Guid.NewGuid(), name, MerchantCategory.Undefined, address, inn);
         await _merchantRepository.AddAsync(merchant, cancellationToken).ConfigureAwait(false);
         return merchant;
     }

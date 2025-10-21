@@ -16,9 +16,21 @@ internal sealed class MerchantRepository : IMerchantRepository
     {
         ArgumentNullException.ThrowIfNull(merchant);
 
-        var entity = await _dbContext.Merchants
-            .FirstOrDefaultAsync(m => m.Id == merchant.Id, cancellationToken)
-            .ConfigureAwait(false);
+        MerchantEntity? entity = null;
+
+        if (!string.IsNullOrWhiteSpace(merchant.Inn))
+        {
+            entity = await _dbContext.Merchants
+                .FirstOrDefaultAsync(m => m.Inn == merchant.Inn, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (entity is null)
+        {
+            entity = await _dbContext.Merchants
+                .FirstOrDefaultAsync(m => m.Id == merchant.Id, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         if (entity is null)
         {
@@ -41,6 +53,21 @@ internal sealed class MerchantRepository : IMerchantRepository
         var entity = await _dbContext.Merchants
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == merchantId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity?.MapToDomain();
+    }
+
+    public async Task<Merchant?> GetByInnAsync(string inn, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(inn))
+        {
+            throw new ArgumentException("Merchant INN must be provided.", nameof(inn));
+        }
+
+        var entity = await _dbContext.Merchants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Inn == inn, cancellationToken)
             .ConfigureAwait(false);
 
         return entity?.MapToDomain();

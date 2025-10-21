@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Reflection;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Synchronization;
 
