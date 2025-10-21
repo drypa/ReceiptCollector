@@ -2,10 +2,33 @@ namespace ReceiptCollector.Analytics.Domain.Modules.Merchants;
 
 public sealed class Merchant
 {
+    public Merchant(Guid id, string name, MerchantCategory category = MerchantCategory.Undefined, string? address = null, string? inn = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Merchant name must be provided.", nameof(name));
+        }
+
+        Id = id;
+        Name = name;
+        Category = category;
+        Address = address;
+        Inn = inn;
+    }
+
     public Guid Id { get; }
-    public string Name { get; }
-    public MerchantCategory Category { get; private set; } = MerchantCategory.Undefined;
-    public string Address { get; }
-    public string Inn { get; }
+
+    public string Name { get; private set; }
+
+    public MerchantCategory Category { get; private set; }
+
+    public string? Address { get; private set; }
+
+    public string? Inn { get; private set; }
+
+    public void UpdateCategory(MerchantCategory category)
+    {
+        Category = category;
+    }
 
 }

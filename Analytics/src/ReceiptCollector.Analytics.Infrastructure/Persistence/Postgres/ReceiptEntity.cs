@@ -7,7 +7,8 @@ internal sealed class ReceiptEntity
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public string Merchant { get; set; } = string.Empty;
+    public Guid MerchantId { get; set; }
+    public MerchantEntity Merchant { get; set; } = null!;
     public string ExternalId { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public DateTime PurchasedAt { get; set; }
@@ -19,7 +20,7 @@ internal sealed class ReceiptEntity
         {
             Id = receipt.Id,
             UserId = receipt.UserId,
-            Merchant = receipt.Merchant,
+            MerchantId = receipt.MerchantId,
             ExternalId = receipt.ExternalId,
             TotalAmount = receipt.TotalAmount,
             PurchasedAt = NormalizeUtc(receipt.PurchasedAt),
@@ -49,7 +50,7 @@ internal sealed class ReceiptEntity
         return new Receipt(
             Id,
             UserId,
-            Merchant,
+            MerchantId,
             TotalAmount,
             DateTime.SpecifyKind(PurchasedAt, DateTimeKind.Utc),
             ExternalId,

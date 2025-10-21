@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 using System.Linq;
 using Testcontainers.PostgreSql;
@@ -29,6 +30,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
 
         await using (var context = CreateContext())
         {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
             var repository = new ReceiptRepository(context);
             await repository.AddAsync(receipt, CancellationToken.None);
         }
@@ -41,7 +43,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
             Assert.NotNull(stored);
             Assert.Equal(receipt.Id, stored!.Id);
             Assert.Equal(receipt.UserId, stored.UserId);
-            Assert.Equal(receipt.Merchant, stored.Merchant);
+            Assert.Equal(receipt.MerchantId, stored.MerchantId);
             Assert.Equal(receipt.TotalAmount, stored.TotalAmount);
             Assert.Equal(receipt.PurchasedAt, stored.PurchasedAt, TimeSpan.FromMilliseconds(1));
 
@@ -66,6 +68,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
 
         await using (var context = CreateContext())
         {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
             var repository = new ReceiptRepository(context);
             await repository.AddAsync(receipt, CancellationToken.None);
         }
@@ -93,6 +96,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
 
         await using (var context = CreateContext())
         {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
             var repository = new ReceiptRepository(context);
             await repository.AddAsync(receipt, CancellationToken.None);
         }
@@ -116,6 +120,7 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
 
         await using (var context = CreateContext())
         {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
             var repository = new ReceiptRepository(context);
             await repository.AddAsync(receipt, CancellationToken.None);
         }
@@ -164,12 +169,14 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
         await context.Commodities.ExecuteDeleteAsync();
         await context.Receipts.ExecuteDeleteAsync();
+        await context.Merchants.ExecuteDeleteAsync();
     }
 
     private static Receipt CreateReceipt()
     {
         var receiptId = Guid.NewGuid();
         var userId = Guid.NewGuid();
+        var merchantId = Guid.NewGuid();
         var now = DateTime.UtcNow;
         var purchasedAt = new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMillisecond), DateTimeKind.Utc);
 
@@ -196,11 +203,21 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
         return new Receipt(
             receiptId,
             userId,
-            "Local Store",
+            merchantId,
             172,
             purchasedAt,
             "external-id",
             new[] { firstItem, secondItem });
+    }
+
+    private static MerchantEntity CreateMerchant(Guid merchantId)
+    {
+        return new MerchantEntity
+        {
+            Id = merchantId,
+            Name = "Local Store",
+            Category = MerchantCategory.Undefined
+        };
     }
 
     private static void AssertSubset(Commodity expected, Commodity actual)

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
@@ -11,6 +12,7 @@ internal sealed class ReceiptSynchronizationService
 {
     private readonly IMongoReceiptBatchLoader _batchLoader;
     private readonly IReceiptRepository _receiptRepository;
+    private readonly IMerchantRepository _merchantRepository;
     private readonly IUserRepository _userRepository;
     private readonly IOptions<ReceiptSynchronizationOptions> _options;
     private readonly ILogger<ReceiptSynchronizationService> _logger;
@@ -18,12 +20,14 @@ internal sealed class ReceiptSynchronizationService
     public ReceiptSynchronizationService(
         IMongoReceiptBatchLoader batchLoader,
         IReceiptRepository receiptRepository,
+        IMerchantRepository merchantRepository,
         IUserRepository userRepository,
         IOptions<ReceiptSynchronizationOptions> options,
         ILogger<ReceiptSynchronizationService> logger)
     {
         _batchLoader = batchLoader ?? throw new ArgumentNullException(nameof(batchLoader));
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
+        _merchantRepository = merchantRepository ?? throw new ArgumentNullException(nameof(merchantRepository));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -62,7 +66,8 @@ internal sealed class ReceiptSynchronizationService
                 try
                 {
                     var user = await ResolveUserAsync(document, cancellationToken).ConfigureAwait(false);
-                    var receipt = MongoReceiptMapper.Map(document, user.Id);
+                    Merchant merchant = await ResolveMerchantAsync(document, cancellationToken).ConfigureAwait(false);
+                    var receipt = MongoReceiptMapper.Map(document, user.Id, merchant.Id);
                     await _receiptRepository.AddAsync(receipt, cancellationToken).ConfigureAwait(false);
                     imported++;
                 }
@@ -80,6 +85,42 @@ internal sealed class ReceiptSynchronizationService
         }
 
         _logger.LogInformation("Receipt synchronization completed. Imported {ImportedCount} receipts.", imported);
+    }
+
+    private async Task<Merchant> ResolveMerchantAsync(MongoReceiptDocumentDto document, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(document.Seller?.Inn))
+        {
+            throw new InvalidOperationException("Receipt seller is not specified.");
+        }
+
+        var merchantId = MongoReceiptMapper.CreateDeterministicGuid(document.Seller.Inn);
+        var existing = await _merchantRepository.GetByIdAsync(merchantId, cancellationToken).ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var name = MongoReceiptMapper.GetMerchantName(document);
+        var address = ExtractAddress(document);
+
+        var merchant = new Merchant(merchantId, name, MerchantCategory.Undefined, address, document.Seller.Inn);
+        await _merchantRepository.AddAsync(merchant, cancellationToken).ConfigureAwait(false);
+        return merchant;
+    }
+
+    private static string? ExtractAddress(MongoReceiptDocumentDto document)
+    {
+        var receipt = document.Receipt ?? document.Ticket?.Document?.Receipt;
+        var address = receipt?.RetailPlaceAddress;
+
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            return address;
+        }
+
+        return null;
     }
 
     private async Task<User> ResolveUserAsync(MongoReceiptDocumentDto document, CancellationToken cancellationToken)

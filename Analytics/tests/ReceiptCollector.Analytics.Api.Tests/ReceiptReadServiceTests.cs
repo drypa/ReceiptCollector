@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 
@@ -33,12 +34,20 @@ public class ReceiptReadServiceTests
 
         var userId = Guid.NewGuid();
         var receiptId = Guid.NewGuid();
+        var merchantId = Guid.NewGuid();
+
+        var merchant = new MerchantEntity
+        {
+            Id = merchantId,
+            Name = "Local Store",
+            Category = MerchantCategory.Undefined
+        };
 
         var entity = new ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres.ReceiptEntity
         {
             Id = receiptId,
             UserId = userId,
-            Merchant = "Local Store",
+            MerchantId = merchantId,
             ExternalId = "external",
             TotalAmount = 100m,
             PurchasedAt = DateTime.UtcNow,
@@ -57,6 +66,7 @@ public class ReceiptReadServiceTests
             ]
         };
 
+        await context.Merchants.AddAsync(merchant);
         await context.Receipts.AddAsync(entity);
         await context.SaveChangesAsync();
 

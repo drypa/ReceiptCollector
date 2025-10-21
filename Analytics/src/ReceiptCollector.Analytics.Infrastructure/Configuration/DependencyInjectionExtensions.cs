@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
@@ -20,6 +21,7 @@ public static class DependencyInjectionExtensions
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<IReceiptReadService, ReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
+        services.AddScoped<IMerchantRepository, MerchantRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ReceiptSynchronizationService>();
         services.AddHostedService<ReceiptSynchronizationHostedService>();

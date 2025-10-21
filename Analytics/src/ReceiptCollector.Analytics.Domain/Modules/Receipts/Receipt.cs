@@ -8,7 +8,7 @@ public sealed class Receipt
 
     public Guid UserId { get; }
 
-    public string Merchant { get; }
+    public Guid MerchantId { get; }
     
     public string ExternalId { get; }
 
@@ -23,7 +23,7 @@ public sealed class Receipt
     public Receipt(
         Guid id,
         Guid userId,
-        string merchant,
+        Guid merchantId,
         decimal totalAmount,
         DateTime purchasedAt,
         string externalId,
@@ -31,7 +31,7 @@ public sealed class Receipt
     {
         Id = id;
         UserId = userId;
-        Merchant = merchant;
+        MerchantId = merchantId;
         TotalAmount = totalAmount;
         PurchasedAt = purchasedAt;
         ExternalId = externalId;
@@ -40,21 +40,4 @@ public sealed class Receipt
             _items.AddRange(items);
         }
     }
-
-    public void AddItem(Commodity item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        _items.Add(item);
-    }
-
-    public void AddItems(IEnumerable<Commodity> items)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-
-        foreach (var item in items)
-        {
-            AddItem(item);
-        }
-    }
-
 }

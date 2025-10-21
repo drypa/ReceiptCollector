@@ -23,12 +23,13 @@ internal sealed class ReceiptReadService : IReceiptReadService
 
         return await _dbContext.Receipts
             .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
             .Where(receipt => receipt.UserId == userId)
             .OrderByDescending(receipt => receipt.PurchasedAt)
             .Take(limit)
             .Select(receipt => new ReceiptSummaryDto(
                 receipt.Id,
-                receipt.Merchant,
+                receipt.Merchant.Name,
                 receipt.TotalAmount,
                 receipt.PurchasedAt))
             .ToListAsync(cancellationToken)
@@ -39,6 +40,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
     {
         var entity = await _dbContext.Receipts
             .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
             .Include(receipt => receipt.Items)
             .FirstOrDefaultAsync(receipt => receipt.Id == receiptId, cancellationToken)
             .ConfigureAwait(false);
@@ -60,7 +62,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
 
         return new ReceiptDetailsDto(
             entity.Id,
-            entity.Merchant,
+            entity.Merchant.Name,
             entity.TotalAmount,
             entity.PurchasedAt,
             items);

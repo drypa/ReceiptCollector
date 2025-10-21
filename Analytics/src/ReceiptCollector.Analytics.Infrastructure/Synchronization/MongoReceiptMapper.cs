@@ -8,7 +8,7 @@ internal static class MongoReceiptMapper
 {
     private const decimal MinorUnitsFactor = 100m;
 
-    public static Receipt Map(MongoReceiptDocumentDto document, Guid userId)
+    public static Receipt Map(MongoReceiptDocumentDto document, Guid userId, Guid merchantId)
     {
         ArgumentNullException.ThrowIfNull(document);
 
@@ -19,7 +19,6 @@ internal static class MongoReceiptMapper
             ? document.Id.ToString()
             : document.ExternalId;
 
-        var merchant = GetMerchantName(document, receiptDto);
         var purchasedAt = GetPurchasedAt(receiptDto);
         var totalAmount = ConvertMinorUnits(receiptDto.TotalSum);
 
@@ -29,7 +28,7 @@ internal static class MongoReceiptMapper
 
         var items = receiptDto.Items?.Select(item => MapItem(item, receiptId)).ToList();
 
-        return new Receipt(receiptId, userId, merchant, totalAmount, purchasedAt, externalId, items);
+        return new Receipt(receiptId, userId, merchantId, totalAmount, purchasedAt, externalId, items);
     }
 
     private static Commodity MapItem(MongoReceiptDocumentDto.ReceiptItemDto item, Guid receiptId)
@@ -49,13 +48,6 @@ internal static class MongoReceiptMapper
 
     private static decimal ConvertMinorUnits(long value) => decimal.Divide(value, MinorUnitsFactor);
 
-    private static Guid CreateDeterministicGuid(string input)
-    {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
-        var hash = System.Security.Cryptography.MD5.HashData(bytes);
-        return new Guid(hash);
-    }
-
     private static DateTime GetPurchasedAt(MongoReceiptDocumentDto.ReceiptDto receiptDto)
     {
         if (receiptDto.TimestampSeconds > 0)
@@ -72,9 +64,11 @@ internal static class MongoReceiptMapper
         throw new InvalidOperationException("Receipt payload does not contain purchase timestamp.");
     }
 
-    private static string GetMerchantName(MongoReceiptDocumentDto document, MongoReceiptDocumentDto.ReceiptDto receiptDto)
+    internal static string GetMerchantName(MongoReceiptDocumentDto document)
     {
-        if (!string.IsNullOrWhiteSpace(receiptDto.User))
+        var receiptDto = document.Receipt ?? document.Ticket?.Document?.Receipt;
+
+        if (!string.IsNullOrWhiteSpace(receiptDto?.User))
         {
             return receiptDto.User;
         }
@@ -85,5 +79,12 @@ internal static class MongoReceiptMapper
         }
 
         return "<Unknown merchant>";
+    }
+
+    internal static Guid CreateDeterministicGuid(string input)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
+        var hash = System.Security.Cryptography.MD5.HashData(bytes);
+        return new Guid(hash);
     }
 }

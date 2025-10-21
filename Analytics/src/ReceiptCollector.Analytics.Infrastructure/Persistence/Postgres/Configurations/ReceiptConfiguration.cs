@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres.Configurations;
 
@@ -10,9 +11,13 @@ internal sealed class ReceiptConfiguration : IEntityTypeConfiguration<ReceiptEnt
         builder.ToTable("receipts");
         builder.HasKey(r => r.Id);
 
-        builder.Property(r => r.Merchant)
-            .IsRequired()
-            .HasMaxLength(256);
+        builder.Property(r => r.MerchantId)
+            .IsRequired();
+
+        builder.HasOne(r => r.Merchant)
+            .WithMany()
+            .HasForeignKey(r => r.MerchantId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(r => r.ExternalId)
             .IsRequired()

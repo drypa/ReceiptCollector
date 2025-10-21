@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -104,6 +105,7 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
     {
         await using var context = CreateContext();
         var repository = new ReceiptRepository(context);
+        var merchantRepository = new MerchantRepository(context);
         var userRepository = new UserRepository(context);
         var loader = CreateLoader();
         var syncOptions = Options.Create(new ReceiptSynchronizationOptions
@@ -114,6 +116,7 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         var service = new ReceiptSynchronizationService(
             loader,
             repository,
+            merchantRepository,
             userRepository,
             syncOptions,
             NullLogger<ReceiptSynchronizationService>.Instance);
@@ -158,12 +161,18 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
             TicketId = "ticket-id",
             QueryString = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
             Owner = owner,
+            Seller = new MongoReceiptDocumentDto.SellerDto
+            {
+                Inn = GenerateInn(externalId),
+                Name = $"ООО \"СДЕЛАЙ СВОИМИ РУКАМИ {externalId}\""
+            },
             Receipt = new MongoReceiptDocumentDto.ReceiptDto
             {
                 Datetime = "2019-10-05T15:48:00",
                 TimestampSeconds = 1570280880,
                 TotalSum = 112700,
                 User = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+                RetailPlaceAddress = "117556 г. Москва, Варшавское шоссе, 97",
                 Items = new List<MongoReceiptDocumentDto.ReceiptItemDto>
                 {
                     new()
@@ -187,5 +196,22 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
                 }
             }
         };
+    }
+
+    private static string GenerateInn(string seed)
+    {
+        var digits = seed.Where(char.IsDigit).ToArray();
+        if (digits.Length >= 10)
+        {
+            return new string(digits.Take(10).ToArray());
+        }
+
+        var inn = new string(digits);
+        if (inn.Length < 10)
+        {
+            inn = inn.PadRight(10, '0');
+        }
+
+        return inn;
     }
 }

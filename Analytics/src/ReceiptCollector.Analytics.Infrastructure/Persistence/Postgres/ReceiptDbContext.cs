@@ -13,6 +13,7 @@ internal sealed class ReceiptDbContext : DbContext
     public DbSet<ReceiptEntity> Receipts => Set<ReceiptEntity>();
     public DbSet<CommodityEntity> Commodities => Set<CommodityEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<MerchantEntity> Merchants => Set<MerchantEntity>();
 
     internal Guid? CurrentUserId { get; private set; }
 
@@ -31,6 +32,7 @@ internal sealed class ReceiptDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ReceiptConfiguration());
         modelBuilder.ApplyConfiguration(new CommodityConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.Entity<ReceiptEntity>()
             .HasQueryFilter(r => CurrentUserId == null || r.UserId == CurrentUserId);
     }
