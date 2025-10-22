@@ -15,9 +15,7 @@ internal static class MongoReceiptMapper
         var receiptDto = document.Receipt ?? document.Ticket?.Document?.Receipt
                          ?? throw new InvalidOperationException("Mongo receipt document is missing receipt payload.");
 
-        var externalId = string.IsNullOrWhiteSpace(document.ExternalId)
-            ? document.Id.ToString()
-            : document.ExternalId;
+        var externalId = document.Id.ToString();
 
         var purchasedAt = GetPurchasedAt(receiptDto);
         var totalAmount = ConvertMinorUnits(receiptDto.TotalSum);
