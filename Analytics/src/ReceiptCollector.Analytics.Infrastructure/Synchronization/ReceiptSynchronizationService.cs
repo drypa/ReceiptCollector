@@ -35,7 +35,8 @@ internal sealed class ReceiptSynchronizationService
 
     public async Task SynchronizeAsync(CancellationToken cancellationToken)
     {
-        var settings = _options.Value ?? throw new InvalidOperationException("Receipt synchronization options are not configured.");
+        var settings = _options.Value ??
+                       throw new InvalidOperationException("Receipt synchronization options are not configured.");
 
         if (settings.BatchSize <= 0)
         {
@@ -66,6 +67,13 @@ internal sealed class ReceiptSynchronizationService
                 try
                 {
                     var user = await ResolveUserAsync(document, cancellationToken).ConfigureAwait(false);
+
+                    var existReceipt = await _receiptRepository.GetByExternalIdAsync(document.ExternalId, user.Id, cancellationToken);
+                    if (existReceipt is not null)
+                    {
+                        _logger.LogInformation("Receipt {ReceiptExternalId} already exists, skipping.", document.ExternalId);
+                    }
+
                     Merchant merchant = await ResolveMerchantAsync(document, cancellationToken).ConfigureAwait(false);
                     var receipt = MongoReceiptMapper.Map(document, user.Id, merchant.Id);
                     await _receiptRepository.AddAsync(receipt, cancellationToken).ConfigureAwait(false);
@@ -73,7 +81,7 @@ internal sealed class ReceiptSynchronizationService
                 }
                 catch (ReceiptAlreadyExistsException)
                 {
-                    _logger.LogDebug("Receipt {ReceiptExternalId} already exists, skipping.", document.ExternalId);
+                    _logger.LogDebug("Failed to save receipt {ReceiptExternalId} already exists, skipping.", document.Id);
                 }
                 catch (Exception ex)
                 {
@@ -87,7 +95,8 @@ internal sealed class ReceiptSynchronizationService
         _logger.LogInformation("Receipt synchronization completed. Imported {ImportedCount} receipts.", imported);
     }
 
-    private async Task<Merchant> ResolveMerchantAsync(MongoReceiptDocumentDto document, CancellationToken cancellationToken)
+    private async Task<Merchant> ResolveMerchantAsync(MongoReceiptDocumentDto document,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(document.Seller?.Inn))
         {
@@ -123,14 +132,16 @@ internal sealed class ReceiptSynchronizationService
         return null;
     }
 
-    private async Task<User> ResolveUserAsync(MongoReceiptDocumentDto document, CancellationToken cancellationToken)
+    private async Task<User> ResolveUserAsync(MongoReceiptDocumentDto document,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(document.Owner))
         {
             throw new InvalidOperationException("Receipt document does not contain owner identifier.");
         }
 
-        var existing = await _userRepository.GetByExternalIdAsync(document.Owner, cancellationToken).ConfigureAwait(false);
+        var existing = await _userRepository.GetByExternalIdAsync(document.Owner, cancellationToken)
+            .ConfigureAwait(false);
 
         if (existing is not null)
         {
