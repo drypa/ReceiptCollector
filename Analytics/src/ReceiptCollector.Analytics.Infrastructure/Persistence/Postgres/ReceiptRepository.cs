@@ -84,4 +84,29 @@ internal sealed class ReceiptRepository : IReceiptRepository
             _dbContext.ClearCurrentUser();
         }
     }
+
+    public async Task<Receipt?> GetByExternalIdAsync(string externalId, Guid userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(externalId))
+        {
+            throw new ArgumentException("External id must be provided.", nameof(externalId));
+        }
+
+        _dbContext.SetCurrentUser(userId);
+
+        try
+        {
+            var entity = await _dbContext.Receipts
+                .AsNoTracking()
+                .Include(r => r.Items)
+                .FirstOrDefaultAsync(r => r.ExternalId == externalId && r.UserId == userId, cancellationToken)
+                .ConfigureAwait(false);
+
+            return entity?.MapToDomain();
+        }
+        finally
+        {
+            _dbContext.ClearCurrentUser();
+        }
+    }
 }
