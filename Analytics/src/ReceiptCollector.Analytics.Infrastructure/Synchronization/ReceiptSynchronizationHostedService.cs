@@ -3,8 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Synchronization;
 
@@ -27,30 +25,14 @@ internal sealed class ReceiptSynchronizationHostedService : IHostedService
             var dbContext = scope.ServiceProvider.GetRequiredService<ReceiptDbContext>();
             var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false);
 
+            if (!await dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("Unable to connect to the analytics database. Ensure the database is created and accessible with the configured credentials.");
+            }
+
             if (pendingMigrations.Any())
             {
-                await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                var databaseCreator = dbContext.Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator;
-
-                if (databaseCreator is not null)
-                {
-                    if (!await databaseCreator.ExistsAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        await databaseCreator.CreateAsync(cancellationToken).ConfigureAwait(false);
-                    }
-
-                    if (!await databaseCreator.HasTablesAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        await databaseCreator.CreateTablesAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    await dbContext.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
-                }
+                throw new InvalidOperationException("Pending Entity Framework migrations detected. Please apply migrations manually before running the application.");
             }
             var synchronizationService = scope.ServiceProvider.GetRequiredService<ReceiptSynchronizationService>();
             await synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);

@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Infrastructure", "src\ReceiptCollector.Analytics.Infrastructure\ReceiptCollector.Analytics.Infrastructure.csproj", "{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Migrations", "src\ReceiptCollector.Analytics.Migrations\ReceiptCollector.Analytics.Migrations.csproj", "{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DA6340AD-33D1-4710-9A5D-37C22782CFD5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReceiptCollector.Analytics.Api.Tests", "tests\ReceiptCollector.Analytics.Api.Tests\ReceiptCollector.Analytics.Api.Tests.csproj", "{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}"
@@ -42,6 +44,10 @@ Global
 		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -52,6 +58,7 @@ Global
 		{0C8F5353-C0A1-4112-BEB1-A14CF320BC43} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
 		{BF848EA6-FBBE-407C-B239-ACE15456A160} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
 		{DD2CF9B6-69C1-4EFD-AEBD-9361F9A7DD02} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
+	{C4B7E0BE-AF27-4E4C-8FDD-EDC77CF9F1F1} = {C7703C56-C40D-4A2D-A2EF-78FE8FC087B0}
 		{CE181D7B-BDB4-4A01-9D2A-49AA522CFAC2} = {DA6340AD-33D1-4710-9A5D-37C22782CFD5}
 	EndGlobalSection
 EndGlobal
