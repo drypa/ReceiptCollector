@@ -56,6 +56,8 @@ internal sealed class MigrationRunner
             return;
         }
 
+        await EnsureTargetDatabaseExistsAsync(connectionString, cancellationToken).ConfigureAwait(false);
+
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -88,13 +90,63 @@ internal sealed class MigrationRunner
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (transaction.Connection is not null)
+                    {
+                        await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception rollbackEx)
+                {
+                    _logger.LogError(rollbackEx, "Failed to rollback transaction for script {ScriptName}.", script.Name);
+                }
+
                 _logger.LogError(ex, "Failed to apply script {ScriptName}. Transaction rolled back.", script.Name);
                 throw;
             }
         }
 
         _logger.LogInformation("All migrations are up to date.");
+    }
+
+    private async Task EnsureTargetDatabaseExistsAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        var databaseName = builder.Database;
+
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            throw new InvalidOperationException("Target database name is not specified in the Postgres connection string.");
+        }
+
+        var systemConnectionBuilder = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Database = "postgres"
+        };
+
+        await using var systemConnection = new NpgsqlConnection(systemConnectionBuilder.ConnectionString);
+        await systemConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string checkDatabaseSql = "SELECT 1 FROM pg_database WHERE datname = @databaseName";
+
+        await using var checkCommand = new NpgsqlCommand(checkDatabaseSql, systemConnection);
+        checkCommand.Parameters.AddWithValue("databaseName", databaseName);
+
+        var exists = await checkCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) != null;
+
+        if (exists)
+        {
+            return;
+        }
+
+        var escapedDatabaseName = databaseName.Replace("\"", "\"\"");
+        var createDatabaseSql = $"CREATE DATABASE \"{escapedDatabaseName}\"";
+
+        await using var createCommand = new NpgsqlCommand(createDatabaseSql, systemConnection);
+        await createCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Database '{Database}' was created before applying migrations.", databaseName);
     }
 
     private async Task ExecuteScriptAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string scriptContent, CancellationToken cancellationToken)

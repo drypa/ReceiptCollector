@@ -50,4 +50,3 @@ CREATE INDEX ix_receipts_user_id ON receipts (user_id);
 CREATE INDEX ix_receipts_merchant_id ON receipts (merchant_id);
 CREATE INDEX ix_commodities_receipt_id ON commodities (receipt_id);
 
-COMMIT;
