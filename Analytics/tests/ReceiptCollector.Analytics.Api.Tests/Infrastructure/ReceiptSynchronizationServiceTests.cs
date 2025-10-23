@@ -139,7 +139,8 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
     private ReceiptDbContext CreateContext()
     {
         var builder = new DbContextOptionsBuilder<ReceiptDbContext>()
-            .UseNpgsql(_postgresConnectionString);
+            .UseNpgsql(_postgresConnectionString)
+            .UseSnakeCaseNamingConvention();
 
         return new ReceiptDbContext(builder.Options);
     }

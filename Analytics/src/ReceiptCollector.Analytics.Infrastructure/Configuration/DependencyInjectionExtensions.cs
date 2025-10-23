@@ -48,7 +48,9 @@ public static class DependencyInjectionExtensions
                 throw new InvalidOperationException("Postgres connection string is not configured.");
             }
 
-            builder.UseNpgsql(options.ConnectionString);
+            builder
+                .UseNpgsql(options.ConnectionString)
+                .UseSnakeCaseNamingConvention();
         });
 
         services.AddSingleton<IMongoReceiptBatchLoader, MongoReceiptBatchLoader>();
