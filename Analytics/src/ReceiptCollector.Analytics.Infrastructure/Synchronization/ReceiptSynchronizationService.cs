@@ -63,15 +63,21 @@ internal sealed class ReceiptSynchronizationService
             foreach (var document in documents)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (document.Receipt == null)
+                {
+                    _logger.LogInformation("Receipt {ReceiptExternalId} is not fulfilled, skipping.", document.Id);
+                    continue;
+                }
 
                 try
                 {
                     var user = await ResolveUserAsync(document, cancellationToken).ConfigureAwait(false);
 
-                    var existReceipt = await _receiptRepository.GetByExternalIdAsync(document.ExternalId, user.Id, cancellationToken);
+                    var existReceipt = await _receiptRepository.GetByExternalIdAsync(document.Id.ToString(), user.Id, cancellationToken);
                     if (existReceipt is not null)
                     {
-                        _logger.LogInformation("Receipt {ReceiptExternalId} already exists, skipping.", document.ExternalId);
+                        _logger.LogInformation("Receipt {ReceiptExternalId} already exists, skipping.", document.Id);
+                        continue;
                     }
 
                     Merchant merchant = await ResolveMerchantAsync(document, cancellationToken).ConfigureAwait(false);
@@ -85,7 +91,7 @@ internal sealed class ReceiptSynchronizationService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to import receipt {ReceiptExternalId}.", document.ExternalId);
+                    _logger.LogError(ex, "Failed to import receipt {ReceiptExternalId}.", document.Id);
                 }
             }
 
@@ -98,12 +104,12 @@ internal sealed class ReceiptSynchronizationService
     private async Task<Merchant> ResolveMerchantAsync(MongoReceiptDocumentDto document,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(document.Seller?.Inn))
+        if (string.IsNullOrWhiteSpace(document.Receipt?.UserInn))
         {
             throw new InvalidOperationException("Receipt seller is not specified.");
         }
 
-        var inn = document.Seller.Inn.Trim();
+        var inn = document.Receipt.UserInn.Trim();
         var existing = await _merchantRepository.GetByInnAsync(inn, cancellationToken).ConfigureAwait(false);
 
         if (existing is not null)
