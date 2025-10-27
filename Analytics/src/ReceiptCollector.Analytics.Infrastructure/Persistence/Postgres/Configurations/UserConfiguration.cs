@@ -20,5 +20,8 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
 
         builder.HasIndex(u => u.ExternalId)
             .IsUnique();
+
+        builder.Property(u => u.TelegramId)
+            .IsRequired();
     }
 }

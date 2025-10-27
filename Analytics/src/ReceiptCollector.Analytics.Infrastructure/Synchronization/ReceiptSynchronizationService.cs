@@ -14,6 +14,7 @@ internal sealed class ReceiptSynchronizationService
     private readonly IReceiptRepository _receiptRepository;
     private readonly IMerchantRepository _merchantRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IMongoUserLoader _userLoader;
     private readonly IOptions<ReceiptSynchronizationOptions> _options;
     private readonly ILogger<ReceiptSynchronizationService> _logger;
 
@@ -22,6 +23,7 @@ internal sealed class ReceiptSynchronizationService
         IReceiptRepository receiptRepository,
         IMerchantRepository merchantRepository,
         IUserRepository userRepository,
+        IMongoUserLoader userLoader,
         IOptions<ReceiptSynchronizationOptions> options,
         ILogger<ReceiptSynchronizationService> logger)
     {
@@ -29,6 +31,7 @@ internal sealed class ReceiptSynchronizationService
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
         _merchantRepository = merchantRepository ?? throw new ArgumentNullException(nameof(merchantRepository));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+        _userLoader = userLoader ?? throw new ArgumentNullException(nameof(userLoader));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -42,6 +45,8 @@ internal sealed class ReceiptSynchronizationService
         {
             throw new InvalidOperationException("Receipt synchronization batch size must be positive.");
         }
+
+        await SynchronizeUsersAsync(cancellationToken).ConfigureAwait(false);
 
         var batchSize = settings.BatchSize;
         var skip = 0;
@@ -101,6 +106,39 @@ internal sealed class ReceiptSynchronizationService
         _logger.LogInformation("Receipt synchronization completed. Imported {ImportedCount} receipts.", imported);
     }
 
+    private async Task SynchronizeUsersAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Starting user synchronization.");
+
+        var userDocuments = await _userLoader.LoadAllAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var document in userDocuments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var externalId = document.Id.ToString();
+            var name = string.IsNullOrWhiteSpace(document.Name) ? "<Unknown user>" : document.Name.Trim();
+            var telegramId = document.TelegramId.GetValueOrDefault();
+
+            var existing = await _userRepository
+                .GetByExternalIdAsync(externalId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existing is null)
+            {
+                var user = new User(Guid.NewGuid(), name, externalId, telegramId);
+                await _userRepository.AddAsync(user, cancellationToken).ConfigureAwait(false);
+            }
+            else if (!string.Equals(existing.Name, name, StringComparison.Ordinal) || existing.TelegramId != telegramId)
+            {
+                var updated = new User(existing.Id, name, externalId, telegramId);
+                await _userRepository.AddAsync(updated, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        _logger.LogInformation("User synchronization completed. Processed {UserCount} users.", userDocuments.Count);
+    }
+
     private async Task<Merchant> ResolveMerchantAsync(MongoReceiptDocumentDto document,
         CancellationToken cancellationToken)
     {
@@ -154,7 +192,7 @@ internal sealed class ReceiptSynchronizationService
             return existing;
         }
 
-        var user = new User(Guid.NewGuid(), "<Unknown user>", document.Owner);
+        var user = new User(Guid.NewGuid(), "<Unknown user>", document.Owner, 0);
         await _userRepository.AddAsync(user, cancellationToken).ConfigureAwait(false);
         return user;
     }

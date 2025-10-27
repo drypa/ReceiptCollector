@@ -14,4 +14,6 @@ public sealed class MongoReceiptSourceOptions
 
     [Required]
     public string? Collection { get; init; }
+
+    public string UsersCollection { get; init; } = "system_users";
 }

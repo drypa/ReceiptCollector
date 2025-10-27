@@ -42,21 +42,49 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         var owner1 = ObjectId.GenerateNewId().ToString();
         var owner2 = ObjectId.GenerateNewId().ToString();
 
+        var userLoader = new TestMongoUserLoader(new[]
+        {
+            new MongoUserDocumentDto
+            {
+                Id = ObjectId.Parse(owner1),
+                Name = "First Owner",
+                TelegramId = 101
+            },
+            new MongoUserDocumentDto
+            {
+                Id = ObjectId.Parse(owner2),
+                Name = "Second Owner",
+                TelegramId = 202
+            }
+        });
+
+        Assert.Equal(2, (await userLoader.LoadAllAsync(CancellationToken.None)).Count);
+
         await SeedMongoAsync(CreateDocument("doc-1", owner1));
         await SeedMongoAsync(CreateDocument("doc-2", owner2));
 
-        await RunSynchronizationAsync();
-
-        await using (var verificationContext = CreateContext())
+        await using (var firstContext = CreateContext())
         {
-            var users = await verificationContext.Users.ToListAsync();
+            var service = CreateService(firstContext, userLoader);
+            await service.SynchronizeAsync(CancellationToken.None);
+
+            var users = await firstContext.Users.AsNoTracking().ToListAsync();
             Assert.Equal(2, users.Count);
+            var expectedUsers = new Dictionary<string, (string Name, int Telegram)>
+            {
+                { owner1, ("First Owner", 101) },
+                { owner2, ("Second Owner", 202) }
+            };
+
             foreach (var user in users)
             {
-                Assert.Equal("<Unknown user>", user.Name);
+                Assert.Contains(user.ExternalId, expectedUsers.Keys);
+                var expected = expectedUsers[user.ExternalId];
+                Assert.Equal(expected.Name, user.Name);
+                Assert.Equal(expected.Telegram, user.TelegramId);
             }
 
-            var storedAfterFirstRun = await verificationContext.Receipts
+            var storedAfterFirstRun = await firstContext.Receipts
                 .IgnoreQueryFilters()
                 .Include(r => r.Items)
                 .ToListAsync();
@@ -69,13 +97,33 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
             });
         }
 
-        await SeedMongoAsync(CreateDocument("doc-3", owner1));
-
-        await RunSynchronizationAsync();
-
         await using (var verificationContext = CreateContext())
         {
-            var storedAfterSecondRun = await verificationContext.Receipts
+            var persistedUsers = await verificationContext.Users.AsNoTracking().ToListAsync();
+            Assert.Equal(2, persistedUsers.Count);
+            var expectedUsers = new Dictionary<string, (string Name, int Telegram)>
+            {
+                { owner1, ("First Owner", 101) },
+                { owner2, ("Second Owner", 202) }
+            };
+
+            foreach (var user in persistedUsers)
+            {
+                Assert.Contains(user.ExternalId, expectedUsers.Keys);
+                var expected = expectedUsers[user.ExternalId];
+                Assert.Equal(expected.Name, user.Name);
+                Assert.Equal(expected.Telegram, user.TelegramId);
+            }
+        }
+
+        await SeedMongoAsync(CreateDocument("doc-3", owner1));
+
+        await using (var secondContext = CreateContext())
+        {
+            var service = CreateService(secondContext, userLoader);
+            await service.SynchronizeAsync(CancellationToken.None);
+
+            var storedAfterSecondRun = await secondContext.Receipts
                 .IgnoreQueryFilters()
                 .ToListAsync();
 
@@ -101,39 +149,40 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         await _postgresContainer.DisposeAsync();
     }
 
-    private async Task RunSynchronizationAsync()
+    private IOptions<MongoReceiptSourceOptions> CreateMongoOptions()
     {
-        await using var context = CreateContext();
-        var repository = new ReceiptRepository(context);
-        var merchantRepository = new MerchantRepository(context);
-        var userRepository = new UserRepository(context);
-        var loader = CreateLoader();
-        var syncOptions = Options.Create(new ReceiptSynchronizationOptions
-        {
-            BatchSize = 10
-        });
-
-        var service = new ReceiptSynchronizationService(
-            loader,
-            repository,
-            merchantRepository,
-            userRepository,
-            syncOptions,
-            NullLogger<ReceiptSynchronizationService>.Instance);
-
-        await service.SynchronizeAsync(CancellationToken.None);
-    }
-
-    private MongoReceiptBatchLoader CreateLoader()
-    {
-        var options = Options.Create(new MongoReceiptSourceOptions
+        return Options.Create(new MongoReceiptSourceOptions
         {
             ConnectionString = _mongoConnectionString,
             Database = _mongoDatabase,
             Collection = _mongoCollection
         });
+    }
 
-        return new MongoReceiptBatchLoader(options, NullLogger<MongoReceiptBatchLoader>.Instance);
+    private MongoReceiptBatchLoader CreateReceiptLoader()
+    {
+        return new MongoReceiptBatchLoader(CreateMongoOptions(), NullLogger<MongoReceiptBatchLoader>.Instance);
+    }
+
+    private ReceiptSynchronizationService CreateService(ReceiptDbContext context, IMongoUserLoader userLoader)
+    {
+        var repository = new ReceiptRepository(context);
+        var merchantRepository = new MerchantRepository(context);
+        var userRepository = new UserRepository(context);
+        var receiptLoader = CreateReceiptLoader();
+        var syncOptions = Options.Create(new ReceiptSynchronizationOptions
+        {
+            BatchSize = 10
+        });
+
+        return new ReceiptSynchronizationService(
+            receiptLoader,
+            repository,
+            merchantRepository,
+            userRepository,
+            userLoader,
+            syncOptions,
+            NullLogger<ReceiptSynchronizationService>.Instance);
     }
 
     private ReceiptDbContext CreateContext()
@@ -173,6 +222,7 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
                 TimestampSeconds = 1570280880,
                 TotalSum = 112700,
                 User = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+                UserInn = GenerateInn(externalId),
                 RetailPlaceAddress = "117556 г. Москва, Варшавское шоссе, 97",
                 Items = new List<MongoReceiptDocumentDto.ReceiptItemDto>
                 {
@@ -199,6 +249,32 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         };
     }
 
+    private sealed class TestMongoUserLoader : IMongoUserLoader
+    {
+        private readonly IReadOnlyList<MongoUserDocumentDto> _users;
+
+        public TestMongoUserLoader(IEnumerable<MongoUserDocumentDto> users)
+        {
+            _users = users.Select(Clone).ToArray();
+        }
+
+        public Task<IReadOnlyList<MongoUserDocumentDto>> LoadAllAsync(CancellationToken cancellationToken)
+        {
+            var snapshot = _users.Select(Clone).ToArray();
+            return Task.FromResult((IReadOnlyList<MongoUserDocumentDto>)snapshot);
+        }
+
+        private static MongoUserDocumentDto Clone(MongoUserDocumentDto source)
+        {
+            return new MongoUserDocumentDto
+            {
+                Id = source.Id,
+                Name = source.Name,
+                TelegramId = source.TelegramId
+            };
+        }
+    }
+
     private static string GenerateInn(string seed)
     {
         var digits = seed.Where(char.IsDigit).ToArray();
@@ -215,4 +291,5 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
 
         return inn;
     }
+
 }

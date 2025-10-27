@@ -54,6 +54,7 @@ public static class DependencyInjectionExtensions
         });
 
         services.AddSingleton<IMongoReceiptBatchLoader, MongoReceiptBatchLoader>();
+        services.AddSingleton<IMongoUserLoader, MongoUserLoader>();
     }
 }
 

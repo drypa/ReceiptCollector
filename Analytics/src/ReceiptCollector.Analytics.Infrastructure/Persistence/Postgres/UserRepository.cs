@@ -31,8 +31,26 @@ internal sealed class UserRepository : IUserRepository
     {
         ArgumentNullException.ThrowIfNull(user);
 
-        var entity = UserEntity.Create(user);
-        _dbContext.Users.Add(entity);
+        var entity = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.ExternalId == user.ExternalId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            entity = UserEntity.Create(user);
+            await _dbContext.Users.AddAsync(entity, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            entity.Name = user.Name;
+            entity.TelegramId = user.TelegramId;
+
+            if (entity.Id != user.Id)
+            {
+                entity.Id = user.Id;
+            }
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }
