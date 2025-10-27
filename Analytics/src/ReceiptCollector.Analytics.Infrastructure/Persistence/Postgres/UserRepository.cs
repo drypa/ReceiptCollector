@@ -27,6 +27,16 @@ internal sealed class UserRepository : IUserRepository
         return existing?.MapToDomain();
     }
 
+    public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var existing = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return existing?.MapToDomain();
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);

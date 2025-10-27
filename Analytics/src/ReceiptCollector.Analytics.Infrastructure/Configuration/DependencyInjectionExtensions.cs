@@ -3,12 +3,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Receipts;
+using ReceiptCollector.Analytics.Infrastructure.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 using ReceiptCollector.Analytics.Infrastructure.Synchronization;
 
@@ -23,6 +25,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
         services.AddScoped<IMerchantRepository, MerchantRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserAuthLinkRepository, UserAuthLinkRepository>();
+        services.AddScoped<IUserAuthLinkService, UserAuthLinkService>();
         services.AddScoped<ReceiptSynchronizationService>();
         services.AddHostedService<ReceiptSynchronizationHostedService>();
         return services;
@@ -38,6 +42,9 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<ReceiptSynchronizationOptions>()
             .Bind(configuration.GetSection(ReceiptSynchronizationOptions.SectionName));
+
+        services.AddOptions<UserAuthLinkOptions>()
+            .Bind(configuration.GetSection(UserAuthLinkOptions.SectionName));
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {
