@@ -55,6 +55,38 @@ internal sealed class UserAuthLinkService : IUserAuthLinkService
         return new UserAuthLinkResult(link, expiresAt);
     }
 
+    public async Task<UserAuthLinkValidationResult> ValidateAsync(string token, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return UserAuthLinkValidationResult.Failure("Token is required.");
+        }
+
+        var tokenHash = HashToken(token);
+        var link = await _authLinkRepository.GetByTokenHashAsync(tokenHash, cancellationToken).ConfigureAwait(false);
+
+        if (link is null)
+        {
+            return UserAuthLinkValidationResult.Failure("Token not found.");
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+
+        if (link.IsExpired(utcNow))
+        {
+            return UserAuthLinkValidationResult.Failure("Token expired.");
+        }
+
+        if (link.IsUsed)
+        {
+            return UserAuthLinkValidationResult.Failure("Token already used.");
+        }
+
+        await _authLinkRepository.MarkAsUsedAsync(link.Id, utcNow, cancellationToken).ConfigureAwait(false);
+
+        return UserAuthLinkValidationResult.Success(link.UserId);
+    }
+
     private static string GenerateToken()
     {
         Span<byte> buffer = stackalloc byte[32];

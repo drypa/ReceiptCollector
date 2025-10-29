@@ -1,4 +1,5 @@
 using ReceiptCollector.Analytics.Api.Modules.Receipts;
+using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,5 +24,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapReceiptEndpoints();
+app.MapUserAuthEndpoints();
 
 app.Run();

@@ -114,4 +114,138 @@ public class UserAuthLinkServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.GenerateAsync(Guid.NewGuid(), CancellationToken.None));
     }
+
+    [Fact]
+    public async Task ValidateAsync_returns_success_for_valid_token()
+    {
+        var options = new DbContextOptionsBuilder<ReceiptDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ReceiptDbContext(options);
+
+        var userId = Guid.NewGuid();
+
+        await context.Users.AddAsync(new UserEntity
+        {
+            Id = userId,
+            Name = "Test User",
+            ExternalId = "external",
+            TelegramId = 123
+        });
+
+        await context.SaveChangesAsync();
+
+        var userRepository = new UserRepository(context);
+        var authLinkRepository = new UserAuthLinkRepository(context);
+        var service = new UserAuthLinkService(
+            authLinkRepository,
+            userRepository,
+            Options.Create(new UserAuthLinkOptions
+            {
+                BaseUrl = "https://app.example.com/login",
+                LifetimeMinutes = 5
+            }));
+
+        var generated = await service.GenerateAsync(userId, CancellationToken.None);
+        var token = ExtractToken(generated.Link);
+
+        var validation = await service.ValidateAsync(token, CancellationToken.None);
+
+        Assert.True(validation.IsValid);
+        Assert.Equal(userId, validation.UserId);
+
+        var secondAttempt = await service.ValidateAsync(token, CancellationToken.None);
+
+        Assert.False(secondAttempt.IsValid);
+        Assert.Equal("Token already used.", secondAttempt.Error);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_fails_when_token_expired()
+    {
+        var options = new DbContextOptionsBuilder<ReceiptDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ReceiptDbContext(options);
+
+        var userId = Guid.NewGuid();
+
+        await context.Users.AddAsync(new UserEntity
+        {
+            Id = userId,
+            Name = "Test User",
+            ExternalId = "external",
+            TelegramId = 123
+        });
+
+        await context.SaveChangesAsync();
+
+        var userRepository = new UserRepository(context);
+        var authLinkRepository = new UserAuthLinkRepository(context);
+        var service = new UserAuthLinkService(
+            authLinkRepository,
+            userRepository,
+            Options.Create(new UserAuthLinkOptions
+            {
+                BaseUrl = "https://app.example.com/login",
+                LifetimeMinutes = 5
+            }));
+
+        var generated = await service.GenerateAsync(userId, CancellationToken.None);
+        var token = ExtractToken(generated.Link);
+
+        var storedLink = await context.UserAuthLinks.FirstAsync();
+        storedLink.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await context.SaveChangesAsync();
+
+        var validation = await service.ValidateAsync(token, CancellationToken.None);
+
+        Assert.False(validation.IsValid);
+        Assert.Equal("Token expired.", validation.Error);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_returns_failure_when_token_missing()
+    {
+        var options = new DbContextOptionsBuilder<ReceiptDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ReceiptDbContext(options);
+
+        var userRepository = new UserRepository(context);
+        var authLinkRepository = new UserAuthLinkRepository(context);
+        var service = new UserAuthLinkService(
+            authLinkRepository,
+            userRepository,
+            Options.Create(new UserAuthLinkOptions
+            {
+                BaseUrl = "https://app.example.com/login",
+                LifetimeMinutes = 5
+            }));
+
+        var validation = await service.ValidateAsync(string.Empty, CancellationToken.None);
+
+        Assert.False(validation.IsValid);
+        Assert.Equal("Token is required.", validation.Error);
+    }
+
+    private static string ExtractToken(string link)
+    {
+        var uri = new Uri(link);
+        var query = uri.Query.TrimStart('?');
+
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var segments = pair.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 2 && segments[0] == "token")
+            {
+                return Uri.UnescapeDataString(segments[1]);
+            }
+        }
+
+        throw new InvalidOperationException("Token not found in link.");
+    }
 }
