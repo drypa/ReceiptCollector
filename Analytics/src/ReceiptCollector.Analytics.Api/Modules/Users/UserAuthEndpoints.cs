@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
+using ReceiptCollector.Analytics.Infrastructure.Modules.Users;
 
 namespace ReceiptCollector.Analytics.Api.Modules.Users;
 
@@ -8,12 +9,13 @@ public static class UserAuthEndpoints
     private const string AuthCookieName = "rc-auth";
     private static readonly TimeSpan CookieLifetime = TimeSpan.FromMinutes(30);
 
+
     public static IEndpointRouteBuilder MapUserAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/users");
+        var group = app.MapGroup(Endpoints.AuthGroup);
         group.WithTags("User Authentication");
 
-        group.MapGet("/auth", ConsumeAuthLink);
+        group.MapGet(Endpoints.AuthByLinkPath, ConsumeAuthLink);
 
         return app;
     }

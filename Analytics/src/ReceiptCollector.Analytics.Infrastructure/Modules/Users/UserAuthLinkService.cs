@@ -107,6 +107,6 @@ internal sealed class UserAuthLinkService : IUserAuthLinkService
     private static string BuildLink(string baseUrl, string token)
     {
         var separator = baseUrl.Contains('?') ? '&' : '?';
-        return $"{baseUrl}{separator}token={token}";
+        return $"{baseUrl}/{Endpoints.AuthGroup}/{Endpoints.AuthByLinkPath}{separator}token={token}";
     }
 }
