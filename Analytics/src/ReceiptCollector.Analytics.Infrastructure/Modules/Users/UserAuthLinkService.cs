@@ -55,6 +55,23 @@ internal sealed class UserAuthLinkService : IUserAuthLinkService
         return new UserAuthLinkResult(link, expiresAt);
     }
 
+    public async Task<UserAuthLinkResult> GenerateByTelegramIdAsync(int telegramId, CancellationToken cancellationToken)
+    {
+        if (telegramId <= 0)
+        {
+            throw new ArgumentException("Telegram id must be positive.", nameof(telegramId));
+        }
+
+        var user = await _userRepository.GetByTelegramIdAsync(telegramId, cancellationToken).ConfigureAwait(false);
+
+        if (user is null)
+        {
+            throw new InvalidOperationException($"User with telegram id '{telegramId}' does not exist.");
+        }
+
+        return await GenerateAsync(user.Id, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<UserAuthLinkValidationResult> ValidateAsync(string token, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(token))

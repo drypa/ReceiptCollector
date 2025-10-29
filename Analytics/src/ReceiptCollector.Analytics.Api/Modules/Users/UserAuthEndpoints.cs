@@ -16,6 +16,7 @@ public static class UserAuthEndpoints
         group.WithTags("User Authentication");
 
         group.MapGet(Endpoints.AuthByLinkPath, ConsumeAuthLink);
+        group.MapGet(Endpoints.AuthLinkRequestPath, RequestAuthLink);
 
         return app;
     }
@@ -50,4 +51,27 @@ public static class UserAuthEndpoints
 
         return Results.NoContent();
     }
+
+    private static async Task<IResult> RequestAuthLink(
+        [FromQuery] int? telegramId,
+        [FromServices] IUserAuthLinkService authLinkService,
+        CancellationToken cancellationToken)
+    {
+        if (telegramId is null || telegramId <= 0)
+        {
+            return Results.BadRequest("telegramId is required.");
+        }
+
+        try
+        {
+            var link = await authLinkService.GenerateByTelegramIdAsync(telegramId.Value, cancellationToken);
+            return Results.Ok(new UserAuthLinkResponse(link.Link, link.ExpiresAt));
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+    }
+
+    private sealed record UserAuthLinkResponse(string Link, DateTimeOffset ExpiresAt);
 }

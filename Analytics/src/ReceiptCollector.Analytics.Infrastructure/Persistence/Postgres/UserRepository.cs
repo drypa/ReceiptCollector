@@ -37,6 +37,21 @@ internal sealed class UserRepository : IUserRepository
         return existing?.MapToDomain();
     }
 
+    public async Task<User?> GetByTelegramIdAsync(int telegramId, CancellationToken cancellationToken)
+    {
+        if (telegramId <= 0)
+        {
+            throw new ArgumentException("Telegram id must be positive.", nameof(telegramId));
+        }
+
+        var existing = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.TelegramId == telegramId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return existing?.MapToDomain();
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);

@@ -4,6 +4,8 @@ public interface IUserAuthLinkService
 {
     Task<UserAuthLinkResult> GenerateAsync(Guid userId, CancellationToken cancellationToken);
 
+    Task<UserAuthLinkResult> GenerateByTelegramIdAsync(int telegramId, CancellationToken cancellationToken);
+
     Task<UserAuthLinkValidationResult> ValidateAsync(string token, CancellationToken cancellationToken);
 }
 

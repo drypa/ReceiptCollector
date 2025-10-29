@@ -6,5 +6,7 @@ public interface IUserRepository
 
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<User?> GetByTelegramIdAsync(int telegramId, CancellationToken cancellationToken);
+
     Task AddAsync(User user, CancellationToken cancellationToken);
 }
