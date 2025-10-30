@@ -1,3 +1,4 @@
+using ReceiptCollector.Analytics.Api.Middleware;
 using ReceiptCollector.Analytics.Api.Modules.Receipts;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration;
@@ -20,6 +21,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<UserAuthCookieMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

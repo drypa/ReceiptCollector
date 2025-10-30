@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 
 namespace ReceiptCollector.Analytics.Api.Modules.Receipts;
@@ -17,13 +18,13 @@ public static class ReceiptEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAll([FromQuery] Guid? userId,
-        [FromServices] IReceiptReadService service,
+    private static async Task<IResult> GetAll([FromServices] IReceiptReadService service,
         CancellationToken cancellationToken)
     {
+        var userId = UserContext.UserId;
         if (userId is null || userId == Guid.Empty)
         {
-            return Results.BadRequest("userId is required.");
+            return Results.BadRequest("user is not authenticated.");
         }
 
         var receipts = await service.GetRecentAsync(userId.Value, 10, cancellationToken);
@@ -33,7 +34,13 @@ public static class ReceiptEndpoints
     private static async Task<IResult> GetById(Guid id, [FromServices] IReceiptReadService service,
         CancellationToken cancellationToken)
     {
-        var receipt = await service.GetByIdAsync(id, cancellationToken);
+        var userId = UserContext.UserId;
+        if (userId is null || userId == Guid.Empty)
+        {
+            return Results.BadRequest("user is not authenticated.");
+        }
+
+        var receipt = await service.GetByIdAsync(userId.Value, id, cancellationToken);
         return receipt is null ? Results.NotFound() : Results.Ok(receipt);
     }
 }

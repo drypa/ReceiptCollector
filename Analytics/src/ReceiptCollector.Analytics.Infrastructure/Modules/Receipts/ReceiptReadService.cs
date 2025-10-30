@@ -36,13 +36,13 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .ConfigureAwait(false);
     }
 
-    public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid receiptId, CancellationToken cancellationToken)
+    public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken)
     {
         var entity = await _dbContext.Receipts
             .AsNoTracking()
             .Include(receipt => receipt.Merchant)
             .Include(receipt => receipt.Items)
-            .FirstOrDefaultAsync(receipt => receipt.Id == receiptId, cancellationToken)
+            .FirstOrDefaultAsync(receipt => receipt.Id == receiptId && receipt.UserId ==userId, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)

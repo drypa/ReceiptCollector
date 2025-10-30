@@ -6,7 +6,6 @@ namespace ReceiptCollector.Analytics.Api.Modules.Users;
 
 public static class UserAuthEndpoints
 {
-    private const string AuthCookieName = "rc-auth";
     private static readonly TimeSpan CookieLifetime = TimeSpan.FromMinutes(30);
 
 
@@ -47,7 +46,7 @@ public static class UserAuthEndpoints
             MaxAge = CookieLifetime
         };
 
-        httpContext.Response.Cookies.Append(AuthCookieName, validation.UserId.Value.ToString(), options);
+        httpContext.Response.Cookies.Append(UserAuthCookieDefaults.CookieName, validation.UserId.Value.ToString(), options);
 
         return Results.NoContent();
     }

@@ -34,8 +34,8 @@ internal sealed class ReceiptSynchronizationHostedService : IHostedService
             {
                 throw new InvalidOperationException("Pending Entity Framework migrations detected. Please apply migrations manually before running the application.");
             }
-            var synchronizationService = scope.ServiceProvider.GetRequiredService<ReceiptSynchronizationService>();
-            await synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+            // var synchronizationService = scope.ServiceProvider.GetRequiredService<ReceiptSynchronizationService>();
+            // await synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
