@@ -21,11 +21,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseMiddleware<UserAuthCookieMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapReceiptEndpoints();
 app.MapUserAuthEndpoints();
+app.MapFallbackToFile("/index.html");
 
 app.Run();
