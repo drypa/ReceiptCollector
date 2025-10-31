@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Globalization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 
@@ -18,7 +20,7 @@ public static class ReceiptEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAll([FromServices] IReceiptReadService service, [FromQuery] int limit = 10,
+    private static async Task<IResult> GetAll(HttpContext httpContext, [FromServices] IReceiptReadService service, [FromQuery] int limit = 10,
         [FromQuery] int offset = 0, CancellationToken cancellationToken = default)
     {
         var userId = UserContext.UserId;
@@ -38,6 +40,8 @@ public static class ReceiptEndpoints
         }
 
         var receipts = await service.GetRecentAsync(userId.Value, limit, offset, cancellationToken);
+        var totalCount = await service.GetTotalCountAsync(userId.Value, cancellationToken);
+        httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString(CultureInfo.InvariantCulture);
         return Results.Ok(receipts);
     }
 

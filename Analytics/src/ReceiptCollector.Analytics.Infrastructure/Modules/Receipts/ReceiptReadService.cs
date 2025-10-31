@@ -42,6 +42,15 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .ConfigureAwait(false);
     }
 
+    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.UserId == userId)
+            .CountAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken)
     {
         var entity = await _dbContext.Receipts

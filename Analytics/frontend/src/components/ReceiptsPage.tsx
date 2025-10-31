@@ -2,7 +2,7 @@ import { useReceipts } from '../hooks/useReceipts';
 import { Pagination } from './Pagination';
 import { ReceiptTable } from './ReceiptTable';
 
-const DEFAULT_PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = 10;
 
 export function ReceiptsPage() {
   const {
