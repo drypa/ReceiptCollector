@@ -18,7 +18,7 @@ public class ReceiptReadServiceTests
         await using var context = new ReceiptDbContext(options);
         var service = new ReceiptReadService(context);
 
-        var summary = await service.GetRecentAsync(Guid.NewGuid(), 10, CancellationToken.None);
+        var summary = await service.GetRecentAsync(Guid.NewGuid(), 10, 0, CancellationToken.None);
 
         Assert.Empty(summary);
     }
@@ -72,10 +72,10 @@ public class ReceiptReadServiceTests
 
         var service = new ReceiptReadService(context);
 
-        var summaries = await service.GetRecentAsync(userId, 10, CancellationToken.None);
+        var summaries = await service.GetRecentAsync(userId, 10, 0, CancellationToken.None);
         Assert.Single(summaries);
 
-        var details = await service.GetByIdAsync(receiptId, CancellationToken.None);
+        var details = await service.GetByIdAsync(userId, receiptId, CancellationToken.None);
         Assert.NotNull(details);
         Assert.Equal("Local Store", details!.Merchant);
         Assert.Single(details.Items);

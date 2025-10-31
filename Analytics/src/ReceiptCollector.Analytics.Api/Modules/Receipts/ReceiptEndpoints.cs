@@ -18,8 +18,8 @@ public static class ReceiptEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAll([FromServices] IReceiptReadService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> GetAll([FromServices] IReceiptReadService service, [FromQuery] int limit = 10,
+        [FromQuery] int offset = 0, CancellationToken cancellationToken = default)
     {
         var userId = UserContext.UserId;
         if (userId is null || userId == Guid.Empty)
@@ -27,7 +27,17 @@ public static class ReceiptEndpoints
             return Results.BadRequest("user is not authenticated.");
         }
 
-        var receipts = await service.GetRecentAsync(userId.Value, 10, cancellationToken);
+        if (limit <= 0)
+        {
+            return Results.BadRequest("limit must be greater than zero.");
+        }
+
+        if (offset < 0)
+        {
+            return Results.BadRequest("offset cannot be negative.");
+        }
+
+        var receipts = await service.GetRecentAsync(userId.Value, limit, offset, cancellationToken);
         return Results.Ok(receipts);
     }
 

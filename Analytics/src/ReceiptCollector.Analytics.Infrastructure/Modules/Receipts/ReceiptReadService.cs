@@ -14,11 +14,16 @@ internal sealed class ReceiptReadService : IReceiptReadService
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken)
     {
         if (limit <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be positive.");
+        }
+
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative.");
         }
 
         return await _dbContext.Receipts
@@ -26,6 +31,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .Include(receipt => receipt.Merchant)
             .Where(receipt => receipt.UserId == userId)
             .OrderByDescending(receipt => receipt.PurchasedAt)
+            .Skip(offset)
             .Take(limit)
             .Select(receipt => new ReceiptSummaryDto(
                 receipt.Id,
