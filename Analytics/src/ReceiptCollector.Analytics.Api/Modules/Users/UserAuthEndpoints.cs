@@ -15,7 +15,10 @@ public static class UserAuthEndpoints
         group.WithTags("User Authentication");
 
         group.MapGet(Endpoints.AuthByLinkPath, ConsumeAuthLink);
-        group.MapGet(Endpoints.AuthLinkRequestPath, RequestAuthLink);
+        group.MapGet(Endpoints.AuthLinkRequestPath, RequestAuthLink)
+            .Produces<UserAuthLinkResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status204NoContent);
 
         return app;
     }
