@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -23,19 +22,14 @@ internal sealed class ReceiptSynchronizationHostedService : IHostedService
         {
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ReceiptDbContext>();
-            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false);
 
             if (!await dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false))
             {
                 throw new InvalidOperationException("Unable to connect to the analytics database. Ensure the database is created and accessible with the configured credentials.");
             }
 
-            if (pendingMigrations.Any())
-            {
-                throw new InvalidOperationException("Pending Entity Framework migrations detected. Please apply migrations manually before running the application.");
-            }
-            // var synchronizationService = scope.ServiceProvider.GetRequiredService<ReceiptSynchronizationService>();
-            // await synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+            var synchronizationService = scope.ServiceProvider.GetRequiredService<ReceiptSynchronizationService>();
+            await synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
