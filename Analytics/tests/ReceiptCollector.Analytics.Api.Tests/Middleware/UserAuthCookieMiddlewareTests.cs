@@ -22,7 +22,7 @@ public class UserAuthCookieMiddlewareTests
 
         Assert.True(nextCalled);
         Assert.False(context.User.Identity?.IsAuthenticated ?? false);
-        Assert.False(context.Items.ContainsKey(UserAuthCookieDefaults.HttpContextUserIdKey));
+        Assert.False(context.Items.ContainsKey(UserAuthCookie.HttpContextUserIdKey));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class UserAuthCookieMiddlewareTests
         await middleware.InvokeAsync(context);
 
         Assert.False(context.User.Identity?.IsAuthenticated ?? false);
-        Assert.False(context.Items.ContainsKey(UserAuthCookieDefaults.HttpContextUserIdKey));
+        Assert.False(context.Items.ContainsKey(UserAuthCookie.HttpContextUserIdKey));
     }
 
     [Fact]
@@ -49,20 +49,20 @@ public class UserAuthCookieMiddlewareTests
         var identity = context.User.Identity;
         Assert.NotNull(identity);
         Assert.True(identity!.IsAuthenticated);
-        Assert.Equal(UserAuthCookieDefaults.AuthenticationScheme, identity.AuthenticationType);
+        Assert.Equal(UserAuthCookie.AuthenticationScheme, identity.AuthenticationType);
 
         var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
         Assert.NotNull(userIdClaim);
         Assert.Equal(userId.ToString(), userIdClaim!.Value);
 
-        Assert.True(context.Items.ContainsKey(UserAuthCookieDefaults.HttpContextUserIdKey));
-        Assert.Equal(userId, context.Items[UserAuthCookieDefaults.HttpContextUserIdKey]);
+        Assert.True(context.Items.ContainsKey(UserAuthCookie.HttpContextUserIdKey));
+        Assert.Equal(userId, context.Items[UserAuthCookie.HttpContextUserIdKey]);
     }
 
     private static DefaultHttpContext CreateContextWithCookie(string cookieValue)
     {
         var context = new DefaultHttpContext();
-        context.Request.Headers.Append("Cookie", $"{UserAuthCookieDefaults.CookieName}={cookieValue}");
+        context.Request.Headers.Append("Cookie", $"{UserAuthCookie.CookieName}={cookieValue}");
         return context;
     }
 }

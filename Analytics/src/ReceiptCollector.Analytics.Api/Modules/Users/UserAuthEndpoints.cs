@@ -46,7 +46,7 @@ public static class UserAuthEndpoints
             MaxAge = CookieLifetime
         };
 
-        httpContext.Response.Cookies.Append(UserAuthCookieDefaults.CookieName, validation.UserId.Value.ToString(), options);
+        httpContext.Response.Cookies.Append(UserAuthCookie.CookieName, validation.UserId.Value.ToString(), options);
 
         return Results.NoContent();
     }

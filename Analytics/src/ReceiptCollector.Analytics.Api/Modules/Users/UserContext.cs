@@ -4,6 +4,7 @@ public static class UserContext
 {
     private static readonly AsyncLocal<Guid?> userId = new();
     public static Guid? UserId => userId.Value;
+    public static bool HasUserId => userId.Value != null;
 
     public static IDisposable SetUserId(Guid id)
     {

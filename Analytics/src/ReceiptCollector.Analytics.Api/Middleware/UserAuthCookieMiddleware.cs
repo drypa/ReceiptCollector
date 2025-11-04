@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 
 namespace ReceiptCollector.Analytics.Api.Middleware;
@@ -16,19 +15,10 @@ public sealed class UserAuthCookieMiddleware
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (context.User.Identity?.IsAuthenticated != true &&
-            context.Request.Cookies.TryGetValue(UserAuthCookieDefaults.CookieName, out var cookieValue) &&
+        if (!UserContext.HasUserId &&
+            context.Request.Cookies.TryGetValue(UserAuthCookie.CookieName, out var cookieValue) &&
             Guid.TryParse(cookieValue, out var userId))
         {
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, userId.ToString())
-            };
-
-            var identity = new ClaimsIdentity(claims, UserAuthCookieDefaults.AuthenticationScheme);
-            context.User = new ClaimsPrincipal(identity);
-            context.Items[UserAuthCookieDefaults.HttpContextUserIdKey] = userId;
-            
             using (UserContext.SetUserId(userId))
             {
                 await _next(context).ConfigureAwait(false);

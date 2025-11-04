@@ -1,6 +1,6 @@
 namespace ReceiptCollector.Analytics.Api.Modules.Users;
 
-public static class UserAuthCookieDefaults
+public static class UserAuthCookie
 {
     public const string CookieName = "rc-auth";
 
