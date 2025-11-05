@@ -209,7 +209,7 @@ func (repository *Repository) GetWithoutCheckRequest(ctx context.Context) (*User
 
 	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 	return &usersReceipt, err
@@ -230,7 +230,7 @@ func (repository *Repository) GetWithoutTicket(ctx context.Context) (*UsersRecei
 
 	err := collection.FindOne(ctx, query).Decode(&usersReceipt)
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 	return &usersReceipt, err
@@ -260,7 +260,7 @@ func (repository *Repository) GetRawReceipt(ctx context.Context, qr string) (*na
 	res := collection.FindOne(ctx, query)
 	err := res.Err()
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 
@@ -280,7 +280,7 @@ func (repository *Repository) GetRawReceiptWithoutTicket(ctx context.Context) (*
 	res := collection.FindOne(ctx, query)
 	err := res.Err()
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 
