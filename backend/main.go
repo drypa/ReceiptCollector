@@ -23,7 +23,6 @@ import (
 	"receipt_collector/reports"
 	"receipt_collector/reports/dal"
 	"receipt_collector/users"
-	"receipt_collector/users/login_url"
 	"receipt_collector/waste"
 	"receipt_collector/workers"
 	"time"
@@ -77,13 +76,12 @@ func main() {
 	go worker.GetReceiptStart(ctx, settings)
 	//go worker.UpdateRawReceiptStart(ctx, settings)
 	worker.GetElectronicReceiptStart(ctx)
-	generator := login_url.New(openUrl)
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator, nalogruClient, deviceService, clientSecret)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
@@ -172,12 +170,8 @@ func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Con
 	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
 
-	loginByLinkRoute := "/api/auth/link/{id:[a-zA-Z0-9]+}"
-	router.HandleFunc(loginByLinkRoute, usersController.LoginByLinkHandler)
-
 	http.Handle(registrationRoute, router)
 	http.Handle("/internal/", router)
-	http.Handle("/api/auth/link/", router)
 }
 
 func check(err error) {

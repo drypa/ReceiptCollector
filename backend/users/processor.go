@@ -13,17 +13,15 @@ import (
 // Processor provides method to return login link.
 type Processor struct {
 	repository    *Repository
-	linkGenerator LinkGenerator
 	deviceService *device.Service
 	nalogClient   *nalogru.Client
 	clientSecret  string
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *Repository, linkGenerator LinkGenerator, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
+func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
 	return &Processor{
 		repository:    repository,
-		linkGenerator: linkGenerator,
 		nalogClient:   nalogClient,
 		deviceService: d,
 		clientSecret:  secret}
