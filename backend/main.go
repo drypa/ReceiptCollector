@@ -23,6 +23,7 @@ import (
 	"receipt_collector/reports"
 	"receipt_collector/reports/dal"
 	"receipt_collector/users"
+	"receipt_collector/users/link"
 	"receipt_collector/waste"
 	"receipt_collector/workers"
 	"time"
@@ -81,7 +82,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, clientSecret)
+
+	linkClient := link.NewClient(openUrl)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, linkClient, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)

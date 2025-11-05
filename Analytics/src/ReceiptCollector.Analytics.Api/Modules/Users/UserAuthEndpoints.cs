@@ -18,7 +18,7 @@ public static class UserAuthEndpoints
         group.MapGet(Endpoints.AuthLinkRequestPath, RequestAuthLink)
             .Produces<UserAuthLinkResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Noco);
 
         return app;
     }

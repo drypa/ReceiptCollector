@@ -2,12 +2,13 @@ package users
 
 import (
 	"context"
+	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/device"
 	"receipt_collector/nalogru"
 	nalogDevice "receipt_collector/nalogru/device"
-	"time"
+	"receipt_collector/users/link"
 )
 
 // Processor provides method to return login link.
@@ -16,15 +17,18 @@ type Processor struct {
 	deviceService *device.Service
 	nalogClient   *nalogru.Client
 	clientSecret  string
+	client        *link.Client
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
+func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, client *link.Client, secret string) *Processor {
 	return &Processor{
 		repository:    repository,
 		nalogClient:   nalogClient,
 		deviceService: d,
-		clientSecret:  secret}
+		clientSecret:  secret,
+		client:        client,
+	}
 }
 
 // GetLoginLink returns login link for user in request.
@@ -34,15 +38,16 @@ func (p Processor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest
 	if err != nil {
 		return nil, err
 	}
-	url, err := p.linkGenerator.GetRedirectLink(user.Id.Hex())
-	expiration := time.Now().Add(time.Minute * 15)
-	err = p.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
+	if user == nil {
+		return nil, fmt.Errorf("user with telegram id %d does not exist", telegramId)
+	}
+	resp, err := p.client.GetUserAuthLink(ctx, int(telegramId))
 	if err != nil {
 		return nil, err
 	}
 	return &api.LoginLinkResponse{
-		Url:        url,
-		Expiration: expiration.Unix(),
+		Url:        *resp.Link,
+		Expiration: resp.ExpiresAt.Unix(),
 	}, nil
 }
 
