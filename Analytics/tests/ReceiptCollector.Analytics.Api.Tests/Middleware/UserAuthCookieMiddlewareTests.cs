@@ -42,21 +42,16 @@ public class UserAuthCookieMiddlewareTests
     {
         var userId = Guid.NewGuid();
         var context = CreateContextWithCookie(userId.ToString());
-        var middleware = new UserAuthCookieMiddleware(_ => Task.CompletedTask);
+        var middleware = new UserAuthCookieMiddleware(_ =>
+        {
+            Assert.True(UserContext.HasUserId);
+
+            Assert.Equal(UserContext.UserId, userId);
+
+            return Task.CompletedTask;
+        });
 
         await middleware.InvokeAsync(context);
-
-        var identity = context.User.Identity;
-        Assert.NotNull(identity);
-        Assert.True(identity!.IsAuthenticated);
-        Assert.Equal(UserAuthCookie.AuthenticationScheme, identity.AuthenticationType);
-
-        var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
-        Assert.NotNull(userIdClaim);
-        Assert.Equal(userId.ToString(), userIdClaim!.Value);
-
-        Assert.True(context.Items.ContainsKey(UserAuthCookie.HttpContextUserIdKey));
-        Assert.Equal(userId, context.Items[UserAuthCookie.HttpContextUserIdKey]);
     }
 
     private static DefaultHttpContext CreateContextWithCookie(string cookieValue)
