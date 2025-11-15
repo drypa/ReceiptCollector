@@ -1,6 +1,24 @@
 name: Docker Image CI
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'backend/**'
+      - 'bot/**'
+      - 'dispose/**'
+      - 'docker/**'
+      - 'go.sum'
+      - '.github/workflows/build-backend-image.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'backend/**'
+      - 'bot/**'
+      - 'dispose/**'
+      - 'docker/**'
+      - 'go.sum'
+      - '.github/workflows/build-backend-image.yml'
 
 jobs:
   build:
