@@ -15,6 +15,30 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Start Docker containers for tests
+      run: |
+        docker run -d --name postgres-test -p 5432:5432 -e POSTGRES_PASSWORD=test -e POSTGRES_DB=analytics_test postgres:16-alpine
+        docker run -d --name mongo-test -p 27017:27017 mongo:7.0
+        sleep 10
+
+    - name: Run tests
+      run: |
+        cd Analytics
+        dotnet test --configuration Release --no-build
+
+    - name: Stop Docker containers
+      if: always()
+      run: |
+        docker stop postgres-test || true
+        docker stop mongo-test || true
+        docker rm postgres-test || true
+        docker rm mongo-test || true
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
