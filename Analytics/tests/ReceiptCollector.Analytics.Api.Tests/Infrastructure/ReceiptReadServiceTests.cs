@@ -65,11 +65,10 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     [Fact]
     public async Task GetByMerchantIdAsync_WithNonExistentMerchantId_ReturnsEmptyCollection()
     {
-        var userId = _existingUserId; // Используем существующий пользовательский ID
         var nonExistentMerchantId = Guid.NewGuid(); // Этот merchant ID не существует в тестовой базе
 
 
-        var result = await _service.GetByMerchantIdAsync(userId, nonExistentMerchantId, CancellationToken.None);
+        var result = await _service.GetByMerchantIdAsync(_existingUserId, nonExistentMerchantId, CancellationToken.None);
 
         Assert.Empty(result);
     }
@@ -77,11 +76,9 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     [Fact]
     public async Task GetTotalCountAsync_WithValidUserId_ReturnsCorrectCount()
     {
-        // Arrange
-        var userId = _existingUserId;
 
         // Act
-        var result = await _service.GetTotalCountAsync(userId, CancellationToken.None);
+        var result = await _service.GetTotalCountAsync(_existingUserId, CancellationToken.None);
 
         // Assert
         Assert.IsType<int>(result);
@@ -127,12 +124,11 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     public async Task GetRecentAsync_WithValidUserId_ReturnsReceipts()
     {
         // Arrange
-        var userId = _existingUserId;
         const int limit = 10;
         const int offset = 0;
 
         // Act
-        var result = await _service.GetRecentAsync(userId, limit, offset, CancellationToken.None);
+        var result = await _service.GetRecentAsync(_existingUserId, limit, offset, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -144,11 +140,10 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     public async Task GetByIdAsync_WithValidUserIdAndReceiptId_ReturnsCorrectReceipt()
     {
         // Arrange
-        var userId = _existingUserId;
         var receiptId = _existingReceiptId;
 
         // Act
-        var result = await _service.GetByIdAsync(userId, receiptId, CancellationToken.None);
+        var result = await _service.GetByIdAsync(_existingUserId, receiptId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -212,15 +207,9 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        if (_dbContext != null)
-        {
-            await _dbContext.DisposeAsync();
-        }
+        await _dbContext.DisposeAsync();
 
-        if (_postgresContainer != null)
-        {
-            await _postgresContainer.DisposeAsync();
-        }
+        await _postgresContainer.DisposeAsync();
     }
 
     private async Task SetupTestData()
@@ -229,7 +218,6 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         _existingMerchantId = Guid.NewGuid();
         _existingReceiptId = Guid.NewGuid();
 
-        // Создаем тестовые сущности
         var merchant = new MerchantEntity
         {
             Id = _existingMerchantId,
