@@ -236,7 +236,29 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
             PurchasedAt = DateTime.UtcNow.AddDays(-1),
             Merchant = merchant,
             ExternalId = "some-external-id",
-            Items = new List<CommodityEntity>() //TODO: need add some items
+            Items = new List<CommodityEntity>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptId = _existingReceiptId,
+                    Name = "Test Product 1",
+                    Quantity = 2,
+                    UnitPrice = 25.00m,
+                    Nds = 20,
+                    NdsSum = 5.00m
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptId = _existingReceiptId,
+                    Name = "Test Product 2",
+                    Quantity = 1,
+                    UnitPrice = 50.00m,
+                    Nds = 10,
+                    NdsSum = 5.00m
+                }
+            }
         };
 
         // Добавляем данные в контекст
