@@ -4,8 +4,8 @@ namespace ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 
 public interface IReceiptReadService
 {
-    Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken);
-    Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken);
-    Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken = default);
+    Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken = default);
+    Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken = default);
 }

@@ -14,7 +14,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken = default)
     {
         if (limit <= 0)
         {
@@ -42,7 +42,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .ConfigureAwait(false);
     }
 
-    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Receipts
             .AsNoTracking()
@@ -51,7 +51,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .ConfigureAwait(false);
     }
 
-    public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken)
+    public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.Receipts
             .AsNoTracking()
@@ -88,10 +88,12 @@ internal sealed class ReceiptReadService : IReceiptReadService
             items);
     }
 
-    public async Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken = default)
     {
         var receipts = await _dbContext.Receipts
             .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
+            .Include(receipt => receipt.Items)
             .Where(receipt => receipt.UserId == userId && receipt.MerchantId == merchantId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

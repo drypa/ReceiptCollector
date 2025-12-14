@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Infrastructure.Configuration;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -13,6 +14,11 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     private readonly PostgreSqlContainer _postgresContainer;
     private IReceiptReadService _service = null!;
     private ReceiptDbContext _dbContext = null!;
+
+    // Test data constants
+    private Guid _existingUserId;
+    private Guid _existingMerchantId;
+    private Guid _existingReceiptId;
 
     public ReceiptReadServiceTests()
     {
@@ -27,35 +33,40 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     public async Task GetByMerchantIdAsync_ReturnsCorrectReceipts()
     {
         // Arrange
-        var userId = Guid.NewGuid();
-        var merchantId = Guid.NewGuid();
+        var userId = _existingUserId;
+        var merchantId = _existingMerchantId;
 
         // Act
         var result = await _service.GetByMerchantIdAsync(userId, merchantId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        Assert.Contains(result, r => r.Id == _existingReceiptId);
     }
 
     [Fact]
     public async Task GetByMerchantIdAsync_WithValidUserIdAndMerchantId_ReturnsMatchingReceipts()
     {
-        // This test would require setting up test data in the database
-        // For now, we'll implement a basic test to verify the method exists and can be called
-        var userId = Guid.NewGuid();
-        var merchantId = Guid.NewGuid();
+        // Arrange
+        var userId = _existingUserId;
+        var merchantId = _existingMerchantId;
 
+        // Act
         var result = await _service.GetByMerchantIdAsync(userId, merchantId, CancellationToken.None);
 
+        // Assert
         Assert.NotNull(result);
-        // Additional assertions would require actual test data setup
+        Assert.NotEmpty(result);
+        Assert.All(result, r => Assert.Equal(userId, r.Id == _existingReceiptId ? _existingUserId : userId));
+        Assert.Contains(result, r => r.Id == _existingReceiptId);
     }
 
     [Fact]
     public async Task GetByMerchantIdAsync_WithNonExistentMerchantId_ReturnsEmptyCollection()
     {
-        var userId = Guid.NewGuid();
-        var nonExistentMerchantId = Guid.NewGuid(); // This merchant ID doesn't exist in the test database
+        var userId = _existingUserId; // Используем существующий пользовательский ID
+        var nonExistentMerchantId = Guid.NewGuid(); // Этот merchant ID не существует в тестовой базе
 
 
         var result = await _service.GetByMerchantIdAsync(userId, nonExistentMerchantId, CancellationToken.None);
@@ -67,7 +78,7 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
     public async Task GetTotalCountAsync_WithValidUserId_ReturnsCorrectCount()
     {
         // Arrange
-        var userId = Guid.NewGuid();
+        var userId = _existingUserId;
 
         // Act
         var result = await _service.GetTotalCountAsync(userId, CancellationToken.None);
@@ -75,24 +86,29 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         // Assert
         Assert.IsType<int>(result);
         Assert.True(result >= 0); // Count should be non-negative
+        Assert.True(result > 0, "User should have at least one receipt associated");
     }
 
     [Fact]
     public async Task GetTotalCountAsync_WithDifferentUserIds_ReturnsDifferentCounts()
     {
         // Arrange
-        var userId1 = Guid.NewGuid();
-        var userId2 = Guid.NewGuid();
+        var userId2 = Guid.NewGuid(); // Новый пользователь без данных
 
         // Act
-        var count1 = await _service.GetTotalCountAsync(userId1, CancellationToken.None);
+        var count1 = await _service.GetTotalCountAsync(_existingUserId, CancellationToken.None);
         var count2 = await _service.GetTotalCountAsync(userId2, CancellationToken.None);
 
         // Assert
         Assert.IsType<int>(count1);
         Assert.IsType<int>(count2);
-        Assert.True(count1 >= 0); // Count should be non-negative
-        Assert.True(count2 >= 0); // Count should be non-negative
+        Assert.Equal(1, count1);
+        Assert.Equal(0, count2);
+
+        // Проверяем, что у пользователя с тестовыми данными есть хотя бы один чек
+        Assert.True(count1 > 0, "User with test data should have at least one receipt");
+        // Проверяем, что у нового пользователя нет чеков
+        Assert.Equal(0, count2);
     }
 
     [Fact]
@@ -105,6 +121,52 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() => _service.GetTotalCountAsync(userId, cts.Token));
+    }
+
+    [Fact]
+    public async Task GetRecentAsync_WithValidUserId_ReturnsReceipts()
+    {
+        // Arrange
+        var userId = _existingUserId;
+        const int limit = 10;
+        const int offset = 0;
+
+        // Act
+        var result = await _service.GetRecentAsync(userId, limit, offset, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        Assert.Contains(result, r => r.Id == _existingReceiptId);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WithValidUserIdAndReceiptId_ReturnsCorrectReceipt()
+    {
+        // Arrange
+        var userId = _existingUserId;
+        var receiptId = _existingReceiptId;
+
+        // Act
+        var result = await _service.GetByIdAsync(userId, receiptId, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(receiptId, result.Id);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WithInvalidUserId_ReturnsNull()
+    {
+        // Arrange
+        var invalidUserId = Guid.NewGuid(); // Пользователь без доступа к этому чеку
+        var receiptId = _existingReceiptId;
+
+        // Act
+        var result = await _service.GetByIdAsync(invalidUserId, receiptId, CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
     }
 
     [Fact]
@@ -140,9 +202,12 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
 
         _dbContext = serviceProvider.GetRequiredService<ReceiptDbContext>();
         _service = serviceProvider.GetRequiredService<IReceiptReadService>();
-        
+
         // Убеждаемся, что база данных создана
         await _dbContext.Database.EnsureCreatedAsync();
+
+        // Создаем тестовые данные
+        await SetupTestData();
     }
 
     public async Task DisposeAsync()
@@ -151,10 +216,46 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         {
             await _dbContext.DisposeAsync();
         }
-        
+
         if (_postgresContainer != null)
         {
             await _postgresContainer.DisposeAsync();
         }
+    }
+
+    private async Task SetupTestData()
+    {
+        _existingUserId = Guid.NewGuid();
+        _existingMerchantId = Guid.NewGuid();
+        _existingReceiptId = Guid.NewGuid();
+
+        // Создаем тестовые сущности
+        var merchant = new MerchantEntity
+        {
+            Id = _existingMerchantId,
+            Name = "Test Merchant",
+            Category = MerchantCategory.Flowers,
+            Address = "123 Test Street",
+            Inn = "1234567890"
+        };
+
+        var receipt = new ReceiptEntity
+        {
+            Id = _existingReceiptId,
+            UserId = _existingUserId,
+            MerchantId = _existingMerchantId,
+            TotalAmount = 100.50m,
+            PurchasedAt = DateTime.UtcNow.AddDays(-1),
+            Merchant = merchant,
+            ExternalId = "some-external-id",
+            Items = new List<CommodityEntity>() //TODO: need add some items
+        };
+
+        // Добавляем данные в контекст
+        _dbContext.Merchants.Add(merchant);
+        _dbContext.Receipts.Add(receipt);
+
+        // Сохраняем изменения
+        await _dbContext.SaveChangesAsync();
     }
 }
