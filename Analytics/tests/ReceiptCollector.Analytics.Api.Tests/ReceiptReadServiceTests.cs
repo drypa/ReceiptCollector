@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -43,7 +42,7 @@ public class ReceiptReadServiceTests
             Category = MerchantCategory.Undefined
         };
 
-        var entity = new ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres.ReceiptEntity
+        var entity = new ReceiptEntity
         {
             Id = receiptId,
             UserId = userId,
@@ -53,7 +52,7 @@ public class ReceiptReadServiceTests
             PurchasedAt = DateTime.UtcNow,
             Items =
             [
-                new ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres.CommodityEntity
+                new CommodityEntity
                 {
                     Id = Guid.NewGuid(),
                     ReceiptId = receiptId,

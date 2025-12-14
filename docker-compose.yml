@@ -13,7 +13,18 @@ services:
       - ${MONGO_BACKUP}:/backup
     networks:
       - collector-net
-
+  postgres:
+    container_name: receipt-postgres
+    image: postgres:18.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${PG_LOGIN}
+      POSTGRES_PASSWORD: ${PG_SECRET}
+    volumes:
+      - ${PG_DATA}:/var/lib/postgresql/data
+    networks:
+      - collector-net
   collector:
     container_name: receipt-collector
     build: backend
@@ -52,5 +63,13 @@ services:
       - collector-net
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
+  analytics:
+    container_name: receipt-analytics
+    image: drypa/receipt-analytics:latest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - collector-net
 networks:
   collector-net:

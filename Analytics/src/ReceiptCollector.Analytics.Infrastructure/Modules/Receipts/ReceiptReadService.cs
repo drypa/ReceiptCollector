@@ -65,6 +65,11 @@ internal sealed class ReceiptReadService : IReceiptReadService
             return null;
         }
 
+        return ToReceiptDto(entity);
+    }
+
+    private static ReceiptDetailsDto ToReceiptDto(ReceiptEntity entity)
+    {
         var items = entity.Items
             .OrderBy(item => item.Name)
             .Select(item => new ReceiptItemDto(
@@ -81,5 +86,16 @@ internal sealed class ReceiptReadService : IReceiptReadService
             entity.TotalAmount,
             entity.PurchasedAt,
             items);
+    }
+
+    public async Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken)
+    {
+        var receipts = await _dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.UserId == userId && receipt.MerchantId == merchantId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        
+        return receipts.Select(ToReceiptDto).ToList();
     }
 }
