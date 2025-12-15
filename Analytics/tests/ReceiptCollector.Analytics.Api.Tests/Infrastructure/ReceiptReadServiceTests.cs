@@ -37,7 +37,7 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         var merchantId = _existingMerchantId;
 
         // Act
-        var result = await _service.GetByMerchantIdAsync(userId, merchantId, CancellationToken.None);
+        var result = await _service.GetByMerchantIdAsync(userId, merchantId, 10, 0, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -56,7 +56,7 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         var merchantId = _existingMerchantId;
 
         // Act
-        var result = await _service.GetByMerchantIdAsync(userId, merchantId, CancellationToken.None);
+        var result = await _service.GetByMerchantIdAsync(userId, merchantId, 10, 0, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -74,9 +74,25 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         var nonExistentMerchantId = Guid.NewGuid(); // Этот merchant ID не существует в тестовой базе
 
 
-        var result = await _service.GetByMerchantIdAsync(_existingUserId, nonExistentMerchantId, CancellationToken.None);
+        var result = await _service.GetByMerchantIdAsync(_existingUserId, nonExistentMerchantId, 10, 0, CancellationToken.None);
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetTotalCountByMerchantIdAsync_WithValidUserIdAndMerchantId_ReturnsCorrectCount()
+    {
+        // Arrange
+        var userId = _existingUserId;
+        var merchantId = _existingMerchantId;
+
+        // Act
+        var result = await _service.GetTotalCountByMerchantIdAsync(userId, merchantId, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<int>(result);
+        Assert.True(result >= 0); // Count should be non-negative
+        Assert.True(result > 0, "Merchant should have at least one receipt associated");
     }
 
     [Fact]

@@ -60,8 +60,8 @@ public static class ReceiptEndpoints
         return receipt is null ? Results.NotFound() : Results.Ok(receipt);
     }
 
-    private static async Task<IResult> GetByMerchant(Guid merchantId, [FromServices] IReceiptReadService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> GetByMerchant(HttpContext httpContext, Guid merchantId, [FromServices] IReceiptReadService service,
+        [FromQuery] int limit = 10, [FromQuery] int offset = 0, CancellationToken cancellationToken = default)
     {
         var userId = UserContext.UserId;
         if (userId is null || userId == Guid.Empty)
@@ -69,7 +69,19 @@ public static class ReceiptEndpoints
             return Results.BadRequest("user is not authenticated.");
         }
 
-        var receipts = await service.GetByMerchantIdAsync(userId.Value, merchantId, cancellationToken);
+        if (limit <= 0)
+        {
+            return Results.BadRequest("limit must be greater than zero.");
+        }
+
+        if (offset < 0)
+        {
+            return Results.BadRequest("offset cannot be negative.");
+        }
+
+        var receipts = await service.GetByMerchantIdAsync(userId.Value, merchantId, limit, offset, cancellationToken);
+        var totalCount = await service.GetTotalCountByMerchantIdAsync(userId.Value, merchantId, cancellationToken);
+        httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString(CultureInfo.InvariantCulture);
         return Results.Ok(receipts);
     }
 }
