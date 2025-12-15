@@ -4,15 +4,21 @@ interface FetchReceiptsOptions {
   limit: number;
   offset: number;
   signal?: AbortSignal;
+  merchantId?: string;
 }
 
-export async function fetchReceipts({ limit, offset, signal }: FetchReceiptsOptions): Promise<PaginatedReceipts> {
+export async function fetchReceipts({ limit, offset, signal, merchantId }: FetchReceiptsOptions): Promise<PaginatedReceipts> {
   const searchParams = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
   });
 
-  const response = await fetch(`/api/receipts?${searchParams.toString()}`, {
+  let url = '/api/receipts';
+  if (merchantId) {
+    url = `/api/receipts/by-merchant/${merchantId}`;
+  }
+
+  const response = await fetch(`${url}?${searchParams.toString()}`, {
     credentials: 'include',
     signal,
   });

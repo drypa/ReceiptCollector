@@ -2,6 +2,7 @@ import type { ReceiptSummary } from '../types/receipt';
 
 interface ReceiptTableProps {
   receipts: ReceiptSummary[];
+  onViewMerchantReceipts?: (merchantId: string) => void;
 }
 
 const currencyFormatter = new Intl.NumberFormat('ru-RU', {
@@ -18,7 +19,7 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   minute: '2-digit',
 });
 
-export function ReceiptTable({ receipts }: ReceiptTableProps) {
+export function ReceiptTable({ receipts, onViewMerchantReceipts }: ReceiptTableProps) {
   if (receipts.length === 0) {
     return (
       <div className="empty-state">
@@ -40,7 +41,19 @@ export function ReceiptTable({ receipts }: ReceiptTableProps) {
         <tbody>
           {receipts.map((receipt) => (
             <tr key={receipt.id}>
-              <td>{receipt.merchant}</td>
+              <td>
+                {onViewMerchantReceipts ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewMerchantReceipts(receipt.merchantId)}
+                    className="merchant-link"
+                  >
+                    {receipt.merchant}
+                  </button>
+                ) : (
+                  receipt.merchant
+                )}
+              </td>
               <td>{dateFormatter.format(new Date(receipt.purchasedAt))}</td>
               <td>{currencyFormatter.format(receipt.totalAmount)}</td>
             </tr>

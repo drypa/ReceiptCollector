@@ -1,6 +1,7 @@
 export interface ReceiptSummary {
   id: string;
   merchant: string;
+  merchantId: string;
   totalAmount: number;
   purchasedAt: string;
 }
