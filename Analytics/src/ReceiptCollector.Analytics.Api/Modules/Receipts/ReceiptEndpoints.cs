@@ -17,6 +17,8 @@ public static class ReceiptEndpoints
 
         group.MapGet("/{id:guid}", GetById);
 
+        group.MapGet("/by-merchant/{merchantId:guid}", GetByMerchant);
+
         return app;
     }
 
@@ -56,5 +58,18 @@ public static class ReceiptEndpoints
 
         var receipt = await service.GetByIdAsync(userId.Value, id, cancellationToken);
         return receipt is null ? Results.NotFound() : Results.Ok(receipt);
+    }
+
+    private static async Task<IResult> GetByMerchant(Guid merchantId, [FromServices] IReceiptReadService service,
+        CancellationToken cancellationToken)
+    {
+        var userId = UserContext.UserId;
+        if (userId is null || userId == Guid.Empty)
+        {
+            return Results.BadRequest("user is not authenticated.");
+        }
+
+        var receipts = await service.GetByMerchantIdAsync(userId.Value, merchantId, cancellationToken);
+        return Results.Ok(receipts);
     }
 }

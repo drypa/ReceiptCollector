@@ -88,16 +88,18 @@ internal sealed class ReceiptReadService : IReceiptReadService
             items);
     }
 
-    public async Task<IReadOnlyCollection<ReceiptDetailsDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken = default)
     {
-        var receipts = await _dbContext.Receipts
+        return await _dbContext.Receipts
             .AsNoTracking()
             .Include(receipt => receipt.Merchant)
-            .Include(receipt => receipt.Items)
             .Where(receipt => receipt.UserId == userId && receipt.MerchantId == merchantId)
+            .Select(receipt => new ReceiptSummaryDto(
+                receipt.Id,
+                receipt.Merchant.Name,
+                receipt.TotalAmount,
+                receipt.PurchasedAt))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        
-        return receipts.Select(ToReceiptDto).ToList();
     }
 }

@@ -43,6 +43,9 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         Assert.NotNull(result);
         Assert.NotEmpty(result);
         Assert.Contains(result, r => r.Id == _existingReceiptId);
+        // Verify that the returned objects are ReceiptSummaryDto, not ReceiptDetailsDto
+        Assert.DoesNotContain(result, r => r.GetType().Name.Contains("Details"));
+        Assert.Contains(result, r => r.GetType().Name.Contains("Summary"));
     }
 
     [Fact]
@@ -60,6 +63,9 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         Assert.NotEmpty(result);
         Assert.All(result, r => Assert.Equal(userId, r.Id == _existingReceiptId ? _existingUserId : userId));
         Assert.Contains(result, r => r.Id == _existingReceiptId);
+        // Verify that the returned objects are ReceiptSummaryDto, not ReceiptDetailsDto
+        Assert.DoesNotContain(result, r => r.GetType().Name.Contains("Details"));
+        Assert.Contains(result, r => r.GetType().Name.Contains("Summary"));
     }
 
     [Fact]
@@ -134,6 +140,9 @@ public sealed class ReceiptReadServiceTests : IAsyncLifetime
         Assert.NotNull(result);
         Assert.NotEmpty(result);
         Assert.Contains(result, r => r.Id == _existingReceiptId);
+        // Verify that the returned objects are ReceiptSummaryDto, not ReceiptDetailsDto
+        Assert.DoesNotContain(result, r => r.GetType().Name.Contains("Details"));
+        Assert.Contains(result, r => r.GetType().Name.Contains("Summary"));
     }
 
     [Fact]
