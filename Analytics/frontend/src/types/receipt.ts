@@ -1,7 +1,14 @@
+export interface Merchant {
+  id: string;
+  name: string;
+  category: number;
+  address: string | null;
+  inn: string | null;
+}
+
 export interface ReceiptSummary {
   id: string;
-  merchant: string;
-  merchantId: string;
+  merchant: Merchant;
   totalAmount: number;
   purchasedAt: string;
 }

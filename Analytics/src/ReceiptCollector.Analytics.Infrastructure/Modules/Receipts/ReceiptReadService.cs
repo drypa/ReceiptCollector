@@ -35,8 +35,12 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .Take(limit)
             .Select(receipt => new ReceiptSummaryDto(
                 receipt.Id,
-                receipt.Merchant.Name,
-                receipt.Merchant.Id,
+                new MerchantDto(
+                    receipt.Merchant.Id,
+                    receipt.Merchant.Name,
+                    (int)receipt.Merchant.Category,
+                    receipt.Merchant.Address,
+                    receipt.Merchant.Inn),
                 receipt.TotalAmount,
                 receipt.PurchasedAt))
             .ToListAsync(cancellationToken)
@@ -110,8 +114,12 @@ internal sealed class ReceiptReadService : IReceiptReadService
             .Take(limit)
             .Select(receipt => new ReceiptSummaryDto(
                 receipt.Id,
-                receipt.Merchant.Name,
-                receipt.Merchant.Id,
+                new MerchantDto(
+                    receipt.Merchant.Id,
+                    receipt.Merchant.Name,
+                    (int)receipt.Merchant.Category,
+                    receipt.Merchant.Address,
+                    receipt.Merchant.Inn),
                 receipt.TotalAmount,
                 receipt.PurchasedAt))
             .ToListAsync(cancellationToken)

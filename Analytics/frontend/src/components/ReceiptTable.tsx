@@ -46,13 +46,13 @@ export function ReceiptTable({ receipts, onViewMerchantReceipts, onReceiptClick 
                 {onViewMerchantReceipts ? (
                   <button
                     type="button"
-                    onClick={() => onViewMerchantReceipts(receipt.merchantId)}
+                    onClick={() => onViewMerchantReceipts(receipt.merchant.id)}
                     className="merchant-link"
                   >
-                    {receipt.merchant}
+                    {receipt.merchant.name}
                   </button>
                 ) : (
-                  receipt.merchant
+                  receipt.merchant.name
                 )}
               </td>
               <td>
