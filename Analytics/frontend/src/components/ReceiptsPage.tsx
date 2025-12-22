@@ -8,12 +8,14 @@ import { fetchReceiptDetails } from '../api/receipts';
 import type { ReceiptDetails as ReceiptDetailsType } from '../types/receipt';
 
 const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
 
 export function ReceiptsPage() {
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [receiptDetails, setReceiptDetails] = useState<ReceiptDetailsType | null>(null);
   const [loadingReceiptDetails, setLoadingReceiptDetails] = useState(false);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   
   // Use the appropriate hook based on whether we're filtering by merchant
   const {
@@ -27,7 +29,7 @@ export function ReceiptsPage() {
     goToPage: allReceiptsGoToPage,
     nextPage: allReceiptsNextPage,
     previousPage: allReceiptsPreviousPage
-  } = useReceipts({ pageSize: DEFAULT_PAGE_SIZE });
+  } = useReceipts({ pageSize });
   
   const {
     data: merchantReceiptsData,
@@ -40,7 +42,7 @@ export function ReceiptsPage() {
     goToPage: merchantReceiptsGoToPage,
     nextPage: merchantReceiptsNextPage,
     previousPage: merchantReceiptsPreviousPage
-  } = useReceiptsByMerchant(selectedMerchantId, { pageSize: DEFAULT_PAGE_SIZE });
+  } = useReceiptsByMerchant(selectedMerchantId, { pageSize });
 
   // Select the appropriate data and methods based on selectedMerchantId
   const data = selectedMerchantId ? merchantReceiptsData : allReceiptsData;
@@ -101,9 +103,26 @@ export function ReceiptsPage() {
             )}
           </p>
         </div>
-        <button type="button" onClick={refresh} disabled={isLoading}>
-          Обновить
-        </button>
+        <div className="controls">
+          <div className="page-size-selector">
+            <label htmlFor="page-size-select">Строк на странице: </label>
+            <select
+              id="page-size-select"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              disabled={isLoading}
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="button" onClick={refresh} disabled={isLoading}>
+            Обновить
+          </button>
+        </div>
       </header>
 
       {isLoading && (

@@ -11,10 +11,10 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+ const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const loadPage = useCallback(
+ const loadPage = useCallback(
     (page: number) => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -52,6 +52,12 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
     },
     [pageSize],
   );
+
+  // When pageSize changes, reset to first page
+  useEffect(() => {
+    setCurrentPage(1);
+    loadPage(1);
+  }, [pageSize, loadPage]);
 
   useEffect(() => {
     loadPage(1);

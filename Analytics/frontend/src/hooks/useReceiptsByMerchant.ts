@@ -64,6 +64,14 @@ export function useReceiptsByMerchant(merchantId: string | null, { pageSize = 10
     loadPage(1);
   }, [loadPage]);
 
+  // When pageSize changes, reset to first page
+  useEffect(() => {
+    if (merchantId) {
+      setCurrentPage(1);
+      loadPage(1);
+    }
+  }, [pageSize, loadPage, merchantId]);
+
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   const goToPage = useCallback(
