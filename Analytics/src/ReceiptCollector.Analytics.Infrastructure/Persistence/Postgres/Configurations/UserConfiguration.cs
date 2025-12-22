@@ -23,5 +23,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
 
         builder.Property(u => u.TelegramId)
             .IsRequired();
+            
+        builder.Property(u => u.IsAdmin)
+            .IsRequired()
+            .HasDefaultValue(false);
     }
 }
