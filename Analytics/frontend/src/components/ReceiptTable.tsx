@@ -3,6 +3,7 @@ import type { ReceiptSummary } from '../types/receipt';
 interface ReceiptTableProps {
   receipts: ReceiptSummary[];
   onViewMerchantReceipts?: (merchantId: string) => void;
+  onReceiptClick?: (receiptId: string) => void;
 }
 
 const currencyFormatter = new Intl.NumberFormat('ru-RU', {
@@ -19,7 +20,7 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   minute: '2-digit',
 });
 
-export function ReceiptTable({ receipts, onViewMerchantReceipts }: ReceiptTableProps) {
+export function ReceiptTable({ receipts, onViewMerchantReceipts, onReceiptClick }: ReceiptTableProps) {
   if (receipts.length === 0) {
     return (
       <div className="empty-state">
@@ -54,7 +55,19 @@ export function ReceiptTable({ receipts, onViewMerchantReceipts }: ReceiptTableP
                   receipt.merchant
                 )}
               </td>
-              <td>{dateFormatter.format(new Date(receipt.purchasedAt))}</td>
+              <td>
+                {onReceiptClick ? (
+                  <button
+                    type="button"
+                    onClick={() => onReceiptClick(receipt.id)}
+                    className="date-link"
+                  >
+                    {dateFormatter.format(new Date(receipt.purchasedAt))}
+                  </button>
+                ) : (
+                  dateFormatter.format(new Date(receipt.purchasedAt))
+                )}
+              </td>
               <td>{currencyFormatter.format(receipt.totalAmount)}</td>
             </tr>
           ))}

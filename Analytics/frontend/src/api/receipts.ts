@@ -1,4 +1,4 @@
-import type { PaginatedReceipts, ReceiptSummary } from '../types/receipt';
+import type { PaginatedReceipts, ReceiptSummary, ReceiptDetails } from '../types/receipt';
 
 interface FetchReceiptsOptions {
   limit: number;
@@ -40,4 +40,17 @@ export async function fetchReceipts({ limit, offset, signal, merchantId }: Fetch
     pageSize: limit,
     currentPage: Math.max(1, Math.floor(offset / limit) + 1),
   };
+}
+
+export async function fetchReceiptDetails(id: string): Promise<ReceiptDetails> {
+  const response = await fetch(`/api/receipts/${id}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Не удалось загрузить детали чека');
+  }
+
+  return response.json() as Promise<ReceiptDetails>;
 }

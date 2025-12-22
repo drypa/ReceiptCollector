@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useReceipts } from '../hooks/useReceipts';
 import { useReceiptsByMerchant } from '../hooks/useReceiptsByMerchant';
 import { Pagination } from './Pagination';
 import { ReceiptTable } from './ReceiptTable';
+import { ReceiptDetails } from './ReceiptDetails';
+import { fetchReceiptDetails } from '../api/receipts';
+import type { ReceiptDetails as ReceiptDetailsType } from '../types/receipt';
 
 const DEFAULT_PAGE_SIZE = 10;
 
 export function ReceiptsPage() {
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  const [receiptDetails, setReceiptDetails] = useState<ReceiptDetailsType | null>(null);
+  const [loadingReceiptDetails, setLoadingReceiptDetails] = useState(false);
   
   // Use the appropriate hook based on whether we're filtering by merchant
   const {
@@ -56,6 +62,26 @@ export function ReceiptsPage() {
     setSelectedMerchantId(merchantId);
   };
 
+  const handleReceiptClick = async (receiptId: string) => {
+    setSelectedReceiptId(receiptId);
+    setLoadingReceiptDetails(true);
+    
+    try {
+      const details = await fetchReceiptDetails(receiptId);
+      setReceiptDetails(details);
+    } catch (error) {
+      console.error('Failed to load receipt details:', error);
+      setReceiptDetails(null);
+    } finally {
+      setLoadingReceiptDetails(false);
+    }
+  };
+
+  const handleBackToList = () => {
+    setSelectedReceiptId(null);
+    setReceiptDetails(null);
+  };
+
   return (
     <main className="layout">
       <header>
@@ -95,9 +121,27 @@ export function ReceiptsPage() {
         </div>
       )}
 
-      {!isLoading && !error && <ReceiptTable receipts={data} onViewMerchantReceipts={handleViewMerchantReceipts} />}
+      {!isLoading && !error && !selectedReceiptId && (
+        <ReceiptTable
+          receipts={data}
+          onViewMerchantReceipts={handleViewMerchantReceipts}
+          onReceiptClick={handleReceiptClick}
+        />
+      )}
 
-      {!isLoading && !error && (
+      {selectedReceiptId && (
+        <>
+          {loadingReceiptDetails ? (
+            <div className="state state-loading">
+              <span className="spinner" aria-hidden="true" /> Загружаем детали чека...
+            </div>
+          ) : (
+            <ReceiptDetails receipt={receiptDetails} onBack={handleBackToList} />
+          )}
+        </>
+      )}
+
+      {!isLoading && !error && !selectedReceiptId && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
