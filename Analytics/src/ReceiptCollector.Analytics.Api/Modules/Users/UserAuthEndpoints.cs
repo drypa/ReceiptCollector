@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Users;
 
 namespace ReceiptCollector.Analytics.Api.Modules.Users;
@@ -19,6 +20,11 @@ public static class UserAuthEndpoints
             .Produces<UserAuthLinkResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status204NoContent);
+        
+        // New endpoint to get current user's IsAdmin status
+        group.MapGet(Endpoints.GetIsAdminPath, GetIsAdmin)
+            .Produces<IsAdminResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
     }
@@ -75,5 +81,25 @@ public static class UserAuthEndpoints
         }
     }
 
+    private static async Task<IResult> GetIsAdmin(
+        [FromServices] IUserRepository userRepository,
+        CancellationToken cancellationToken)
+    {
+        if (!UserContext.HasUserId)
+        {
+            return Results.Unauthorized();
+        }
+
+        var user = await userRepository.GetByIdAsync(UserContext.UserId.Value, cancellationToken);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(new IsAdminResponse(user.IsAdmin));
+    }
+
     private sealed record UserAuthLinkResponse(string Link, DateTimeOffset ExpiresAt);
+    
+    private sealed record IsAdminResponse(bool IsAdmin);
 }
