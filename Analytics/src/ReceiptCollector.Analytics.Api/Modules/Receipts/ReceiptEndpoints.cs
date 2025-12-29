@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
+using ReceiptCollector.Analytics.Domain.Modules.Users;
 
 namespace ReceiptCollector.Analytics.Api.Modules.Receipts;
 
@@ -17,6 +19,10 @@ public static class ReceiptEndpoints
         group.MapGet("/{id:guid}", GetById);
 
         group.MapGet("/by-merchant/{merchantId:guid}", GetByMerchant);
+
+        // Добавляем эндпоинт для обновления имени магазина по идентификатору
+        group.MapPut("/merchants/{merchantId:guid}/name", UpdateMerchantName)
+            .RequireAuthorization(); // Требуем авторизацию
 
         return app;
     }
@@ -83,4 +89,42 @@ public static class ReceiptEndpoints
         httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString(CultureInfo.InvariantCulture);
         return Results.Ok(receipts);
     }
+
+    public static async Task<IResult> UpdateMerchantName(Guid merchantId, [FromBody] UpdateMerchantNameRequest request,
+        [FromServices] IMerchantRepository merchantRepository,
+        [FromServices] IUserRepository userRepository,
+        CancellationToken cancellationToken)
+    {
+        // Проверяем, что пользователь авторизован
+        var userId = UserContext.UserId;
+        if (userId is null || userId == Guid.Empty)
+        {
+            return Results.Unauthorized();
+        }
+
+        // Проверяем, что пользователь является администратором
+        var user = await userRepository.GetByIdAsync(userId.Value, cancellationToken);
+        if (user is null || !user.IsAdmin)
+        {
+            return Results.Forbid(); 
+        }
+
+        // Получаем магазин по идентификатору
+        var merchant = await merchantRepository.GetByIdAsync(merchantId, cancellationToken);
+        if (merchant is null)
+        {
+            return Results.NotFound("Merchant not found.");
+        }
+
+        // Обновляем имя магазина
+        merchant.UpdateName(request.Name);
+        
+        // Сохраняем обновленный магазин
+        await merchantRepository.AddAsync(merchant, cancellationToken);
+
+        return Results.Ok("Merchant name updated successfully.");
+    }
 }
+
+// Класс для запроса обновления имени магазина
+public sealed record UpdateMerchantNameRequest(string Name);

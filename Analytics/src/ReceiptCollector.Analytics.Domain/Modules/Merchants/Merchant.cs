@@ -31,4 +31,13 @@ public sealed class Merchant
         Category = category;
     }
 
+    public void UpdateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Merchant name must be provided.", nameof(name));
+        }
+
+        Name = name;
+    }
 }
