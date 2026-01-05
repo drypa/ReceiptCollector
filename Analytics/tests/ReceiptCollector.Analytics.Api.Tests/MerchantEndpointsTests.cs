@@ -8,6 +8,8 @@ namespace ReceiptCollector.Analytics.Api.Tests;
 
 public class MerchantEndpointsTests
 {
+    private static readonly Merchant? MerchantNotFound = null;
+
     [Fact]
     public async Task UpdateMerchantName_WithAdminUser_ShouldUpdateSuccessfully()
     {
@@ -16,18 +18,18 @@ public class MerchantEndpointsTests
         var userRepository = Substitute.For<IUserRepository>();
         var merchantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        
+
         var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
-        var user = new User(userId,"userName","12345",111222,true); // isAdmin = true
-        
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
         merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
             .Returns(existingMerchant);
         userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
-        
+
         // Устанавливаем UserId в UserContext
         using var context = UserContext.SetUserId(userId);
-        
+
         // Act
         var result = await ReceiptEndpoints.UpdateMerchantName(
             merchantId,
@@ -53,15 +55,15 @@ public class MerchantEndpointsTests
         var userRepository = Substitute.For<IUserRepository>();
         var merchantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        
-        var user = new User(userId,"userName","12345",111222,false); // isAdmin = false
-        
+
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: false);
+
         userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
-        
+
         // Устанавливаем UserId в UserContext
         using var context = UserContext.SetUserId(userId);
-        
+
         // Act
         var result = await ReceiptEndpoints.UpdateMerchantName(
             merchantId,
@@ -85,17 +87,17 @@ public class MerchantEndpointsTests
         var userRepository = Substitute.For<IUserRepository>();
         var merchantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        
-        var user = new User(userId,"userName","12345",111222,true); // isAdmin = true
-        
+
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
         merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
-            .Returns((Merchant)null); // Магазин не найден
+            .Returns(MerchantNotFound);
         userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
-        
+
         // Устанавливаем UserId в UserContext
         using var context = UserContext.SetUserId(userId);
-        
+
         // Act
         var result = await ReceiptEndpoints.UpdateMerchantName(
             merchantId,
