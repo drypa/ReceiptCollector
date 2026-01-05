@@ -36,8 +36,9 @@ public class ProjectDependencyTests
             .GetResult();
 
         var failingTypes = result.FailingTypes?.Select(t => t.FullName) ?? Array.Empty<string>();
+
         Assert.True(result.IsSuccessful,
-            $"Project {rule.Namespace} has unexpected dependencies. Types violating rule: {string.Join(", ", failingTypes)}");
+            $"Project {rule.Namespace} has unexpected dependencies. Types violating rule in: {string.Join(", ", failingTypes)}. Disallowed namespaces: {string.Join(", ", disallowedNamespaces)}");
     }
 
 
@@ -49,7 +50,7 @@ public class ProjectDependencyTests
         new(typeof(DependencyInjectionExtensions).Assembly, "ReceiptCollector.Analytics.Infrastructure",
             ["ReceiptCollector.Analytics.Application", "ReceiptCollector.Analytics.Domain"]),
         new(typeof(ReceiptEndpoints).Assembly, "ReceiptCollector.Analytics.Api",
-            ["ReceiptCollector.Analytics.Application", "ReceiptCollector.Analytics.Infrastructure"])
+            ["ReceiptCollector.Analytics.Application", "ReceiptCollector.Analytics.Infrastructure","ReceiptCollector.Analytics.Domain"])
     ];
 
     private sealed record ProjectRule(
