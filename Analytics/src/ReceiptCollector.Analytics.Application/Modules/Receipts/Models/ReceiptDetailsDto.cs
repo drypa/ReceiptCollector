@@ -2,7 +2,7 @@
 
 public sealed record ReceiptDetailsDto(
     Guid Id,
-    string Merchant,
+    MerchantDto Merchant,
     decimal TotalAmount,
     DateTime PurchasedAt,
     IReadOnlyCollection<ReceiptItemDto> Items);

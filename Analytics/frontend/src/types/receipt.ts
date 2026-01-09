@@ -23,7 +23,7 @@ export interface ReceiptItem {
 
 export interface ReceiptDetails {
   id: string;
-  merchant: string;
+  merchant: Merchant;
   totalAmount: number;
   purchasedAt: string;
   items: ReceiptItem[];

@@ -54,3 +54,19 @@ export async function fetchReceiptDetails(id: string): Promise<ReceiptDetails> {
 
   return response.json() as Promise<ReceiptDetails>;
 }
+
+export async function updateMerchantName(merchantId: string, newName: string): Promise<void> {
+  const response = await fetch(`/api/receipts/merchants/${merchantId}/name`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      credentials: 'include',
+    },
+    body: JSON.stringify({ name: newName }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Не удалось обновить имя магазина');
+  }
+}

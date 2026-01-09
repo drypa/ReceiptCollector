@@ -21,8 +21,7 @@ public static class ReceiptEndpoints
         group.MapGet("/by-merchant/{merchantId:guid}", GetByMerchant);
 
         // Добавляем эндпоинт для обновления имени магазина по идентификатору
-        group.MapPut("/merchants/{merchantId:guid}/name", UpdateMerchantName)
-            .RequireAuthorization(); // Требуем авторизацию
+        group.MapPut("/merchants/{merchantId:guid}/name", UpdateMerchantName);
 
         return app;
     }

@@ -87,7 +87,12 @@ internal sealed class ReceiptReadService : IReceiptReadService
 
         return new ReceiptDetailsDto(
             entity.Id,
-            entity.Merchant.Name,
+            new MerchantDto(
+                entity.Merchant.Id,
+                entity.Merchant.Name,
+                (int)entity.Merchant.Category,
+                entity.Merchant.Address,
+                entity.Merchant.Inn),
             entity.TotalAmount,
             entity.PurchasedAt,
             items);

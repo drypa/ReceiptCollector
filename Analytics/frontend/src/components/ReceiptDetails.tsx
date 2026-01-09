@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import type { ReceiptDetails } from '../types/receipt';
+import { useAdmin } from '../hooks/useAdmin';
+import { updateMerchantName } from '../api/receipts';
 
 interface ReceiptDetailsProps {
   receipt: ReceiptDetails | null;
@@ -6,6 +9,11 @@ interface ReceiptDetailsProps {
 }
 
 export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
+  const { isAdmin } = useAdmin();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!receipt) {
     return (
       <div className="receipt-details">
@@ -32,6 +40,35 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
     minute: '2-digit',
   });
 
+  const startEditing = () => {
+    setEditingName(receipt.merchant.name);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditingName('');
+  };
+
+  const saveMerchantName = async () => {
+    if (!receipt.merchant.id) {
+      alert('ID магазина отсутствует');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      await updateMerchantName(receipt.merchant.id, editingName);
+      // После успешного обновления перезагружаем страницу или обновляем данные
+      window.location.reload();
+    } catch (error) {
+      console.error('Ошибка при обновлении имени магазина:', error);
+      alert('Не удалось обновить имя магазина');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="receipt-details">
       <div className="receipt-header">
@@ -46,7 +83,47 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
           <strong>Id:</strong> {receipt.id}
         </div>
         <div className="summary-item">
-          <strong>Магазин:</strong> {receipt.merchant}
+          <strong>Магазин:</strong>
+          {isEditing ? (
+            <div className="merchant-edit-controls">
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                disabled={isLoading}
+                className="merchant-name-input"
+              />
+              <button
+                type="button"
+                onClick={saveMerchantName}
+                disabled={isLoading}
+                className="save-merchant-btn"
+              >
+                {isLoading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                disabled={isLoading}
+                className="cancel-merchant-btn"
+              >
+                Отмена
+              </button>
+            </div>
+          ) : (
+            <div className="merchant-display">
+              <span>{receipt.merchant.name}</span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="edit-merchant-btn"
+                >
+                  Редактировать
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="summary-item">
           <strong>Дата покупки:</strong> {dateFormatter.format(new Date(receipt.purchasedAt))}
