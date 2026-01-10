@@ -112,19 +112,26 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
             </div>
           ) : (
             <div className="merchant-display">
-              <span>{receipt.merchant.name}</span>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={startEditing}
-                  className="edit-merchant-btn"
-                >
-                  Редактировать
-                </button>
-              )}
+              <div className="merchant-name-edit">
+                <span className="merchant-name">{receipt.merchant.name}</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={startEditing}
+                    className="edit-merchant-btn"
+                  >
+                    Редактировать
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
+        {receipt.merchant.inn && (
+          <div className="summary-item">
+            <strong>ИНН:</strong> {receipt.merchant.inn}
+          </div>
+        )}
         <div className="summary-item">
           <strong>Дата покупки:</strong> {dateFormatter.format(new Date(receipt.purchasedAt))}
         </div>

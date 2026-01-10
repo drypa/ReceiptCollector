@@ -367,3 +367,43 @@ tbody td:last-child {
 .date-link:hover {
   color: var(--primary-hover);
 }
+
+/* Merchant Info Styling */
+.merchant-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.merchant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.merchant-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.merchant-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.edit-merchant-btn {
+  background: #e9ecef;
+  border: 1px solid #ced4da;
+  color: #495057;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.edit-merchant-btn:hover {
+  background: #dee2e6;
+}
+
