@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReceiptDetails } from '../types/receipt';
 import { useAdmin } from '../hooks/useAdmin';
 import { updateMerchantName } from '../api/receipts';
+import { CustomDialog } from './CustomDialog';
 
 interface ReceiptDetailsProps {
   receipt: ReceiptDetails | null;
@@ -13,6 +14,28 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [dialog, setDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null as (() => void) | null
+  });
+
+  const showDialog = (title: string, message: string, onConfirm?: () => void) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: onConfirm || null
+    });
+  };
+
+  const closeDialog = () => {
+    setDialog({
+      ...dialog,
+      isOpen: false
+    });
+  };
 
   if (!receipt) {
     return (
@@ -22,6 +45,14 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
         <button type="button" onClick={onBack} className="back-button">
           Назад к списку чеков
         </button>
+        <CustomDialog
+          isOpen={dialog.isOpen}
+          title={dialog.title}
+          message={dialog.message}
+          onClose={closeDialog}
+          onConfirm={dialog.onConfirm || undefined}
+          confirmText={dialog.onConfirm ? "Ок" : "Закрыть"}
+        />
       </div>
     );
   }
@@ -52,7 +83,7 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
 
   const saveMerchantName = async () => {
     if (!receipt.merchant.id) {
-      alert('ID магазина отсутствует');
+      showDialog('Ошибка', 'ID магазина отсутствует');
       return;
     }
     
@@ -63,7 +94,7 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
       window.location.reload();
     } catch (error) {
       console.error('Ошибка при обновлении имени магазина:', error);
-      alert('Не удалось обновить имя магазина');
+      showDialog('Ошибка', 'Не удалось обновить имя магазина');
     } finally {
       setIsLoading(false);
     }
@@ -167,6 +198,15 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
           <p>Товары не найдены.</p>
         )}
       </div>
+      
+      <CustomDialog
+        isOpen={dialog.isOpen}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={closeDialog}
+        onConfirm={dialog.onConfirm || undefined}
+        confirmText={dialog.onConfirm ? "Ок" : "Закрыть"}
+      />
     </div>
   );
 }
