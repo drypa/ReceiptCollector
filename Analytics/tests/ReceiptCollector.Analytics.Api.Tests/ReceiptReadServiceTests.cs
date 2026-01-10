@@ -35,11 +35,16 @@ public class ReceiptReadServiceTests
         var receiptId = Guid.NewGuid();
         var merchantId = Guid.NewGuid();
 
+        var merchantName = "Local Store";
+        var merchantAddress = "Test Address";
+        var merchantInn = "1234567890";
         var merchant = new MerchantEntity
         {
             Id = merchantId,
-            Name = "Local Store",
-            Category = MerchantCategory.Undefined
+            Name = merchantName,
+            Category = MerchantCategory.Undefined,
+            Address = merchantAddress,
+            Inn = merchantInn
         };
 
         var entity = new ReceiptEntity
@@ -76,7 +81,9 @@ public class ReceiptReadServiceTests
 
         var details = await service.GetByIdAsync(userId, receiptId, CancellationToken.None);
         Assert.NotNull(details);
-        Assert.Equal("Local Store", details!.Merchant);
+        Assert.Equal(merchantName, details!.Merchant.Name);
+        Assert.Equal(merchantInn, details!.Merchant.Inn);
+        Assert.Equal(merchantAddress, details!.Merchant.Address);
         Assert.Single(details.Items);
     }
 }
