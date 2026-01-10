@@ -97,7 +97,7 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
                 type="button"
                 onClick={saveMerchantName}
                 disabled={isLoading}
-                className="save-merchant-btn"
+                className="save-merchant-btn secondary"
               >
                 {isLoading ? 'Сохранение...' : 'Сохранить'}
               </button>
@@ -105,7 +105,7 @@ export function ReceiptDetails({ receipt, onBack }: ReceiptDetailsProps) {
                 type="button"
                 onClick={cancelEditing}
                 disabled={isLoading}
-                className="cancel-merchant-btn"
+                className="cancel-merchant-btn secondary"
               >
                 Отмена
               </button>
