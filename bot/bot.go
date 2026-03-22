@@ -37,7 +37,7 @@ func start(options Options, reportsClient *report.Client, registrar *commands.Re
 		return err
 	}
 	bot.Debug = options.Debug
-	log.Printf("Autorised as %s", bot.Self.UserName)
+	log.Printf("Authorised as %s", bot.Self.UserName)
 
 	updateCfg := tgbotapi.NewUpdate(0)
 	updatesChan, err := bot.GetUpdatesChan(updateCfg)
