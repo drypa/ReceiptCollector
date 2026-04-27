@@ -9,7 +9,7 @@
 
 ## Описание проблемы
 
-### Локация: backend/receipts/controller.go строк 86-90
+### Локация: backend/receipts/controller.go строки 86-90
 
 **Текущий код:**
 ```go
@@ -120,5 +120,5 @@ docker exec receipt-bot start
 
 ## Критерии успеха
 - [ ] Хардкодный ID удалён из кода
-- [ ] Нет Unauthorized доступа к данным других пользователей  
+- [ ] Нет unauthorized доступа к данным других пользователей  
 - [ ] Telegram Bot корректно передаёт userId в контексте

@@ -1,7 +1,7 @@
 # 🐛 Задача 4/6: Исправление пропущенного чтения HTTP body
 
 ## Приоритет: HIGH  
-**Влияние**: Бот не может добавлять чек без тела запроса -> падает на 500
+**Влияние**: Бот не может добавлять чек без тела запроса, падает с ошибкой 500
 
 ---
 
@@ -21,7 +21,7 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
     // ←←← ПЕРЕХОД К TELEGRAM API
     res, _ := client.Post(shareUrl+urlEncodedIdPath, map[string]string{})  // ❗️NO BODY READ!
     
-    body, err := io.ReadAll(res.Body)  // ←←← Чтение тела ПЕРЕД декоиring!
+    body, err := io.ReadAll(res.Body)  // ←←← Чтение тела ПЕРЕД декодированием!
     defer dispose.Dispose(func() error { return res.Body.Close() }, "failed to close HTTP resp")
     
     if err != nil {
@@ -38,7 +38,7 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
 **Проблема:**
 - `json.NewDecoder(res.Body).Decode(&userLinkage)` пытается декодировать body напрямую  
 - При ошибке в Telegram API или невалидном ответе это вызовет panic/ошибку
-- Нужно читать body полностью перед декоммирования
+- Нужно читать body полностью перед декодированием
 
 ---
 
@@ -46,11 +46,11 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
 
 ### Шаг 1: Исправить GetUserByTelegramId в backend/users/link/link.go
 
-**Текод:**
+**Исправленный код:**
 ```go
 func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int64) (*UserLinkageModel, error) {
     ...
-    
+   
     ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
     defer cancel()
 
@@ -59,7 +59,7 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
         log.Printf("Failed to call telegram API: %v", err)
         return nil, fmt.Errorf("telegram api error: %w", err)
     }
-    
+   
     defer dispose.Dispose(func() error { return res.Body.Close() }, "failed to close HTTP resp")
 
     // ←←← 1. Читаем тело ПЕРВЫМ!
@@ -68,7 +68,7 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
         log.Printf("Failed to read telegram API response: %v", err)  
         return nil, fmt.Errorf("failed to read response: %w", err)
     }
-    
+   
     // ←←← 2. Проверяем status code!
     if res.StatusCode != http.StatusOK {
         log.Printf("Telegram API returned non-OK status %d for telegramId=%d", res.StatusCode, telegramId)
@@ -77,7 +77,7 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
 
     var model UserLinkageModel
     err = json.Unmarshal(body, &model)  // ←←← ✅ Теперь безопасно декорировать!
-    
+   
     if err != nil {
         log.Printf("Failed to decode telegram user linkage response: %v. body: %s", err, string(body))
         return nil, InternalError
@@ -89,11 +89,11 @@ func (service *Service) GetUserByTelegramId(ctx context.Context, telegramId int6
 
 ### Шаг 2: Добавить аналогичное чтение в AddReceiptForTelegramUserHandler (str 176-183 backend/receipts/controller.go)
 
-**Текод:**
+**Исправленный код:**
 ```go
 func (controller Controller) AddReceiptForTelegramUserHandler(writer http.ResponseWriter, request *http.Request) {
     ctx := request.Context()
-    
+   
     // ←←← Читаем тело запроса ПЕРЕД декодированием!
     var receiptRequest addReceiptRequest
     err := getFromBody(request, &receiptRequest)  // ИСПОЛЬЗУЕМ EXISTING функцию!
@@ -101,14 +101,14 @@ func (controller Controller) AddReceiptForTelegramUserHandler(writer http.Respon
         onError(writer, err)
         return
     }
-    
+   
     // Или явно читаем:
     body, err := io.ReadAll(request.Body)
     if err != nil {
         onError(writer, err)
         return
     }
-    
+   
     err = json.Unmarshal(body, &receiptRequest)
     if terr != nil {
         log.Printf("Failed to decode telegram user receipt request: %v", terr)
@@ -136,10 +136,12 @@ curl -k -X POST http://localhost:8888/internal/account \  -d "url=https%3F"  # �
 # Ожидаемо: HTTP 500 + лог ошибок в backend logs, а не crash
 ```
 
-### 2. Проверка добавления чех через telegram:
+### 2. Проверка добавления чеков через telegram:
 ```bash
-docker exec receipt-bot addreceipt \  --qr "some-qr-encoded" \  --telegramId 123456789
-      
+docker exec receipt-bot addreceipt \
+ --qr "some-qr-encoded" \
+ --telegramId 123456789
+       
 # Убедимся что невалидный ответ обрабатывается корректно и бот не падает
 ```
 
