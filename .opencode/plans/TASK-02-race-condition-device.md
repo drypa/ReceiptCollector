@@ -1,7 +1,7 @@
 # 🐛 Задача 2/6: Исправление race condition с device Free
 
 ## Приоритет: CRITICAL  
-**Влияние**: Device могут быть освобождены с отменённым контекстом, вызывая panic
+**Влияние**: Устройства могут быть освобождены с отмененным контекстом, вызывая панику
 
 ---
 
@@ -12,7 +12,7 @@
 
 ## Описание проблемы
 
-### Локация: backend/workers/get.go строк 52-92
+### Локация: backend/workers/get.go строки 52-92
 
 **Текущий код:**
 ```go
@@ -21,13 +21,13 @@ defer worker.devices.Free(ctx, device)    // ❌ Проблема здесь!
 id, err := worker.nalogruClient.GetTicketId(normalizedQr, device)
 
 if err != nil {
-    return err  // Deferred Free вызовется - но ctx может быть отменён!
+    return err  // Deferred Free вызовется - но ctx может быть отменен!
 }
 ```
 
 **Проблема:**
 - defer вызывается при любом возвращении из функции даже после cancel контекста
-- При отмене main() defer пытается освободить device с уже cancelled ctx -> panic  
+- При отмене main() defer пытается освободить device с уже cancelled ctx -> panic
 
 ---
 
@@ -45,7 +45,7 @@ if err != nil {
 // Добавляем safe_free wrapper:
 defer func() {    // ❗️Обернуть в анонимную функцию для проверки ctx
     select {
-    case <-ctx.Done():     // ✅ Если ctx уже отменён - пропускаем free
+    case <-ctx.Done():     // ✅ Если ctx уже отменен - пропускаем free
         log.Println("Context cancelled, skipping device Free")
     default:               // ✅ Иначе пытаемся free с проверкой ошибок
         err = worker.devices.Free(ctx, device)
@@ -124,6 +124,6 @@ echo "=== Shutdown test finished ==="
 
 ## Критерии успеха
 - [ ] Defer освобождает device с проверенным контекстом
-- [ ] При cancel(context) не происходит panic при освобожени
+- [ ] При cancel(context) не происходит panic при освобождении
 - [ ] DailyLimitReached обрабатывается без утечки devices  
 - [ ] Graceful shutdown завершается за < 3 сек
