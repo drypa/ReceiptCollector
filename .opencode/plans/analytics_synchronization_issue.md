@@ -1,105 +1,67 @@
-# Task: Fix Receipt Synchronization Service Issue
+# Задача: Исправить проблему синхронизации чеков в службе анализа
 
-## Problem Description
-The `ReceiptSynchronizationHostedService` in the Analytics API has several critical issues that prevent proper synchronization of receipts from MongoDB to PostgreSQL.
+## Общие принципы
 
-## Current Issues
+1. **Ясность и понятность**: Задача описана на русском языке, без использования эмодзи.
+2. **Уровень детализации**: Описание достаточно подробным для реализации младшим разработчиком.
+3. **Структура задачи**:
+   - Приоритет
+   - Цель
+   - Описание проблемы
+   - План решения (пошаговое описание)
+   - Тестирование (команды и ожидаемые результаты)
+   - Критерии успеха
 
-### 1. Database Connection Validation Timing (lines 20-30)
+## Заголовок
+- **Приоритет**: HIGH
+- **Цель**: Исправить критические проблемы в `ReceiptSynchronizationHostedService`, мешающие правильной синхронизации чеков из MongoDB в PostgreSQL.
+
+### Описание проблемы
+- **Локация**: `Analytics/src/ReceiptCollector.Analytics.Api/Program.cs` (строки 15-40)
+- **Текущий код**: 
 ```csharp
-// Problem: Connection validation happens AFTER service startup
+// Проблема: Валидация соединения происходит ДО запуска службы
 try
 {
     await _dbContext.Database.GetConnectionStringAsync(cancellationToken);
 }
 catch (Exception ex)
 {
-    throw new InvalidOperationException("Unable to connect to the analytics database. Ensure the database is created and accessible with the configured credentials.");
+    throw new InvalidOperationException("Не удается подключиться к базе данных аналитики. Убедитесь, что база данных создана и доступна с указанными учетными данными.");
 }
 ```
+- **Проблема**: 
+  1. Валидация соединения происходит в `ConfigureServices` (во время запуска приложения), но если PostgreSQL еще не создан, это приведет к ошибке до выполнения миграций.
+  2. Отсутствует проверка примененных миграций перед попыткой синхронизации.
+  3. Недостаточная обработка ошибок: логгирование ошибки, но повторный выброс без очистки, что может оставить приложение в нестабильном состоянии.
 
-**Issue**: The connection validation occurs during `ConfigureServices` which happens at application startup, but if the PostgreSQL database doesn't exist yet, this will fail before migrations can run.
+### План решения
+- **Шаг 1**: Переместить валидацию соединения из конструктора в метод `StartAsync`, чтобы миграции могли выполниться сначала.
+- **Шаг 2**: Добавить проверку примененных миграций перед синхронизацией.
+- **Шаг 3**: Улучшить обработку ошибок:
+  - Логгировать детальную информацию об ошибках
+  - Попытка восстановления после временных сбоев
+  - Четкие инструкции в сообщениях об ошибках
 
-### 2. Missing Migration Check (lines 15-30)
-The service doesn't verify that migrations have been applied before attempting synchronization.
+### Тестирование
+- **Команды**:
+  ```bash
+  # Запуск миграций
+  cd Analytics/ReceiptCollector.Analytics.Migrations && dotnet run
+  
+  # Запуск API после миграций
+  cd ../ReceiptCollector.Analytics.Api && dotnet run
+  ```
+- **Ожидаемые результаты**:
+  - При отсутствии базы данных: ошибка с понятным сообщением (выполнить миграции).
+  - После применения миграций: успешный запуск синхронизации.
+  - При проблемах с строкой подключения: четкое сообщение об ошибке.
 
-### 3. Insufficient Error Handling
-The catch block logs the error but re-throws without proper cleanup, which could leave the application in an unstable state.
-
-## Solution Steps
-
-### Step 1: Move Connection Validation to StartAsync
-Move database connection validation from constructor to `StartAsync` method so migrations can run first.
-
-**Before**:
-```csharp
-public ReceiptSynchronizationHostedService(ReceiptDbContext dbContext, ReceiptSynchronizationService synchronizationService)
-{
-    _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-    _synchronizationService = synchronizationService ?? throw new ArgumentNullException(nameof(synchronizationService));
-
-    // Validation happens here - too early!
-    try
-    {
-        await _dbContext.Database.GetConnectionStringAsync(cancellationToken);
-    }
-    catch (Exception ex)
-    {
-        throw new InvalidOperationException("Unable to connect to the analytics database...");
-    }
-}
-```
-
-**After**:
-```csharp
-public ReceiptSynchronizationHostedService(ReceiptDbContext dbContext, ReceiptSynchronizationService synchronizationService)
-{
-    _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-    _synchronizationService = synchronizationService ?? throw new ArgumentNullException(nameof(synchronizationService));
-}
-
-public override async Task StartAsync(CancellationToken cancellationToken)
-{
-    // Validate connection here, after migrations have run
-    try
-    {
-        await _dbContext.Database.GetConnectionStringAsync(cancellationToken);
-    }
-    catch (Exception ex)
-    {
-        throw new InvalidOperationException("Unable to connect to the analytics database...");
-    }
-    
-    // Continue with synchronization
-    await _synchronizationService.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
-}
-```
-
-### Step 2: Add Migration Verification
-Add a method to verify migrations are applied:
-```csharp
-private async Task VerifyMigrationsAppliedAsync(CancellationToken cancellationToken)
-{
-    var pendingMigrations = await _dbContext.Database.GetPendingMigrationsAsync(cancellationToken);
-    if (pendingMigrations.Any())
-    {
-        throw new InvalidOperationException("Database migrations have not been applied. Run the migration project first.");
-    }
-}
-```
-
-### Step 3: Improve Error Handling
-Enhance error handling to:
-- Log detailed error information
-- Attempt graceful recovery for transient failures
-- Provide clear guidance in error messages
-
-## Files to Modify
-- `Analytics/src/ReceiptCollector.Analytics.Api/Program.cs` (lines 15-40)
-- Consider adding a new service class or modifying existing synchronization service
-
-## Testing Strategy
-1. Test with database not yet created (should fail gracefully)
-2. Test after migrations are applied (should succeed)
-3. Test with connection string issues
-4. Verify error messages are helpful for troubleshooting
+### Критерии успеха
+- [ ] Валидация соединения происходит после выполнения миграций.
+- [ ] Проверка примененных миграций перед синхронизацией.
+- [ ] Улучшенная обработка ошибок с понятными сообщениями.
+- [ ] Тесты проходят в следующих сценариях:
+  - База данных не создана (ошибка с инструкциями).
+  - Миграции применены (успешный запуск).
+  - Проблемы с строкой подключения (четкое сообщение об ошибке).

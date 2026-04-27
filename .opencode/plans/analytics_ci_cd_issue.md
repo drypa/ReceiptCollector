@@ -1,29 +1,30 @@
-# Task: Fix CI/CD Pipeline Issue
+# Задача: Исправить проблему с CI/CD Pipeline
 
-## Problem Description
-The Analytics project lacks a proper CI/CD pipeline, making it difficult to ensure code quality and automate deployments.
+- **Приоритет**: HIGH
+- **Цель**: Создать и настроить CI/CD pipeline для проекта Analytics, чтобы обеспечить автоматизацию сборки, тестирования и развертывания.
 
-## Current Issues
+## Описание проблемы
 
-### 1. Missing CI Configuration
-- No GitHub Actions workflows
-- No Azure Pipelines configuration
-- No build automation
+### Локация
+- Проект: `Analytics/`
+- Отсутствуют файлы конфигурации CI/CD в `.github/workflows/`
 
-### 2. Incomplete Test Automation
-- Tests not integrated into pipeline
-- No test coverage reporting
-- No quality gates
+### Текущий код
+- Нет автоматизированных процессов сборки и тестирования
+- Развертывание происходит вручную
+- Нет интеграции тестов в pipeline
 
-### 3. Missing Deployment Strategy
-- No deployment automation
-- No environment promotion strategy
-- No rollback mechanism
+### Проблема
+Отсутствие CI/CD pipeline приводит к:
+1. Ручной сборке и развертыванию, что увеличивает время до выхода в продакшн
+2. Отсутствию автоматизированного тестирования, что повышает риск ошибок
+3. Нет контроля качества кода (тестовое покрытие, стиль кода)
+4. Нет механизма отката в случае сбоя развертывания
 
-## Solution Steps
+## План решения
 
-### Step 1: Create CI Workflow
-Create GitHub Actions workflow for CI:
+### Шаг 1: Создать CI workflow
+Создать GitHub Actions workflow для автоматизации сборки и тестирования:
 ```yaml
 name: .NET Build and Test
 
@@ -57,15 +58,14 @@ jobs:
       uses: codecov/codecov-action@v3
 ```
 
-### Step 2: Add Quality Gates
-Add quality checks to pipeline:
-- Test coverage minimum (e.g., 80%)
-- Code style enforcement
-- Security scanning
-- Dependency vulnerability checking
+### Шаг 2: Добавить quality gates
+Добавить проверки качества кода в pipeline:
+- Минимальное покрытие тестами (например, 80%)
+- Проверка стиля кода
+- Сканирование на уязвимости зависимостей
 
-### Step 3: Create CD Workflow
-Create deployment workflow:
+### Шаг 3: Создать CD workflow
+Создать workflow для автоматизации развертывания:
 ```yaml
 name: Deploy Analytics Service
 
@@ -120,21 +120,34 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/receiptcollector-analytics:dev-${{ github.sha }}
 ```
 
-### Step 4: Add Monitoring
-Add health check monitoring:
-- Verify service is running after deployment
-- Check database connectivity
-- Monitor API endpoints
+### Шаг 4: Добавить мониторинг развертывания
+Добавить проверки после развертывания:
+- Проверка работоспособности сервиса
+- Проверка подключения к базе данных
+- Мониторинг доступности API эндпоинтов
 
-## Files to Create
-- `.github/workflows/dotnet-ci.yml` - CI workflow
-- `.github/workflows/dotnet-cd-dev.yml` - Dev deployment workflow  
-- `.github/workflows/dotnet-cd-prod.yml` - Prod deployment workflow
-- `docker-compose.dev.yml` - Development Docker Compose
-- `docker-compose.prod.yml` - Production Docker Compose
+## Тестирование
 
-## Testing Strategy
-1. Test CI workflow with pull requests
-2. Verify CD workflow deploys to dev environment
-3. Test rollback procedure
-4. Monitor deployment success/failure rates
+### Команды
+```bash
+git checkout -b feature/analytics-ci-cd
+git add .github/workflows/
+git commit -m "Add CI/CD pipeline for Analytics"
+git push origin feature/analytics-ci-cd
+```
+
+### Ожидаемые результаты
+1. CI workflow запускается при создании pull request и проверяет:
+   - Успешная сборка проекта
+   - Прохождение всех тестов
+   - Покрытие кода не ниже 80%
+2. CD workflow развертывает приложение на dev сервере после успешного прохождения CI
+3. Мониторинг подтверждает работоспособность сервиса после развертывания
+
+## Критерии успеха
+- [ ] Создан и работает CI workflow в `.github/workflows/dotnet-ci.yml`
+- [ ] Все тесты проходят автоматически при push в main
+- [ ] Покрытие кода не ниже 80%
+- [ ] CD workflow развертывает приложение на dev сервере
+- [ ] Мониторинг подтверждает работоспособность сервиса после развертывания
+- [ ] Есть механизм отката в случае сбоя

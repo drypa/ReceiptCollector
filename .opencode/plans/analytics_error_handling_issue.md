@@ -1,11 +1,12 @@
-# Task: Fix Error Handling and Recovery Issue
+# Задача: Исправить обработку ошибок и восстановление
 
-## Problem Description
-The Analytics services have inconsistent error handling that can lead to application crashes or silent failures.
+- **Приоритет**: HIGH
+- **Цель**: Устранить несоответствия в обработке ошибок, которые могут приводить к крашам приложения или скрытым сбоям.
 
-## Current Issues
+### Описание проблемы
 
-### 1. Inconsistent Exception Handling (lines 85-107)
+- **Локация**: `Analytics/src/ReceiptCollector.Analytics.Migrations/MigrationRunner.cs` (строки 85-107)
+- **Текущий код**:
 ```csharp
 try
 {
@@ -32,50 +33,51 @@ catch (Exception ex)
     throw;  // Re-throws immediately
 }
 ```
+- **Проблема**:
+  - Транзакции не правильно откатываются (как ранее идентифицировано)
+  - Отсутствует логика повторных попыток для временных сбоев
+  - Непосредственное перевыбрасывание без попытки восстановления
+  - Отсутствует паттерн прерывателя цепи
+  - Сервисы полностью отказывают вместо плавного снижения функциональности при недоступности зависимостей
 
-**Issues**:
-- Transactions not properly rolled back (as previously identified)
-- No retry logic for transient failures
-- Immediate re-throw without recovery attempts
-- No circuit breaker pattern
+### План решения
 
-### 2. Missing Graceful Degradation
-Services fail completely instead of degrading gracefully when dependencies are unavailable.
-
-## Solution Steps
-
-### Step 1: Implement Retry Policy
-Add Polly retry policy for database operations:
+- **Шаг 1**: Реализовать политику повторных попыток:
 ```csharp
-// Add to DI configuration
+// Добавить в конфигурацию DI
 services.AddTransient<AsyncRetryPolicy>(sp => Policy
     .Handle<NpgsqlException>()
     .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 ```
 
-### Step 2: Fix Transaction Rollback
-Fix the rollback logic as previously identified in the migration issue task.
+- **Шаг 2**: Исправить логику отката транзакций (как идентифицировано в задаче миграции)
 
-### Step 3: Add Circuit Breaker
-Add circuit breaker for database operations:
+- **Шаг 3**: Добавить прерыватель цепи для операций с базой данных:
 ```csharp
 services.AddTransient<AsyncCircuitBreakerPolicy>(sp => Policy
     .Handle<NpgsqlException>()
     .CircuitBreakerAsync(3, TimeSpan.FromMinutes(1), OnBreak, OnReset, OnHalfOpen));
 ```
 
-### Step 4: Implement Graceful Degradation
-Add fallback mechanisms:
-- Cache last known good state
-- Return stale data when primary source fails
-- Log degradation events
+- **Шаг 4**: Реализовать плавное снижение функциональности:
+  - Кэшировать последнее известное хорошее состояние
+  - Возвращать устаревшие данные при сбое основного источника
+  - Логировать события снижения функциональности
 
-## Files to Modify
-- `Analytics/src/ReceiptCollector.Analytics.Migrations/MigrationRunner.cs` (lines 85-107)
-- Consider adding Polly package for resilience patterns
+### Тестирование
 
-## Testing Strategy
-1. Test retry behavior with simulated failures
-2. Verify circuit breaker trips and resets correctly
-3. Test graceful degradation scenarios
-4. Verify proper rollback on failure
+- **Команды**:
+  - Симулировать сбои базы данных и проверить поведение повторных попыток
+  - Проверять срабатывание и сброс прерывателя цепи
+  - Тестировать сценарии плавного снижения функциональности
+- **Ожидаемые результаты**:
+  - Повторные попытки работают корректно при временных сбоях
+  - Прерыватель цепи срабатывает и сбрасывается правильно
+  - Плавное снижение функциональности работает в ожидаемых сценариях
+  - Транзакции откатываются правильно при сбое
+
+### Критерии успеха
+- Реализована политика повторных попыток для базовых операций
+- Логика отката транзакций исправлена
+- Прерыватель цепи работает корректно
+- Плавное снижение функциональности реализовано и протестировано

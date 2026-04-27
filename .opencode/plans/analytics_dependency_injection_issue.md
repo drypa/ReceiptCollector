@@ -1,11 +1,12 @@
-# Task: Fix Dependency Injection Configuration Issue
+# Задача: Исправить конфигурацию внедрения зависимостей
 
-## Problem Description
-The `AddInfrastructure` extension method in `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Configuration/DependencyInjectionExtensions.cs` has a critical flaw in how it configures the PostgreSQL database context.
+- **Приоритет**: HIGH
+- **Цель**: Устранить критическую ошибку в конфигурации PostgreSQL database context.
 
-## Current Issues
+### Описание проблемы
 
-### 1. Missing DbContext Lifetime Configuration (lines 49-60)
+- **Локация**: `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Configuration/DependencyInjectionExtensions.cs` (строки 49-60)
+- **Текущий код**:
 ```csharp
 services.AddDbContext<ReceiptDbContext>((sp, builder) =>
 {
@@ -21,19 +22,16 @@ services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         .UseSnakeCaseNamingConvention();
 });
 ```
+- **Проблема**: 
+  - Отсутствует указание времени жизни DbContext, что может привести к:
+    - Утечкам памяти
+    - Истощению пула соединений
+    - Проблемам с потокобезопасностью в веб-приложениях
+  - Отсутствует конфигурация автоматических миграций, что мешает приложению обнаруживать несоответствия схемы базы данных.
 
-**Issue**: The DbContext is registered without specifying a lifetime scope. This can lead to:
-- Memory leaks if not properly scoped
-- Connection pool exhaustion
-- Thread safety issues in web applications
+### План решения
 
-### 2. Missing Migration Configuration
-The configuration doesn't enable automatic migrations, which means the application won't know if the database schema is out of sync.
-
-## Solution Steps
-
-### Step 1: Add Proper Scoping
-Add `.AddDbContextScoped()` or explicitly specify the lifetime:
+- **Шаг 1**: Добавить указание времени жизни:
 ```csharp
 services.AddDbContext<ReceiptDbContext>((sp, builder) =>
 {
@@ -47,11 +45,10 @@ services.AddDbContext<ReceiptDbContext>((sp, builder) =>
     builder
         .UseNpgsql(options.ConnectionString)
         .UseSnakeCaseNamingConvention();
-}, ServiceLifetime.Scoped);  // Add this line
+}, ServiceLifetime.Scoped);  // Добавить эту строку
 ```
 
-### Step 2: Enable Migrations
-Add migration configuration:
+- **Шаг 2**: Включить миграции:
 ```csharp
 services.AddDbContext<ReceiptDbContext>((sp, builder) =>
 {
@@ -65,23 +62,31 @@ services.AddDbContext<ReceiptDbContext>((sp, builder) =>
     builder
         .UseNpgsql(options.ConnectionString)
         .UseSnakeCaseNamingConvention()
-        .EnableSensitiveDataLogging(false)  // For development only
-        .EnableDetailedErrors(false);      // For production
+        .EnableSensitiveDataLogging(false)  // Для разработки только
+        .EnableDetailedErrors(false);      // Для production
 }, ServiceLifetime.Scoped);
 ```
 
-### Step 3: Add Health Checks (Optional Enhancement)
-Add database health checks to monitor connection status:
+- **Шаг 3**: Добавить проверки здоровья (опциональное улучшение):
 ```csharp
 services.AddHealthChecks()
     .AddDbContextCheck<ReceiptDbContext>();
 ```
 
-## Files to Modify
-- `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Configuration/DependencyInjectionExtensions.cs` (lines 49-60)
+### Тестирование
 
-## Testing Strategy
-1. Verify DbContext is properly scoped in web requests
-2. Test connection pooling behavior under load
-3. Verify migrations are detected and applied correctly
-4. Check for memory leaks during stress testing
+- **Команды**:
+  - Запуск приложения и проверка логирования DbContext
+  - Нагрузка на систему для проверки пула соединений
+  - Проверка применения миграций
+- **Ожидаемые результаты**:
+  - DbContext правильно скопирован в веб-запросах
+  - Пулы соединений работают корректно под нагрузкой
+  - Миграции обнаруживаются и применяются правильно
+  - Нет утечек памяти при стресс-тестировании
+
+### Критерии успеха
+- DbContext зарегистрирован с правильным временем жизни (Scoped)
+- Миграции включаются автоматически
+- Проверки здоровья работают корректно
+- Нет утечек памяти и проблем с соединениями

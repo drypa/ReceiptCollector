@@ -1,118 +1,122 @@
-# Task: Fix Testing Infrastructure Issue
+# Задача: Исправить проблему с инфраструктурой тестирования
 
-## Problem Description
-The Analytics project lacks comprehensive testing infrastructure and has inconsistent test coverage.
+## Общие принципы
 
-## Current Issues
+1. **Ясность и понятность**: Задача описана на русском языке, без использования эмодзи.
+2. **Уровень детализации**: Описание достаточно подробным для реализации младшим разработчиком.
+3. **Структура задачи**:
+   - Приоритет
+   - Цель
+   - Описание проблемы
+   - План решения (пошаговое описание)
+   - Тестирование (команды и ожидаемые результаты)
+   - Критерии успеха
 
-### 1. Missing Test Projects
-- No unit test projects for core libraries
-- No integration test projects
-- No end-to-end test projects
+## Заголовок
+- **Приоритет**: HIGH
+- **Цель**: Создать полноценную инфраструктуру тестирования для проекта Analytics.
 
-### 2. Incomplete Test Coverage
-Existing tests (if any) likely don't cover:
-- Database operations
-- Error handling scenarios
-- Edge cases
-- Performance scenarios
+### Описание проблемы
+- **Локация**: Проект Analytics в директории `/Analytics/`
+- **Текущий код**: Отсутствуют тестовые проекты и неполная покрытие тестами
+- **Проблема**: 
+  - Нет проектов для юнит-тестов, интеграционных и end-to-end тестов
+  - Тесты не покрывают базу данных, обработку ошибок, крайние случаи и производительность
+  - Отсутствует стандартный способ настройки тестовых данных
 
-### 3. Missing Test Data Setup
-No standardized way to set up test data across different test types.
+### План решения
+- **Шаг 1**: Создать структуру тестовых проектов:
+  ```
+  Analytics/
+  ├── src/
+  │   ├── ReceiptCollector.Analytics.Api/
+  │   │   └── Tests/ (Юнит-тесты для API)
+  │   ├── ReceiptCollector.Analytics.Infrastructure/
+  │   │   └── Tests/ (Юнит-тесты для инфраструктуры)
+  │   └── ReceiptCollector.Analytics.Migrations/
+  │       └── Tests/ (Юнит-тесты для миграций)
+  └── tests/
+      ├── IntegrationTests/ (Интеграционные тесты)
+      └── EndToEndTests/ (E2E тесты)
+  ```
 
-## Solution Steps
+- **Шаг 2**: Добавить необходимые NuGet пакеты:
+  - `Microsoft.NET.Test.Sdk`
+  - `xunit` или `nunit`
+  - `Moq` для моков
+  - `FluentAssertions` для ассертов
+  - `Respawn` для тестирования базы данных
+  - `NSubstitute` как альтернатива Moq
 
-### Step 1: Create Test Projects Structure
-Create proper test project structure:
-```
-Analytics/
-├── src/
-│   ├── ReceiptCollector.Analytics.Api/
-│   │   └── Tests/ (Unit tests for API)
-│   ├── ReceiptCollector.Analytics.Infrastructure/
-│   │   └── Tests/ (Unit tests for infrastructure)
-│   └── ReceiptCollector.Analytics.Migrations/
-│       └── Tests/ (Unit tests for migrations)
-└── tests/
-    ├── IntegrationTests/ (Integration tests)
-    └── EndToEndTests/ (E2E tests)
-```
+- **Шаг 3**: Создать общую инфраструктуру тестов:
+  ```csharp
+  // TestBase.cs
+  public abstract class TestBase : IDisposable
+  {
+      protected TestBase()
+      {
+          // Настройка общих зависимостей для тестов
+      }
 
-### Step 2: Add Testing Packages
-Add necessary NuGet packages:
-- `Microsoft.NET.Test.Sdk`
-- `xunit` or `nunit`
-- `Moq` for mocking
-- `FluentAssertions` for assertions
-- `Respawn` for database testing
-- `NSubstitute` as alternative to Moq
+      public void Dispose()
+      {
+          // Очистка ресурсов
+      }
+  }
+  ```
 
-### Step 3: Create Test Infrastructure
-Create shared test infrastructure:
-```csharp
-// TestBase.cs
-public abstract class TestBase : IDisposable
-{
-    protected TestBase()
-    {
-        // Setup common test dependencies
-    }
+- **Шаг 4**: Добавить поддержку тестирования базы данных:
+  ```csharp
+  // TestDatabaseFactory.cs
+  public class TestDatabaseFactory : IDisposable
+  {
+      private readonly RespawnGenerator _respawnGenerator;
+      
+      public TestDatabaseFactory()
+      {
+          _respawnGenerator = RespawnGenerator.New("migrations");
+      }
+      
+      public async Task ResetDatabaseAsync(ReceiptDbContext context)
+      {
+          await _respawnGenerator.ResetAsync(context);
+      }
+  }
+  ```
 
-    public void Dispose()
-    {
-        // Cleanup
-    }
-}
-```
+- **Шаг 5**: Создать билдеры тестовых данных:
+  ```csharp
+  // ReceiptBuilder.cs
+  public class ReceiptBuilder
+  {
+      private readonly Receipt _receipt = new Receipt();
+      
+      public ReceiptBuilder WithId(string id)
+      {
+          _receipt.Id = id;
+          return this;
+      }
+      
+      // Другие методы билдера...
+      
+      public Receipt Build() => _receipt;
+  }
+  ```
 
-### Step 4: Add Database Testing Support
-Add database testing support:
-```csharp
-// TestDatabaseFactory.cs
-public class TestDatabaseFactory : IDisposable
-{
-    private readonly RespawnGenerator _respawnGenerator;
-    
-    public TestDatabaseFactory()
-    {
-        _respawnGenerator = RespawnGenerator.New("migrations");
-    }
-    
-    public async Task ResetDatabaseAsync(ReceiptDbContext context)
-    {
-        await _respawnGenerator.ResetAsync(context);
-    }
-}
-```
+### Тестирование
+- **Команды**:
+  - `dotnet test` для запуска всех тестов
+  - `dotnet test --filter "Category=Unit"` для юнит-тестов
+  - `dotnet test --filter "Category=Integration"` для интеграционных тестов
+- **Ожидаемые результаты**:
+  - Все тесты должны проходить успешно
+  - Покрытие кода должно увеличиться
+  - Отсутствие ошибок при настройке и очистке тестовой базы данных
 
-### Step 5: Add Test Data Builders
-Create test data builders:
-```csharp
-// ReceiptBuilder.cs
-public class ReceiptBuilder
-{
-    private readonly Receipt _receipt = new Receipt();
-    
-    public ReceiptBuilder WithId(string id)
-    {
-        _receipt.Id = id;
-        return this;
-    }
-    
-    // Other builder methods...
-    
-    public Receipt Build() => _receipt;
-}
-```
-
-## Files to Create
-- Test project files (xunit/nunit)
-- Shared test infrastructure
-- Database testing utilities
-- Test data builders
-
-## Testing Strategy
-1. Start with unit tests for core logic
-2. Add integration tests for database operations
-3. Add E2E tests for complete workflows
-4. Implement CI pipeline to run all tests
+### Критерии успеха
+- Созданы все необходимые тестовые проекты
+- Добавлены NuGet пакеты для тестирования
+- Реализована общая инфраструктура тестов
+- Подготовлена поддержка тестирования базы данных
+- Созданы билдеры тестовых данных
+- Все тесты проходят успешно

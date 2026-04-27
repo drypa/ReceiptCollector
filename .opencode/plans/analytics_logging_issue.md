@@ -1,11 +1,12 @@
-# Task: Fix Logging Configuration Issue
+# Задача: Исправить конфигурацию логирования
 
-## Problem Description
-The Analytics services have inconsistent and incomplete logging configuration, which makes debugging difficult.
+- **Приоритет**: HIGH
+- **Цель**: Устранить несоответствия и недостатки в конфигурации логирования, которые усложняют отладку.
 
-## Current Issues
+### Описание проблемы
 
-### 1. Missing Structured Logging (lines 20-35)
+- **Локация**: `Analytics/src/ReceiptCollector.Analytics.Migrations/Program.cs` (строки 20-35)
+- **Текущий код**:
 ```csharp
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(options =>
@@ -14,32 +15,26 @@ builder.Logging.AddSimpleConsole(options =>
     options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
 });
 ```
+- **Проблема**:
+  - Используется `AddSimpleConsole` вместо правильного структурированного логирования
+  - Отсутствует форматирование JSON для более простого парсинга
+  - Отсутствуют идентификаторы корреляции для распределенной трассировки
+  - Нет конфигурации уровней логирования
+  - Несоответствие в логировании между проектами (миграции используют простое консольное логирование, API может использовать другую конфигурацию)
+  - Отсутствует централизованная стратегия логирования
 
-**Issues**:
-- Uses `AddSimpleConsole` instead of proper structured logging
-- No JSON formatting for easier parsing
-- Missing correlation IDs for distributed tracing
-- No log level configuration
+### План решения
 
-### 2. Inconsistent Logging Between Projects
-- Migrations project uses simple console logging
-- API project may use different configuration
-- No centralized logging strategy
-
-## Solution Steps
-
-### Step 1: Standardize on Serilog
-Add Serilog for structured JSON logging:
+- **Шаг 1**: Стандартизировать на Serilog:
 ```csharp
-// Add to Program.cs
+// Добавить в Program.cs
 builder.Host.UseSerilog((ctx, lc) => lc
     .Enrich.FromLogContext()
     .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss } {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .ReadFrom.Configuration(ctx.Configuration));
 ```
 
-### Step 2: Configure Log Levels
-Add log level configuration:
+- **Шаг 2**: Настроить уровни логирования:
 ```csharp
 builder.Services.Configure<LoggerFilterOptions>(options =>
 {
@@ -49,8 +44,7 @@ builder.Services.Configure<LoggerFilterOptions>(options =>
 });
 ```
 
-### Step 3: Add Correlation IDs
-Add correlation ID enrichment:
+- **Шаг 3**: Добавить идентификаторы корреляции:
 ```csharp
 builder.Host.UseSerilog((ctx, lc) => lc
     .Enrich.FromLogContext()
@@ -59,20 +53,29 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration));
 ```
 
-### Step 4: Add Health Checks Logging
-Enhance health checks with logging:
+- **Шаг 4**: Добавить логирование проверок здоровья:
 ```csharp
 services.AddHealthChecks()
     .AddDbContextCheck<ReceiptDbContext>(options => options.ResultStatusCodes[HealthCheckResult.Healthy] = StatusCodes.Status200OK)
     .AddNpgSql(connectionString, healthQuery: "SELECT 1", name: "postgres-db");
 ```
 
-## Files to Modify
-- `Analytics/src/ReceiptCollector.Analytics.Migrations/Program.cs` (lines 20-35)
-- `Analytics/src/ReceiptCollector.Analytics.Api/Program.cs`
+### Тестирование
 
-## Testing Strategy
-1. Verify JSON log format is correct
-2. Test correlation IDs propagate through requests
-3. Verify log levels filter correctly
-4. Check health check logging in logs
+- **Команды**:
+  - Запуск приложения и проверка формата JSON логов
+  - Проверка распространения идентификаторов корреляции через запросы
+  - Проверка фильтрации уровней логирования
+  - Проверка логирования проверок здоровья в логах
+- **Ожидаемые результаты**:
+  - Логи имеют правильный формат JSON
+  - Идентификаторы корреляции распространяются через запросы
+  - Уровни логирования фильтруются корректно
+  - Проверки здоровья логируются правильно
+
+### Критерии успеха
+- Реализовано структурированное логирование с Serilog
+- Логи имеют формат JSON
+- Идентификаторы корреляции работают корректно
+- Уровни логирования настроены правильно
+- Проверки здоровья логируются адекватно
