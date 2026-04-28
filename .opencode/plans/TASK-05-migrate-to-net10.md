@@ -1,47 +1,45 @@
-# Migration Plan: Analytics Project from .NET 8 to .NET 10
+# Migration Plan: Analytics Microservice from .NET 8 to .NET 10 LTS
 
-## Приоритет
-HIGH
+## Current State Analysis
+- The Analytics microservice consists of multiple projects targeting .NET 8.0
+- Main API project uses ASP.NET Core 8.0
+- Migrations and infrastructure projects also use .NET 8.0
+- Configuration files are present for development and production environments
 
-## Цель
-Выполнить миграцию проекта ReceiptCollector.Analytics с .NET 8 на .NET 10, обеспечивая совместимость всех компонентов и зависимостей.
+## Migration Plan
 
-## Описание проблемы
-Текущая версия проекта аналитики использует .NET 8, что требует обновления до .NET 10 для получения новых возможностей, улучшений производительности и поддержки. В текущем файле описана миграция, но необходимо выполнить детализацию по ключевым аспектам:
+### Phase 1: Update Project Files
+1. **API Project** (`ReceiptCollector.Analytics.Api.csproj`):
+   - Change `<TargetFramework>net8.0</TargetFramework>` to `<TargetFramework>net10.0</TargetFramework>`
+   - Update ASP.NET Core package versions (Microsoft.AspNetCore.OpenApi, Swashbuckle.AspNetCore)
 
-- Обновление целевой среды выполнения в проектных файлах
-- Проверка совместимости пакетов EF Core 
-- Обновление зависимостей Microsoft.Extensions и Testcontainers
+2. **Application Project** (`ReceiptCollector.Analytics.Application.csproj`):
+   - Change `<TargetFramework>net8.0</TargetFramework>` to `<TargetFramework>net10.0</TargetFramework>`
 
-## План решения
-1. Обновить все файлы .csproj для использования target framework net10.0:
-   - ReceiptCollector.Analytics.Api.csproj
-   - ReceiptCollector.Analytics.Application.csproj
-   - ReceiptCollector.Analytics.Infrastructure.csproj
-   - ReceiptCollector.Analytics.Migrations.csproj
-   - ReceiptCollector.Analytics.Api.Tests.csproj
+3. **Domain Project** (`ReceiptCollector.Analytics.Domain.csproj`):
+   - Change `<TargetFramework>net8.0</TargetFramework>` to `<TargetFramework>net10.0</TargetFramework>`
 
-2. Проверить и обновить пакеты EF Core:
-   - Microsoft.EntityFrameworkCore 8.0.7 → проверить совместимость с .NET 10
-   - Npgsql.EntityFrameworkCore.PostgreSQL 8.0.4 → проверить совместимость с .NET 10 
-   - EFCore.NamingConventions 8.0.0 → проверить совместимость с .NET 10
+4. **Infrastructure Project** (`ReceiptCollector.Analytics.Infrastructure.csproj`):
+   - Change `<TargetFramework>net8.0</TargetFramework>` to `<TargetFramework>net10.0</TargetFramework>`
+   - Update EFCore, Npgsql packages for .NET 10 compatibility
 
-3. Обновить зависимости Microsoft.Extensions:
-   - Проверить и обновить до версий, совместимых с .NET 10 (например, 9.0.9)
+5. **Migrations Project** (`ReceiptCollector.Analytics.Migrations.csproj`):
+   - Change `<TargetFramework>net8.0</TargetFramework>` to `<TargetFramework>net10.0</TargetFramework>`
+   - Update Microsoft.Extensions.Configuration and related packages
 
-4. Обновить тестовые контейнеры:
-   - Testcontainer dependencies для MongoDB и PostgreSQL (3.7.0) → проверить новые версии
+### Phase 2: Package Updates
+- Update all NuGet package references to versions compatible with .NET 10
+- Pay special attention to EFCore packages that may need version updates
+- Ensure PostgreSQL and MongoDB driver compatibility
 
-5. Запустить все тесты для обнаружения изменений в совместимости
+### Phase 3: Configuration Files Review
+- Verify appsettings.json files don't contain deprecated settings for .NET 10
+- Ensure connection strings remain valid in development environment (appsettings.Development.json)
 
-## Тестирование
-- Выполнить unit tests для каждого компонента проекта 
-- Запустить integration tests для проверки подключения к базе данных
-- Проверить работу процессов миграции и API endpoint'ов
-- Убедиться, что все сервисы корректно работают после миграции
+### Phase 4: Testing Strategy
+- Run all existing unit tests to ensure functionality is preserved
+- Test integration with MongoDB and PostgreSQL databases
+- Validate that API endpoints function correctly with new framework
+- Verify migrations still work properly
 
-## Критерии успеха
-- Все проектные файлы обновлены до .NET 10
-- Все зависимости совместимы с .NET 10 
-- Все unit и integration тесты проходят успешно
-- База данных корректно подключается после миграции
+This migration will provide access to .NET 10's performance improvements, security enhancements, and new features while maintaining the existing architecture and functionality of the Analytics microservice.
