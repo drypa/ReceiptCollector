@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.Users.Services;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
@@ -29,6 +30,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IUserAuthLinkService, UserAuthLinkService>();
         services.AddScoped<ReceiptSynchronizationService>();
         services.AddHostedService<ReceiptSynchronizationHostedService>();
+        services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddHostedService<AdminUserHostedService>();
         return services;
     }
 
@@ -45,6 +48,9 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<UserAuthLinkOptions>()
             .Bind(configuration.GetSection(UserAuthLinkOptions.SectionName));
+            
+        services.AddOptions<AdminUserOptions>()
+            .Bind(configuration.GetSection(AdminUserOptions.SectionName));
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {
