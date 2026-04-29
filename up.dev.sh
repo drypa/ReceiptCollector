@@ -1,5 +1,9 @@
 #!/bin/sh
 
-echo starting containers...
+echo "starting containers..."
 
-docker-compose -f docker-compose.develop.yml -p receipt-collector-dev up -d --remove-orphans
+if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose -f docker-compose.develop.yml -p receipt-collector-dev up -d --remove-orphans
+else
+    docker compose -f docker-compose.develop.yml -p receipt-collector-dev up -d --remove-orphans
+fi
