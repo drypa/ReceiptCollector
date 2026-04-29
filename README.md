@@ -40,6 +40,17 @@ cd ../..
 ./up.dev.sh
 ```
 
+### Analytics Service (.NET 10)
+The analytics service has been migrated to .NET 10. To run it locally:
+
+```bash
+# Migrate database first
+cd ReceiptCollector.Analytics.Migrations && dotnet run
+
+# Then run the API
+cd ReceiptCollector.Analytics.Api && dotnet run
+```
+
 ### Useful scripts
 
 ```javascript
