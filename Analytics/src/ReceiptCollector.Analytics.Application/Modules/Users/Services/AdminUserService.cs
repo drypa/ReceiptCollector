@@ -25,7 +25,7 @@ public sealed class AdminUserService : IAdminUserService
 
     public async Task UpdateAdminStatusAsync(CancellationToken cancellationToken)
     {
-        if (_adminUserOptions.TelegramIds == null || !_adminUserOptions.TelegramIds.Any())
+        if (!_adminUserOptions.TelegramIds.Any())
         {
             _logger.LogInformation("No admin users configured in the settings");
             return;
