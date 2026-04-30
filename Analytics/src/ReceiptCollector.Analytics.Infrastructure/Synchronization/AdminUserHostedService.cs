@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
@@ -7,14 +8,14 @@ namespace ReceiptCollector.Analytics.Infrastructure.Synchronization;
 internal sealed class AdminUserHostedService : IHostedService
 {
     private readonly ILogger<AdminUserHostedService> _logger;
-    private readonly IAdminUserService _adminUserService;
+    private readonly IServiceProvider _serviceProvider;
 
     public AdminUserHostedService(
         ILogger<AdminUserHostedService> logger,
-        IAdminUserService adminUserService)
+        IServiceProvider serviceProvider)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _adminUserService = adminUserService ?? throw new ArgumentNullException(nameof(adminUserService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -23,7 +24,10 @@ internal sealed class AdminUserHostedService : IHostedService
         
         try
         {
-            await _adminUserService.UpdateAdminStatusAsync(cancellationToken);
+            // Create a scope to resolve the scoped service
+            using var scope = _serviceProvider.CreateScope();
+            var adminUserService = scope.ServiceProvider.GetRequiredService<IAdminUserService>();
+            await adminUserService.UpdateAdminStatusAsync(cancellationToken);
             
             _logger.LogInformation("Admin User Hosted Service completed successfully");
         }

@@ -11,7 +11,6 @@ public sealed class AdminUserService : IAdminUserService
     private readonly ILogger<AdminUserService> _logger;
     private readonly IUserRepository _userRepository;
     private readonly AdminUserOptions _adminUserOptions;
-    private readonly IOptions<AdminUserOptions> _options;
 
     public AdminUserService(
         ILogger<AdminUserService> logger,
@@ -20,7 +19,7 @@ public sealed class AdminUserService : IAdminUserService
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        ArgumentNullException.ThrowIfNull(options);
         _adminUserOptions = options.Value;
     }
 
