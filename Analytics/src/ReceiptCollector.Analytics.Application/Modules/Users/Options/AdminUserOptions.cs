@@ -7,5 +7,5 @@ public class AdminUserOptions
     public const string SectionName = "Infrastructure:AdminUsers";
     
     [Required]
-    public List<long> TelegramIds { get; set; } = new();
+    public List<int> TelegramIds { get; set; } = new();
 }

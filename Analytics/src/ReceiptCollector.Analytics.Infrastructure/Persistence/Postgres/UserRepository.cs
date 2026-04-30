@@ -79,15 +79,11 @@ internal sealed class UserRepository : IUserRepository
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task UpdateAdminStatusAsync(int telegramId, bool isAdmin, CancellationToken cancellationToken)
+    public async Task UpdateAdminStatusAsync(int userTelegramId, bool isAdmin, CancellationToken cancellationToken)
     {
-        if (telegramId <= 0)
-        {
-            throw new ArgumentException("Telegram id must be positive.", nameof(telegramId));
-        }
 
         var entity = await _dbContext.Users
-            .FirstOrDefaultAsync(user => user.TelegramId == telegramId, cancellationToken)
+            .FirstOrDefaultAsync(u => u.TelegramId == userTelegramId, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity != null)

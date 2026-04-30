@@ -37,19 +37,7 @@ public sealed class AdminUserService : IAdminUserService
         {
             try
             {
-                // Check if user exists with this Telegram ID - using correct method from repository interface
-                var existingUser = await _userRepository.GetByTelegramIdAsync((int)telegramId, cancellationToken);
-                
-                if (existingUser != null)
-                {
-                    _logger.LogInformation($"Admin status already set for user {existingUser.Name} (ID: {existingUser.Id})");
-                    // Note: This is a basic implementation. In reality, we would need to add update functionality
-                    // to the repository interface or use another approach to manage admin privileges.
-                }
-                else
-                {
-                    _logger.LogWarning($"User with Telegram ID {telegramId} not found in database");
-                }
+                await _userRepository.UpdateAdminStatusAsync(telegramId, true, cancellationToken);
             }
             catch (Exception ex)
             {

@@ -9,4 +9,6 @@ public interface IUserRepository
     Task<User?> GetByTelegramIdAsync(int telegramId, CancellationToken cancellationToken);
 
     Task AddAsync(User user, CancellationToken cancellationToken);
+    
+    Task UpdateAdminStatusAsync(int userTelegramId, bool isAdmin, CancellationToken cancellationToken);
 }
