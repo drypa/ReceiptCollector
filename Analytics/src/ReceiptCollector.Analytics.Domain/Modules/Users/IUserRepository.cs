@@ -10,5 +10,5 @@ public interface IUserRepository
 
     Task AddAsync(User user, CancellationToken cancellationToken);
     
-    Task UpdateAdminStatusAsync(int userTelegramId, bool isAdmin, CancellationToken cancellationToken);
+    Task BatchUpdateAdminStatusAsync(List<int> userTelegramIds, bool isAdmin, CancellationToken cancellationToken);
 }

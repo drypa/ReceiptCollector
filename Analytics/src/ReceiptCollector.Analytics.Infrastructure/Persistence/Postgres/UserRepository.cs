@@ -79,17 +79,15 @@ internal sealed class UserRepository : IUserRepository
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task UpdateAdminStatusAsync(int userTelegramId, bool isAdmin, CancellationToken cancellationToken)
+    public async Task BatchUpdateAdminStatusAsync(List<int> userTelegramIds, bool isAdmin,
+        CancellationToken cancellationToken)
     {
-
-        var entity = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.TelegramId == userTelegramId, cancellationToken)
+        await _dbContext.Users
+            .Where(u => userTelegramIds.Contains(u.TelegramId))
+            .ForEachAsync(x => x.IsAdmin = isAdmin, cancellationToken)
             .ConfigureAwait(false);
 
-        if (entity != null)
-        {
-            entity.IsAdmin = isAdmin;
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

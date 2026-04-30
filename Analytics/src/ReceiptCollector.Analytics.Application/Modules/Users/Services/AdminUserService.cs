@@ -33,19 +33,16 @@ public sealed class AdminUserService : IAdminUserService
         
         _logger.LogInformation($"Updating admin status for {string.Join(", ", _adminUserOptions.TelegramIds)}");
 
-        foreach (var telegramId in _adminUserOptions.TelegramIds)
+        try
         {
-            try
-            {
-                await _userRepository.UpdateAdminStatusAsync(telegramId, true, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error updating admin status for user with Telegram ID: {telegramId}");
-                throw;
-            }
+            await _userRepository.BatchUpdateAdminStatusAsync(_adminUserOptions.TelegramIds, true, cancellationToken);
         }
-
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating admin status for users");
+            throw;
+        }
+        
         _logger.LogInformation("Admin status update completed successfully");
     }
 }
