@@ -4,7 +4,7 @@
 Принято
 
 ## Контекст
-В среде разработки нам нужно обеспечить единую точку доступа к обоим аналитическим API и фронтенд-сервисам, которые работают локально в режиме отладки. В настоящее время разработчикам необходимо управлять отдельными портами (8085 для API, 3000 для фронтенда), что усложняет локальную отладку.
+В среде разработки нам нужно обеспечить единую точку доступа к обоим аналитическим API и фронтенд-сервисам, которые теперь будут запускаться локально в IDE. В настоящее время разработчикам необходимо управлять отдельными портами (8085 для API, 3000 для фронтенда), что усложняет локальную отладку.
 
 ## Решение
 Мы добавим сервис nginx в `docker-compose.develop.yml`, который будет выступать в роли обратного прокси для обоих компонентов аналитики:
@@ -60,24 +60,6 @@ nginx:
     - "8080:80"
   volumes:
     - ./nginx.conf:/etc/nginx/nginx.conf
-  networks:
-    - collector-net
-
-analytics-api:
-  container_name: receipt-analytics-api
-  image: drypa/receipt-analytics-api:latest
-  restart: unless-stopped
-  depends_on:
-    - postgres
-  networks:
-    - collector-net
-
-analytics-frontend:
-  container_name: receipt-analytics-frontend
-  image: drypa/receipt-analytics-frontend:latest  
-  restart: unless-stopped
-  depends_on:
-    - analytics-api
   networks:
     - collector-net
 ```
