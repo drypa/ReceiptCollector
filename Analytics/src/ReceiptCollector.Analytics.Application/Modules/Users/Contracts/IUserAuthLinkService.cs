@@ -11,9 +11,9 @@ public interface IUserAuthLinkService
 
 public sealed record UserAuthLinkResult(string Link, DateTimeOffset ExpiresAt);
 
-public sealed record UserAuthLinkValidationResult(bool IsValid, Guid? UserId = null, string? Error = null)
+public sealed record UserAuthLinkValidationResult(bool IsValid, Guid? UserId = null, string? Error = null, string? redirectUrl=null)
 {
-    public static UserAuthLinkValidationResult Success(Guid userId) => new(true, userId);
+    public static UserAuthLinkValidationResult Success(Guid userId, string redirectUrl) => new(true, userId, null, redirectUrl);
 
     public static UserAuthLinkValidationResult Failure(string? error = null) => new(false, null, error);
 }

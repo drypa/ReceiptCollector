@@ -57,7 +57,7 @@ public static class UserAuthEndpoints
 
         httpContext.Response.Cookies.Append(UserAuthCookie.CookieName, validation.UserId.Value.ToString(), options);
 
-        return Results.NoContent();
+        return Results.Redirect(validation.redirectUrl!);
     }
 
     private static async Task<IResult> RequestAuthLink(

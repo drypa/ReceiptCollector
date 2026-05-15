@@ -101,7 +101,7 @@ internal sealed class UserAuthLinkService : IUserAuthLinkService
 
         await _authLinkRepository.MarkAsUsedAsync(link.Id, utcNow, cancellationToken).ConfigureAwait(false);
 
-        return UserAuthLinkValidationResult.Success(link.UserId);
+        return UserAuthLinkValidationResult.Success(link.UserId, _options.BaseUrl!);
     }
 
     private static string GenerateToken()
