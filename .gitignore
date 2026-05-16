@@ -21,6 +21,8 @@ vendor
 receipt_collector
 bot/bot
 ssl
+bin
+obj
 
 .run
 
