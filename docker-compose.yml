@@ -72,5 +72,21 @@ services:
       - postgres
     networks:
       - collector-net
+    # Expose ports for service discovery 
+    expose:
+      - "5039"  # API port (assuming this is where the .NET app listens)
+  nginx:
+    container_name: receipt-nginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - ${SSL_CERTS_PATH}:/etc/nginx/ssl/certs/
+    depends_on:
+      - analytics
+    networks:
+      - collector-net
 networks:
   collector-net:

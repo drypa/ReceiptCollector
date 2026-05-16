@@ -59,7 +59,7 @@ nginx:
   ports:
     - "8080:80"
   volumes:
-    - ./nginx.conf:/etc/nginx/nginx.conf
+    - ./nginx.dev.conf:/etc/nginx/nginx.dev.conf
   networks:
     - collector-net
 ```

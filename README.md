@@ -24,19 +24,22 @@ sudo chmod +x ./down.sh
 ./down.sh
 ```
 
-### how to debug
-run angular app
-```bash
-cd ./webapp
-npm run start
-```
+### Nginx Proxy Configuration
+The system uses nginx as a reverse proxy for:
+- Serving frontend static assets  
+- Proxying API requests to Analytics service
+- Terminating TLS connections
 
-and build and run third-party components
+Nginx is configured with proper SSL certificates and security headers.
 
+### Development Environment Setup
+For development, all services are proxied through Nginx. The analytics service will be available at:
+
+- API: http://localhost/api/
+- Frontend: http://localhost/
+
+To run with the new Nginx proxy:
 ```bash
-cd ./docker/nginx
-./build.sh
-cd ../..
 ./up.dev.sh
 ```
 
@@ -82,4 +85,13 @@ db.receipt_requests.updateMany({
     "query_string": /t=2024/,
     "check_request_status": "error"
 }, {$set: {"check_request_status": null}}, {})
+```
+
+### SSL Certificate Generation
+
+To generate SSL certificates for development:
+
+```bash
+chmod +x ./generate-ssl-cert.sh
+./generate-ssl-cert.sh
 ```
