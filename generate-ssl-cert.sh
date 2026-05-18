@@ -15,12 +15,14 @@ cert_conf="$ssl_path/cert.conf"
 ca_key="$ssl_path/root.key"
 ca_cert="$ssl_path/root.crt"
 
-openssl req -x509 \
-            -sha256 -days 356 \
-            -nodes \
-            -newkey rsa:2048 \
-            -subj "/CN=$dns/C=RU/L=Moscow" \
-            -keyout $ca_key -out $ca_cert
+if [ ! -f "$ca_key" ] || [ ! -f "$ca_cert" ]; then
+    openssl req -x509 \
+                -sha256 -days 356 \
+                -nodes \
+                -newkey rsa:2048 \
+                -subj "/CN=$dns/C=RU/L=Moscow" \
+                -keyout $ca_key -out $ca_cert
+fi
 
 
 #generate key
@@ -77,5 +79,3 @@ openssl x509 -req \
 rm $csr_config
 rm $cert_conf
 rm $csr
-rm $ca_key
-rm $ca_cert
