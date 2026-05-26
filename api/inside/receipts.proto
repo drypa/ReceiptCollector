@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package inside_api;
+option go_package = "github.com/drypa/ReceiptCollector/api/inside";
 
 message AddReceiptRequest {
     string userId = 1;

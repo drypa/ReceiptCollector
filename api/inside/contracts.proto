@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-//protoc -I ./  ./*.proto --go_out=plugins=grpc:.
+//protoc -I ./ ./*.proto   --go_out=. --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative
 
 import "receipts.proto";
 import "accounts.proto";
@@ -9,10 +9,9 @@ import "devices.proto";
 import "report.proto";
 
 package inside_api;
+option go_package = "github.com/drypa/ReceiptCollector/api/inside";
 
 service AccountApi{
-  rpc GetLoginLink (GetLoginLinkRequest) returns (LoginLinkResponse) {
-  }
   rpc GetUsers (NoParams) returns (GetUsersResponse) {
   }
 
