@@ -61,7 +61,7 @@ jobs:
     - name: Build and push Backend Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./backend
+        context: .
         file: ./backend/Dockerfile
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.backend-meta.outputs.tags }}
@@ -72,7 +72,7 @@ jobs:
     - name: Build and push Telegram Bot Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./bot
+        context: .
         file: ./bot/Dockerfile
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.bot-meta.outputs.tags }}

@@ -1,6 +1,6 @@
 module receipt_collector
 
-go 1.20
+go 1.23
 
 require (
 	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20260322103942-d1abb1e46beb
@@ -32,3 +32,5 @@ require (
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
+
+replace github.com/drypa/ReceiptCollector/api/inside => ../api/inside
