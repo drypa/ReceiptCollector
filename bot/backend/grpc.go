@@ -27,17 +27,6 @@ func NewGrpcClient(backendUrl string, creds credentials.TransportCredentials) *G
 	return &GrpcClient{internal: &internal, account: &account, receipt: &receipt}
 }
 
-// GetLoginLink returns link to login for telegram user.
-func (c *GrpcClient) GetLoginLink(ctx context.Context, telegramId int) (string, error) {
-	client := c.account
-	request := inside.GetLoginLinkRequest{TelegramId: int32(telegramId)}
-	link, err := (*client).GetLoginLink(ctx, &request)
-	if err != nil {
-		return "", err
-	}
-	return link.Url, nil
-}
-
 // AddReceipt adds new receipt by bar code.
 func (c *GrpcClient) AddReceipt(ctx context.Context, userId string, qr string) (statusMessage string, e error) {
 	client := c.receipt

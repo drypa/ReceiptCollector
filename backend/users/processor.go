@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"fmt"
 	api "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"receipt_collector/device"
@@ -29,26 +28,6 @@ func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device
 		clientSecret:  secret,
 		client:        client,
 	}
-}
-
-// GetLoginLink returns login link for user in request.
-func (p Processor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error) {
-	telegramId := in.TelegramId
-	user, err := p.repository.GetByTelegramId(ctx, int(telegramId))
-	if err != nil {
-		return nil, err
-	}
-	if user == nil {
-		return nil, fmt.Errorf("user with telegram id %d does not exist", telegramId)
-	}
-	resp, err := p.client.GetUserAuthLink(ctx, int(telegramId))
-	if err != nil {
-		return nil, err
-	}
-	return &api.LoginLinkResponse{
-		Url:        *resp.Link,
-		Expiration: resp.ExpiresAt.Unix(),
-	}, nil
 }
 
 // GetUsers returns all registered users.

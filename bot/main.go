@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/drypa/ReceiptCollector/bot/analytics"
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
@@ -25,14 +26,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	registrar := createCommandsRegistrar(grpcClient, &provider)
+	analyticsClient := analytics.NewClient(options.AnalyticsUrl)
+	registrar := createCommandsRegistrar(grpcClient, &provider, analyticsClient)
 	err = start(options, reportsClient, registrar)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func createCommandsRegistrar(grpcClient *backend.GrpcClient, users *user.Provider) *commands.Registrar {
+func createCommandsRegistrar(grpcClient *backend.GrpcClient, users *user.Provider, analyticsClient *analytics.Client) *commands.Registrar {
 	registrar := commands.Registrar{}
 
 	empty := commands.EmptyCommand{}
@@ -52,6 +54,9 @@ func createCommandsRegistrar(grpcClient *backend.GrpcClient, users *user.Provide
 
 	addReceiptCommand := commands.NewAddReceiptCommand(users, grpcClient)
 	registrar.Register(addReceiptCommand)
+
+	login := commands.NewGetLoginLinkCommand(analyticsClient)
+	registrar.Register(login)
 
 	wrongCommand := commands.WrongCommand{}
 	registrar.RegisterDefault(wrongCommand)

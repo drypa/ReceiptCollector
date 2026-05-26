@@ -7,18 +7,14 @@ import (
 
 type server struct {
 	api.UnimplementedInternalApiServer
+	api.UnimplementedAccountApiServer
+	api.UnimplementedReceiptApiServer
 	accountProcessor *AccountProcessor
 	receiptProcessor *ReceiptProcessor
 }
 
 func newServer(p *AccountProcessor, r *ReceiptProcessor) server {
 	return server{accountProcessor: p, receiptProcessor: r}
-}
-
-// GetLoginLink is an implementation of gRPC same name method.
-func (s *server) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error) {
-	processor := *(s.accountProcessor)
-	return processor.GetLoginLink(ctx, in)
 }
 
 // GetUsers returns all existing user accounts.

@@ -1,9 +1,9 @@
 module github.com/drypa/ReceiptCollector/bot
 
-go 1.20
+go 1.23
 
 require (
-	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230819122429-dfb6fd2c5a01
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20260322103942-d1abb1e46beb
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	google.golang.org/grpc v1.57.0
 )
@@ -17,3 +17,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230815205213-6bfd019c3878 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+replace github.com/drypa/ReceiptCollector/api/inside => ../api/inside

@@ -1,18 +1,24 @@
 package commands
 
 import (
-	"github.com/drypa/ReceiptCollector/bot/backend"
-	"github.com/drypa/ReceiptCollector/bot/backend/user"
+	"github.com/drypa/ReceiptCollector/bot/analytics"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 type GetLoginLinkCommand struct {
-	provider   *user.Provider
-	grpcClient *backend.GrpcClient
+	analyticsClient *analytics.Client
 }
 
-func (a GetLoginLinkCommand) Login(update tgbotapi.Update, bot *tgbotapi.BotAPI, grpcClient *backend.GrpcClient) error {
-	link, err := grpcClient.GetLoginLink(getContext(), update.Message.From.ID)
+func NewGetLoginLinkCommand(analyticsClient *analytics.Client) *GetLoginLinkCommand {
+	return &GetLoginLinkCommand{analyticsClient: analyticsClient}
+}
+
+func (c *GetLoginLinkCommand) Accepted(message string) bool {
+	return message == "/login"
+}
+
+func (c *GetLoginLinkCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+	link, err := c.analyticsClient.GetLoginLink(getContext(), update.Message.From.ID)
 	responseText := link
 	if err != nil {
 		responseText = err.Error()
