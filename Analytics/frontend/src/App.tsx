@@ -1,7 +1,11 @@
-import './App.css';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { PageSizeProvider } from './contexts/PageSizeContext';
+import { Layout } from './components/Layout';
 import { ReceiptsPage } from './components/ReceiptsPage';
+import { CommoditiesPage } from './components/CommoditiesPage';
 import { adminService } from './services/adminService';
 import { useEffect } from 'react';
+import './App.css';
 
 export function App() {
   useEffect(() => {
@@ -9,7 +13,18 @@ export function App() {
     adminService.initialize();
   }, []);
 
-  return <ReceiptsPage />;
+  return (
+    <BrowserRouter>
+      <PageSizeProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<ReceiptsPage />} />
+            <Route path="/commodities" element={<CommoditiesPage />} />
+          </Route>
+        </Routes>
+      </PageSizeProvider>
+    </BrowserRouter>
+  );
 }
 
 export default App;

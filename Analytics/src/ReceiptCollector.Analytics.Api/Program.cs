@@ -1,4 +1,5 @@
 using ReceiptCollector.Analytics.Api.Middleware;
+using ReceiptCollector.Analytics.Api.Modules.Commodities;
 using ReceiptCollector.Analytics.Api.Modules.Receipts;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.Configuration;
@@ -28,6 +29,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapReceiptEndpoints();
 app.MapUserAuthEndpoints();
+app.MapCommodityEndpoints();
 app.MapFallbackToFile("/index.html");
 
 app.Run();

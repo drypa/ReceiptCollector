@@ -1,21 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useReceipts } from '../hooks/useReceipts';
 import { useReceiptsByMerchant } from '../hooks/useReceiptsByMerchant';
+import { usePageSize } from '../contexts/PageSizeContext';
 import { Pagination } from './Pagination';
 import { ReceiptTable } from './ReceiptTable';
 import { ReceiptDetails } from './ReceiptDetails';
 import { fetchReceiptDetails } from '../api/receipts';
 import type { ReceiptDetails as ReceiptDetailsType } from '../types/receipt';
 
-const DEFAULT_PAGE_SIZE = 10;
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
-
 export function ReceiptsPage() {
+  const { pageSize, setPageSize, pageSizeOptions } = usePageSize();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const receiptIdFromUrl = searchParams.get('receiptId');
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [receiptDetails, setReceiptDetails] = useState<ReceiptDetailsType | null>(null);
   const [loadingReceiptDetails, setLoadingReceiptDetails] = useState(false);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   
   // Use the appropriate hook based on whether we're filtering by merchant
   const {
@@ -84,6 +85,14 @@ export function ReceiptsPage() {
     setReceiptDetails(null);
   };
 
+  useEffect(() => {
+    if (receiptIdFromUrl) {
+      handleReceiptClick(receiptIdFromUrl);
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receiptIdFromUrl]);
+
   return (
     <main className="layout">
       <header>
@@ -112,7 +121,7 @@ export function ReceiptsPage() {
               onChange={(e) => setPageSize(Number(e.target.value))}
               disabled={isLoading}
             >
-              {PAGE_SIZE_OPTIONS.map((size) => (
+              {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
                   {size}
                 </option>

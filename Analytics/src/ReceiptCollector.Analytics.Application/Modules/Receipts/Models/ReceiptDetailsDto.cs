@@ -7,4 +7,4 @@ public sealed record ReceiptDetailsDto(
     DateTime PurchasedAt,
     IReadOnlyCollection<ReceiptItemDto> Items);
 
-public sealed record ReceiptItemDto(string Name, decimal Quantity, decimal UnitPrice, decimal TotalPrice, Guid? CategoryId);
+public sealed record ReceiptItemDto(string Name, decimal Quantity, decimal UnitPrice, decimal TotalPrice, int? CategoryId);

@@ -82,7 +82,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
                 item.Quantity,
                 item.UnitPrice,
                 item.Quantity * item.UnitPrice,
-                null))
+                item.CategoryId))
             .ToList();
 
         return new ReceiptDetailsDto(
