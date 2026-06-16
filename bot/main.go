@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
+	"log"
+	"os"
+	"time"
+
 	"github.com/drypa/ReceiptCollector/bot/analytics"
 	"github.com/drypa/ReceiptCollector/bot/backend"
 	"github.com/drypa/ReceiptCollector/bot/backend/report"
 	"github.com/drypa/ReceiptCollector/bot/backend/user"
 	"github.com/drypa/ReceiptCollector/bot/commands"
 	"google.golang.org/grpc/credentials"
-	"log"
-	"os"
 )
 
 func main() {
@@ -22,6 +25,16 @@ func main() {
 	}
 	grpcClient := backend.NewGrpcClient(backendGrpcAddress, creds)
 	reportsClient := report.New(reportsGrpcAddress, creds)
+
+	// Wait for backend gRPC to become ready with a 5-minute timeout.
+	// During this time the bot retries the connection with exponential backoff.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if err := grpcClient.WaitForReady(ctx); err != nil {
+		log.Printf("Backend gRPC (%s) did not become ready within timeout: %v", backendGrpcAddress, err)
+		os.Exit(1)
+	}
+
 	provider, err := user.New(grpcClient)
 	if err != nil {
 		log.Fatal(err)

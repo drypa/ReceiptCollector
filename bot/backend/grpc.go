@@ -3,6 +3,10 @@ package backend
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
+	"time"
+
 	inside "github.com/drypa/ReceiptCollector/api/inside"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -129,4 +133,37 @@ func (c *GrpcClient) VerifyPhone(ctx context.Context, telegramId int, code strin
 	_, err := (*client).VerifyPhone(ctx, &request)
 
 	return err
+}
+
+const (
+	waitForReadyInitialDelay = 500 * time.Millisecond
+	waitForReadyMaxDelay     = 30 * time.Second
+	waitForReadyAttemptTimeout = 5 * time.Second
+)
+
+// WaitForReady blocks until the gRPC connection is usable or the context is cancelled.
+// It performs a health check (GetUsers) with exponential backoff.
+// Maximum backoff delay is capped at 30 seconds; overall timeout is controlled by ctx.
+func (c *GrpcClient) WaitForReady(ctx context.Context) error {
+	delay := waitForReadyInitialDelay
+
+	for {
+		checkCtx, cancel := context.WithTimeout(ctx, waitForReadyAttemptTimeout)
+		_, err := c.GetUsers(checkCtx)
+		cancel()
+
+		if err == nil {
+			log.Println("Backend gRPC connection is ready")
+			return nil
+		}
+
+		log.Printf("Backend gRPC not ready: %v. Next attempt in %v", err, delay)
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for backend gRPC cancelled: %w", ctx.Err())
+		case <-time.After(delay):
+			delay = time.Duration(math.Min(float64(delay*2), float64(waitForReadyMaxDelay)))
+		}
+	}
 }
