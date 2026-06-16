@@ -4,7 +4,7 @@ public enum CommodityCategory
 {
     Undefined = 0,
     Food = 1,
-    ClothingAndFootwear = 2,
+    Clothing = 2,
     Electronics = 3,
     CosmeticsAndHygiene = 4,
     Pharmacy = 5,
@@ -16,7 +16,11 @@ public enum CommodityCategory
     ConstructionAndRepair = 11,
     AutomotiveGoods = 12,
     Flowers = 13,
-    Other = 14
+    Fuel = 14,
+    Alcohol = 15,
+    Tools = 16,
+    Footwear = 17,
+    Other = 255
 }
 
 public static class CommodityCategoryHelper
@@ -25,7 +29,7 @@ public static class CommodityCategoryHelper
     {
         { CommodityCategory.Undefined, "Не указана" },
         { CommodityCategory.Food, "Продукты питания" },
-        { CommodityCategory.ClothingAndFootwear, "Одежда и обувь" },
+        { CommodityCategory.Clothing, "Одежда" },
         { CommodityCategory.Electronics, "Электроника" },
         { CommodityCategory.CosmeticsAndHygiene, "Косметика и гигиена" },
         { CommodityCategory.Pharmacy, "Аптека" },
@@ -37,6 +41,10 @@ public static class CommodityCategoryHelper
         { CommodityCategory.ConstructionAndRepair, "Строительство и ремонт" },
         { CommodityCategory.AutomotiveGoods, "Автотовары" },
         { CommodityCategory.Flowers, "Цветы" },
+        { CommodityCategory.Fuel, "Топливо" },
+        { CommodityCategory.Alcohol, "Алкоголь" },
+        { CommodityCategory.Tools, "Инструменты" },
+        { CommodityCategory.Footwear, "Обувь" },
         { CommodityCategory.Other, "Прочее" },
     };
 
