@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Synchronization;
@@ -9,15 +11,23 @@ internal sealed class ReceiptSynchronizationHostedService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ReceiptSynchronizationHostedService> _logger;
+    private readonly IOptions<ReceiptSynchronizationOptions> _options;
 
-    public ReceiptSynchronizationHostedService(IServiceScopeFactory scopeFactory, ILogger<ReceiptSynchronizationHostedService> logger)
+    public ReceiptSynchronizationHostedService(IServiceScopeFactory scopeFactory, ILogger<ReceiptSynchronizationHostedService> logger, IOptions<ReceiptSynchronizationOptions> options)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (_options.Value.Skip)
+        {
+            _logger.LogInformation("Receipt synchronization skipped due to Skip flag.");
+            return;
+        }
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
