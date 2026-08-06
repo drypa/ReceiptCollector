@@ -72,4 +72,30 @@ internal sealed class MerchantRepository : IMerchantRepository
 
         return entity?.MapToDomain();
     }
+
+    public async Task<IReadOnlyCollection<Merchant>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var entities = await _dbContext.Merchants
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(entity => entity.MapToDomain()).ToList();
+    }
+
+    public async Task UpdateCategoryAsync(Guid merchantId, MerchantCategory category, CancellationToken cancellationToken = default)
+    {
+        var entity = await _dbContext.Merchants
+            .FirstOrDefaultAsync(m => m.Id == merchantId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            throw new InvalidOperationException($"Merchant with id '{merchantId}' not found.");
+        }
+
+        entity.Category = category;
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
