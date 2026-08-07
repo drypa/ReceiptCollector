@@ -79,3 +79,19 @@ export async function updateMerchantCategory(merchantId: string, categoryId: num
     throw new Error(message || 'Не удалось обновить категорию магазина');
   }
 }
+
+export async function updateMerchantName(merchantId: string, newName: string): Promise<void> {
+  const response = await fetch(`/api/merchants/${merchantId}/name`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ name: newName }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Не удалось обновить имя магазина');
+  }
+}

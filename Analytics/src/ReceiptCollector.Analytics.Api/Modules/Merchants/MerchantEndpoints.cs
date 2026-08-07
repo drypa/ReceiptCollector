@@ -17,6 +17,7 @@ public static class MerchantEndpoints
 
         group.MapGet("", GetAll);
         group.MapPut("/{merchantId:guid}/category", UpdateCategory);
+        group.MapPut("/{merchantId:guid}/name", UpdateMerchantName);
         group.MapGet("/categories", ListCategories);
 
         return app;
@@ -131,6 +132,55 @@ public static class MerchantEndpoints
 
         return Results.Ok(categories);
     }
+
+    public static async Task<IResult> UpdateMerchantName(Guid merchantId, [FromBody] UpdateMerchantNameRequest request,
+        [FromServices] IMerchantRepository merchantRepository,
+        [FromServices] IUserRepository userRepository,
+        CancellationToken cancellationToken)
+    {
+        // Проверяем, что пользователь авторизован
+        var userId = UserContext.UserId;
+        if (userId is null || userId == Guid.Empty)
+        {
+            return Results.Unauthorized();
+        }
+
+        // Проверяем, что пользователь является администратором
+        var user = await userRepository.GetByIdAsync(userId.Value, cancellationToken);
+        if (user is null || !user.IsAdmin)
+        {
+            return Results.Forbid();
+        }
+
+        // Получаем магазин по идентификатору
+        var merchant = await merchantRepository.GetByIdAsync(merchantId, cancellationToken);
+        if (merchant is null)
+        {
+            return Results.NotFound("Merchant not found.");
+        }
+
+        // Нормализуем и валидируем имя магазина
+        var normalized = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return Results.BadRequest("Merchant name is required.");
+        }
+
+        if (normalized.Length > 256)
+        {
+            return Results.BadRequest("Merchant name must be at most 256 characters.");
+        }
+
+        // Обновляем имя магазина
+        merchant.UpdateName(normalized);
+
+        // Сохраняем обновленный магазин
+        await merchantRepository.AddAsync(merchant, cancellationToken);
+
+        return Results.Ok("Merchant name updated successfully.");
+    }
 }
 
 public sealed record UpdateMerchantCategoryRequest(int CategoryId);
+
+public sealed record UpdateMerchantNameRequest(string Name);

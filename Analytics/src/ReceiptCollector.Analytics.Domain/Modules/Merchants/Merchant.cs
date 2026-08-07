@@ -33,9 +33,16 @@ public sealed class Merchant
 
     public void UpdateName(string name)
     {
+        name = name.Trim();
+
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Merchant name must be provided.", nameof(name));
+        }
+
+        if (name.Length > 256)
+        {
+            throw new ArgumentException("Merchant name must be at most 256 characters.", nameof(name));
         }
 
         Name = name;

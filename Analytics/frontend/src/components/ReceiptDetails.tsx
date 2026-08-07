@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReceiptDetails } from '../types/receipt';
 import { useAdmin } from '../hooks/useAdmin';
-import { updateMerchantName } from '../api/receipts';
+import { updateMerchantName } from '../api/merchants';
 import { CustomDialog } from './CustomDialog';
 
 interface ReceiptDetailsProps {

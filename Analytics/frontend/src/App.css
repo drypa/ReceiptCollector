@@ -505,6 +505,13 @@ tbody td:last-child {
   cursor: not-allowed;
 }
 
+.form-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  display: block;
+  margin-top: 0.35rem;
+}
+
 /* Dialog Styles */
 .dialog-overlay {
   position: fixed;

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
 using ReceiptCollector.Analytics.Api.Modules.Merchants;
-using ReceiptCollector.Analytics.Api.Modules.Receipts;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Merchants.Models;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Models;
@@ -35,7 +34,7 @@ public class MerchantEndpointsTests
         using var context = UserContext.SetUserId(userId);
 
         // Act
-        var result = await ReceiptEndpoints.UpdateMerchantName(
+        var result = await MerchantEndpoints.UpdateMerchantName(
             merchantId,
             new UpdateMerchantNameRequest("New Name"),
             merchantRepository,
@@ -69,7 +68,7 @@ public class MerchantEndpointsTests
         using var context = UserContext.SetUserId(userId);
 
         // Act
-        var result = await ReceiptEndpoints.UpdateMerchantName(
+        var result = await MerchantEndpoints.UpdateMerchantName(
             merchantId,
             new UpdateMerchantNameRequest("New Name"),
             merchantRepository,
@@ -103,7 +102,7 @@ public class MerchantEndpointsTests
         using var context = UserContext.SetUserId(userId);
 
         // Act
-        var result = await ReceiptEndpoints.UpdateMerchantName(
+        var result = await MerchantEndpoints.UpdateMerchantName(
             merchantId,
             new UpdateMerchantNameRequest("New Name"),
             merchantRepository,
@@ -117,6 +116,193 @@ public class MerchantEndpointsTests
         Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.NotFound<string>>(result);
         var notFoundResult = (Microsoft.AspNetCore.Http.HttpResults.NotFound<string>)result;
         Assert.Equal("Merchant not found.", notFoundResult.Value);
+    }
+
+    [Fact]
+    public async Task UpdateMerchantName_WithEmptyName_ReturnsBadRequest()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var merchantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
+            .Returns(existingMerchant);
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        // Устанавливаем UserId в UserContext
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.UpdateMerchantName(
+            merchantId,
+            new UpdateMerchantNameRequest(""),
+            merchantRepository,
+            userRepository,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.DidNotReceive().AddAsync(
+            Arg.Any<Merchant>(),
+            Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>>(result);
+        var badRequestResult = (Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>)result;
+        Assert.Equal("Merchant name is required.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task UpdateMerchantName_WithWhitespaceName_ReturnsBadRequest()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var merchantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
+            .Returns(existingMerchant);
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        // Устанавливаем UserId в UserContext
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.UpdateMerchantName(
+            merchantId,
+            new UpdateMerchantNameRequest("   "),
+            merchantRepository,
+            userRepository,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.DidNotReceive().AddAsync(
+            Arg.Any<Merchant>(),
+            Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>>(result);
+        var badRequestResult = (Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>)result;
+        Assert.Equal("Merchant name is required.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task UpdateMerchantName_WithTooLongName_ReturnsBadRequest()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var merchantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
+            .Returns(existingMerchant);
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        // Устанавливаем UserId в UserContext
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.UpdateMerchantName(
+            merchantId,
+            new UpdateMerchantNameRequest(new string('а', 257)),
+            merchantRepository,
+            userRepository,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.DidNotReceive().AddAsync(
+            Arg.Any<Merchant>(),
+            Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>>(result);
+        var badRequestResult = (Microsoft.AspNetCore.Http.HttpResults.BadRequest<string>)result;
+        Assert.Equal("Merchant name must be at most 256 characters.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task UpdateMerchantName_WithMaxLengthName_Succeeds()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var merchantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
+            .Returns(existingMerchant);
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        // Устанавливаем UserId в UserContext
+        using var context = UserContext.SetUserId(userId);
+
+        var maxLengthName = new string('а', 256);
+
+        // Act
+        var result = await MerchantEndpoints.UpdateMerchantName(
+            merchantId,
+            new UpdateMerchantNameRequest(maxLengthName),
+            merchantRepository,
+            userRepository,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.Received(1).AddAsync(
+            Arg.Is<Merchant>(m => m.Name == maxLengthName),
+            Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<string>>(result);
+        var okResult = (Microsoft.AspNetCore.Http.HttpResults.Ok<string>)result;
+        Assert.Equal("Merchant name updated successfully.", okResult.Value);
+    }
+
+    [Fact]
+    public async Task UpdateMerchantName_TrimsWhitespace()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var merchantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var existingMerchant = new Merchant(merchantId, "Old Name", MerchantCategory.Undefined);
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetByIdAsync(merchantId, Arg.Any<CancellationToken>())
+            .Returns(existingMerchant);
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        // Устанавливаем UserId в UserContext
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.UpdateMerchantName(
+            merchantId,
+            new UpdateMerchantNameRequest("  Пятёрочка  "),
+            merchantRepository,
+            userRepository,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.Received(1).AddAsync(
+            Arg.Is<Merchant>(m => m.Name == "Пятёрочка"),
+            Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<string>>(result);
+        var okResult = (Microsoft.AspNetCore.Http.HttpResults.Ok<string>)result;
+        Assert.Equal("Merchant name updated successfully.", okResult.Value);
     }
 
     [Fact]
