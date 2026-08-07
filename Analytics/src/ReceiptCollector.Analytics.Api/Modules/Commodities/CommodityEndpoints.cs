@@ -91,7 +91,7 @@ public static class CommodityEndpoints
     private static IResult ListCategories()
     {
         var categories = CommodityCategoryHelper.GetAll()
-            .Select(c => new CategoryDto((int)c.Id, c.Name))
+            .Select(c => new CategoryDto((int)c.Id, c.Name, CommodityCategoryHelper.GetGroup(c.Id)))
             .ToList();
 
         return Results.Ok(categories);
