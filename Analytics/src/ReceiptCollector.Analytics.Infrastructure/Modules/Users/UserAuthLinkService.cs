@@ -94,12 +94,15 @@ internal sealed class UserAuthLinkService : IUserAuthLinkService
             return UserAuthLinkValidationResult.Failure("Token expired.");
         }
 
-        if (link.IsUsed)
+        // The check-and-mark is performed atomically in the database
+        // (UPDATE ... WHERE UsedAt IS NULL), so a token that has already been
+        // used (or is being used concurrently) yields false here.
+        var success = await _authLinkRepository.TryMarkAsUsedAsync(link.Id, utcNow, cancellationToken).ConfigureAwait(false);
+
+        if (!success)
         {
             return UserAuthLinkValidationResult.Failure("Token already used.");
         }
-
-        await _authLinkRepository.MarkAsUsedAsync(link.Id, utcNow, cancellationToken).ConfigureAwait(false);
 
         return UserAuthLinkValidationResult.Success(link.UserId, _options.BaseUrl!);
     }

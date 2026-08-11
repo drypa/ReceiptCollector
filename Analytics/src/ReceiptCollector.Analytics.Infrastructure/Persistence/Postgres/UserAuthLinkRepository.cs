@@ -73,4 +73,16 @@ internal sealed class UserAuthLinkRepository : IUserAuthLinkRepository
         entity.UsedAt = usedAt;
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<bool> TryMarkAsUsedAsync(Guid linkId, DateTimeOffset usedAt, CancellationToken cancellationToken)
+    {
+        var affectedRows = await _dbContext.UserAuthLinks
+            .Where(link => link.Id == linkId && link.UsedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(link => link.UsedAt, usedAt),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return affectedRows > 0;
+    }
 }
