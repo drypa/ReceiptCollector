@@ -32,6 +32,7 @@ app.MapReceiptEndpoints();
 app.MapUserAuthEndpoints();
 app.MapCommodityEndpoints();
 app.MapMerchantEndpoints();
+app.MapGet("/health", () => Results.Ok("healthy"));
 app.MapFallbackToFile("/index.html");
 
 app.Run();
