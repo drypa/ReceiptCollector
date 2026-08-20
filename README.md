@@ -76,6 +76,53 @@ npm run build   # build for production (outputs to ../src/ReceiptCollector.Analy
 npm run lint    # run ESLint
 ```
 
+### Backend (Go)
+To run the backend collector locally in debug mode (requires MongoDB, e.g. started via `./up.dev.sh` or `docker-compose.develop.yml`):
+
+```bash
+cd backend
+
+# Generate TLS certs if not already present
+cd .. && ./generate-ssl-cert.sh && cd backend
+
+# Set environment variables
+export MONGO_URL=mongodb://localhost:27017
+export MONGO_LOGIN=admin
+export MONGO_SECRET=secret
+export CLIENT_SECRET=your_client_secret
+export OPEN_URL=http://localhost:5173/login
+export NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
+export TEMPLATES_PATH=/usr/share/receipts/templates
+export GET_RECEIPT_WORKER_INTERVAL=1m
+
+# Run with hot reload (optional: air) or plain:
+go run .
+```
+
+- HTTP API listens on `:8888`, gRPC on `:15000` and `:15001`.
+- TLS certificates are read from `/usr/share/receipts/ssl/certs/`, so generate them first with `./generate-ssl-cert.sh`.
+- For hot-reload debugging install [air](https://github.com/air-verse/air) and run `air` instead of `go run .`.
+
+### Telegram Bot (Go)
+To run the Telegram bot locally in debug mode (requires the Backend gRPC to be running):
+
+```bash
+cd bot
+
+# Set environment variables
+export BOT_TOKEN=your_telegram_bot_token
+export BOT_DEBUG=true
+export HTTP_PROXY= # optional, leave empty
+export ANALYTICS_URL=http://localhost:5039
+export BACKEND_GRPC_ADDR=localhost:15000
+export REPORTS_GRPC_ADDR=localhost:15001
+
+go run .
+```
+
+- The bot connects to the backend via TLS gRPC (`BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`), so the backend must be running and the same TLS certs must be present at `/usr/share/receipts/ssl/certs/certificate.crt`.
+- `BOT_DEBUG=true` enables the Telegram API debug logging.
+
 ### Useful scripts
 
 ```javascript
