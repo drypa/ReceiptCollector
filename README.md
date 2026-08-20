@@ -54,6 +54,28 @@ cd ReceiptCollector.Analytics.Migrations && dotnet run
 cd ReceiptCollector.Analytics.Api && dotnet run
 ```
 
+### Analytics Frontend (React + Vite)
+The analytics frontend is a React SPA built with Vite. To run it locally in debug mode with HMR:
+
+```bash
+cd Analytics/frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start the dev server with HMR
+npm run dev
+```
+
+The dev server starts at `http://localhost:5173` and proxies `/api` requests to the Analytics API on port `5039`, so the Analytics API (`ReceiptCollector.Analytics.Api`) must be running first.
+
+Other useful commands:
+
+```bash
+npm run build   # build for production (outputs to ../src/ReceiptCollector.Analytics.Api/wwwroot)
+npm run lint    # run ESLint
+```
+
 ### Useful scripts
 
 ```javascript
