@@ -43,6 +43,23 @@ To run with the new Nginx proxy:
 ./up.dev.sh
 ```
 
+### Запуск debug-окружения одной командой
+
+`./dev-run.sh` поднимает всё debug-окружение одной командой: dev-контейнеры (mongo/pg/nginx), TLS-сертификаты, backend (Go), миграции и API Analytics (.NET), frontend (Vite), Telegram-бот — и показывает живые логи (`tail -f`). Ctrl+C корректно останавливает все запущенные процессы.
+
+Перед первым запуском:
+
+```bash
+cp .env.example .env
+# заполните обязательные переменные: CLIENT_SECRET, BOT_TOKEN
+./dev-run.sh
+```
+
+- Повторный запуск `./dev-run.sh` останавливает и перезапускает сервисы разработки (backend, Analytics API, frontend, бот) с актуальным кодом; docker-контейнеры (mongo/pg/nginx) при этом не перезапускаются и продолжают работать.
+- При первом запуске может потребоваться пароль sudo: скрипт создаёт системные каталоги `/usr/share/receipts/ssl/certs`, `${TEMPLATES_PATH}`, `/var/lib/receipts/raw`, `/var/lib/receipts/error`.
+- Логи сервисов: `logs/<сервис>.log`, PID-файлы: `logs/<сервис>.pid`.
+- Все переменные окружения берутся из `.env` в корне проекта (шаблон — `.env.example`).
+
 ### Analytics Service (.NET 10)
 The analytics service has been migrated to .NET 10. To run it locally:
 

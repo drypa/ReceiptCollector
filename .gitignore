@@ -17,6 +17,8 @@
 
 #my
 .env
+# dev-run.sh: логи сервисов и PID-файлы
+logs/
 vendor
 receipt_collector
 bot/bot
