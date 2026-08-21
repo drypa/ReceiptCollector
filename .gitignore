@@ -17,9 +17,16 @@
 
 #my
 .env
+# dev-run.sh: логи сервисов и PID-файлы
+logs/
 vendor
 receipt_collector
 bot/bot
 ssl
+bin
+obj
 
 .run
+
+#builed frontend
+wwwroot

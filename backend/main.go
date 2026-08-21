@@ -23,7 +23,7 @@ import (
 	"receipt_collector/reports"
 	"receipt_collector/reports/dal"
 	"receipt_collector/users"
-	"receipt_collector/users/login_url"
+	"receipt_collector/users/link"
 	"receipt_collector/waste"
 	"receipt_collector/workers"
 	"time"
@@ -74,22 +74,32 @@ func main() {
 	//	}
 	//}()
 
-	go worker.GetReceiptStart(ctx, settings)
-	//go worker.UpdateRawReceiptStart(ctx, settings)
-	worker.GetElectronicReceiptStart(ctx)
-	generator := login_url.New(openUrl)
+	// Create separate contexts for each worker with appropriate timeouts
+	receiptCtx, receiptCancel := context.WithTimeout(ctx, 60*time.Second)
+	go worker.GetReceiptStart(receiptCtx, settings)
+	defer receiptCancel()
+
+	// Electronic receipt worker runs once daily (long interval)
+	eRecCtx, eRecCancel := context.WithTimeout(ctx, 60*time.Minute)
+	worker.GetElectronicReceiptStart(eRecCtx)
+	defer eRecCancel()
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
-	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, generator, nalogruClient, deviceService, clientSecret)
+
+	linkClient := link.NewClient(openUrl)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, linkClient, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
 
+	// gRPC listeners
+	_, reportsCancel := context.WithTimeout(ctx, 60*time.Minute)
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
 	go reports.Serve(":15001", creds, &userRepository, &receiptReportRepository)
+	defer reportsCancel()
 
 	server := startServer(receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
@@ -100,6 +110,10 @@ func main() {
 	sig := <-sigChan
 
 	log.Printf("Service is shutting down... %s\n,", sig)
+	// Cancel all worker contexts in proper order (shortest to longest timeout)
+	receiptCancel()
+	reportsCancel()
+	eRecCancel()
 	cancelFunc()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	err = server.Shutdown(ctx)
@@ -172,12 +186,8 @@ func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Con
 	addReceiptRoute := "/internal/receipt"
 	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
 
-	loginByLinkRoute := "/api/auth/link/{id:[a-zA-Z0-9]+}"
-	router.HandleFunc(loginByLinkRoute, usersController.LoginByLinkHandler)
-
 	http.Handle(registrationRoute, router)
 	http.Handle("/internal/", router)
-	http.Handle("/api/auth/link/", router)
 }
 
 func check(err error) {

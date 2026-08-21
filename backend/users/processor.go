@@ -7,45 +7,27 @@ import (
 	"receipt_collector/device"
 	"receipt_collector/nalogru"
 	nalogDevice "receipt_collector/nalogru/device"
-	"time"
+	"receipt_collector/users/link"
 )
 
 // Processor provides method to return login link.
 type Processor struct {
 	repository    *Repository
-	linkGenerator LinkGenerator
 	deviceService *device.Service
 	nalogClient   *nalogru.Client
 	clientSecret  string
+	client        *link.Client
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *Repository, linkGenerator LinkGenerator, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
+func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, client *link.Client, secret string) *Processor {
 	return &Processor{
 		repository:    repository,
-		linkGenerator: linkGenerator,
 		nalogClient:   nalogClient,
 		deviceService: d,
-		clientSecret:  secret}
-}
-
-// GetLoginLink returns login link for user in request.
-func (p Processor) GetLoginLink(ctx context.Context, in *api.GetLoginLinkRequest) (*api.LoginLinkResponse, error) {
-	telegramId := in.TelegramId
-	user, err := p.repository.GetByTelegramId(ctx, int(telegramId))
-	if err != nil {
-		return nil, err
+		clientSecret:  secret,
+		client:        client,
 	}
-	url, err := p.linkGenerator.GetRedirectLink(user.Id.Hex())
-	expiration := time.Now().Add(time.Minute * 15)
-	err = p.repository.UpdateLoginLink(ctx, user.Id, url, expiration)
-	if err != nil {
-		return nil, err
-	}
-	return &api.LoginLinkResponse{
-		Url:        url,
-		Expiration: expiration.Unix(),
-	}, nil
 }
 
 // GetUsers returns all registered users.

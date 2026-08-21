@@ -1,0 +1,42 @@
+{
+  "_id" : ObjectId("5dd83315ff695272bb87c3b0"),
+  "receipt" : {
+    "datetime" : "2019-10-05T15:48:00",
+    "totalsum" : 112700,
+    "retailplaceaddress" : "117556 г. Москва, Варшавское шоссе, 97",
+    "userinn" : "5003042456",
+    "items" : [
+      {
+        "price" : 14800,
+        "sum" : 88800,
+        "quantity" : 6.0,
+        "name" : "ПАНЕЛЬ  250Х3000",
+        "categories" : null
+      },
+      {
+        "price" : 23900,
+        "sum" : 23900,
+        "quantity" : 1.0,
+        "name" : "МОМЕНТ МОНТАЖ 400 ГР",
+        "categories" : null
+      }
+    ],
+    "rawdata" : "AwC8AREEEAA5MjgyMDAwMTAwMjU0NTY3DQQUADAwMDA3MjAxMzUwNDU4NDQgICAg+gMMADUwMDMwNDI0NTYgIBAEBACJLAAA9AMEADC7mF01BAYAMQQWJSP5DgQEAIUAAAASBAQAMAAAAB4EAQAB/AMDADy4AR8EAQABuQQBAAIYBBoAjo6OICKRhIWLgIkgkYKOiIyIIJCTioCMiCIkBBUAaHR0cHM6Ly93d3cubmFsb2cucnUv/QMXADE4IIqOkI2ImIiNgCAgICAgICAgICAg8QMmADExNzU1NiCjLiCMruGqoqAsIIKg4OigouGqrqUg6K7h4aUsIDk3owQaAIygo6CnqK0gjoGIIPwgMDA5IIKg4OigoqqgIwQ9AAYEEACPgI2Fi5wgIDI1MJUzMDAwNwQCANA5/wMCAAAGrwQBAAETBAMA4FoBpwQNADQ2MDcxNTA5NDkyMjUjBEAABgQUAIyOjIWNkiCMjo2SgIYgNDAwIIOQNwQCAFxd/wMCAAABrwQBAAETBAIAXF2nBA0ANDYwMDYxMTIxNDQwNU4EAgBfSQcEAQAAOQQDADy4Ab8EAQAAwAQBAADBBAEAAA==",
+    "operator" : "18 КОРНИШИНА           ",
+    "nds18" : 18783,
+    "nds10" : 0,
+    "user" : "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+    "cashtotalsum" : 0,
+    "ecashtotalsum" : 112700,
+    "fiscalsign" : NumberLong(371532793),
+    "fiscaldocumentnumber" : NumberLong(11401)
+  },
+  "owner" : ObjectId("5dc1c9427126cc2841ca384d"),
+  "odfs_request_time" : ISODate("2019-12-02T01:35:00.549Z"),
+  "kkt_request_time" : Date(-62135596800000),
+  "query_string" : "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+  "deleted" : false,
+  "check_request_status" : "not_found",
+  "check_request_time" : ISODate("2021-07-13T17:29:45.715Z"),
+  "ticket_id" : "5dcad9be99056c5485733c1c"
+}

@@ -2,18 +2,18 @@ package users
 
 import (
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"time"
 )
 
-//Repository provides methods to persist users.
+// Repository provides methods to persist users.
 type Repository struct {
 	client *mongo.Client
 }
 
-//NewRepository constructs Repository.
+// NewRepository constructs Repository.
 func NewRepository(client *mongo.Client) Repository {
 	repository := Repository{client: client}
 	return repository
@@ -23,7 +23,7 @@ func (repository Repository) getCollection() *mongo.Collection {
 	return repository.client.Database("receipt_collection").Collection("system_users")
 }
 
-//Insert new User.
+// Insert new User.
 func (repository Repository) Insert(ctx context.Context, user *User) error {
 	collection := repository.getCollection()
 
@@ -35,7 +35,7 @@ func (repository Repository) Insert(ctx context.Context, user *User) error {
 	return nil
 }
 
-//GetByLogin returns User by login.
+// GetByLogin returns User by login.
 func (repository Repository) GetByLogin(ctx context.Context, login string) (User, error) {
 	collection := repository.getCollection()
 
@@ -45,19 +45,19 @@ func (repository Repository) GetByLogin(ctx context.Context, login string) (User
 	return user, err
 }
 
-//GetByTelegramId returns User by telegram id.
+// GetByTelegramId returns User by telegram id.
 func (repository Repository) GetByTelegramId(ctx context.Context, telegramId int) (*User, error) {
 	collection := repository.getCollection()
 
 	var user User
 	err := collection.FindOne(ctx, bson.D{{"telegram_id", telegramId}}).Decode(&user)
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 	return &user, err
 }
 
-//GetAll returns all users.
+// GetAll returns all users.
 func (repository Repository) GetAll(ctx context.Context) ([]User, error) {
 	collection := repository.getCollection()
 	cursor, err := collection.Find(ctx, bson.D{})
@@ -65,12 +65,6 @@ func (repository Repository) GetAll(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return readUsers(cursor, ctx)
-}
-
-//UpdateLoginLink set one-time unique link to login user.
-func (repository Repository) UpdateLoginLink(ctx context.Context, userId primitive.ObjectID, url string, expiration time.Time) error {
-	//TODO: need implement
-	return nil
 }
 
 func readUsers(cursor *mongo.Cursor, context context.Context) ([]User, error) {

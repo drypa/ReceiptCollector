@@ -1,6 +1,11 @@
 #!/bin/sh
 
-echo starting containers...
+echo "starting containers..."
 
-docker-compose pull
-docker-compose -p receipt-collector up -d --remove-orphans
+if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose pull
+    docker-compose -p receipt-collector up -d --remove-orphans
+else
+    docker compose pull
+    docker compose -p receipt-collector up -d --remove-orphans
+fi

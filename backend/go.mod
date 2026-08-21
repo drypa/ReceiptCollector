@@ -1,12 +1,11 @@
 module receipt_collector
 
-go 1.20
+go 1.23
 
 require (
-	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20230819122429-dfb6fd2c5a01
+	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20260322103942-d1abb1e46beb
 	github.com/go-co-op/gocron v1.28.2
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
-	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/robfig/cron/v3 v3.0.1
 	go.mongodb.org/mongo-driver v1.11.3
@@ -33,3 +32,5 @@ require (
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
+
+replace github.com/drypa/ReceiptCollector/api/inside => ../api/inside

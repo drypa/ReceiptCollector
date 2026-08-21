@@ -1,4 +1,4 @@
-version: '2'
+version: '2.4'
 
 services:
   mongo:
@@ -11,8 +11,31 @@ services:
     volumes:
       - ${MONGO_DATA}:/data/db
       - ${MONGO_BACKUP}:/backup
-    networks:
-      - collector-net
+    networks: [collector-net]
+    healthcheck:
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  postgres:
+    container_name: receipt-postgres
+    image: postgres:18.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${PG_LOGIN}
+      POSTGRES_PASSWORD: ${PG_SECRET}
+    volumes:
+      - ${PG_DATA}:/var/lib/postgresql/data
+    networks: [collector-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_LOGIN} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   collector:
     container_name: receipt-collector
@@ -20,7 +43,8 @@ services:
     image: drypa/receipt-collector:latest
     restart: always
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_LOGIN=${MONGO_LOGIN}
@@ -29,8 +53,7 @@ services:
       - TEMPLATES_PATH=/usr/share/receipts/templates
       - GET_RECEIPT_WORKER_INTERVAL=15m
       - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
-    networks:
-      - collector-net
+    networks: [collector-net]
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
       - "${RAW_TICKET_DUMP_PATH}:/var/lib/receipts/raw/"
@@ -43,15 +66,88 @@ services:
     image: drypa/receipt-telegram-bot:latest
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - BACKEND_GRPC_ADDR=collector:15000
       - REPORTS_GRPC_ADDR=collector:15001
       - HTTP_PROXY=${HTTP_PROXY}
-    networks:
-      - collector-net
+    networks: [collector-net]
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
+
+  # ---- Сервис миграций: run-to-completion, применяет SQL-скрипты к PostgreSQL ----
+  analytics-migrations:
+    container_name: receipt-analytics-migrations
+    image: drypa/receipt-collector-analytics:latest
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - RECEIPTCOLLECTOR_Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
+      - RECEIPTCOLLECTOR_MigrationScripts__DirectoryPath=/app/migrations/Scripts
+      - RECEIPTCOLLECTOR_MigrationScripts__CommandTimeoutSeconds=60
+    working_dir: /app/migrations
+    entrypoint: ["dotnet", "ReceiptCollector.Analytics.Migrations.dll"]
+    networks: [collector-net]
+
+  analytics:
+    container_name: receipt-analytics
+    build: ./Analytics
+    image: drypa/receipt-collector-analytics:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      analytics-migrations:
+        condition: service_completed_successfully
+    environment:
+      - ASPNETCORE_URLS=http://+:5039
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+      - Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
+      - Infrastructure__Receipts__Mongo__ConnectionString=mongodb://${MONGO_LOGIN}:${MONGO_SECRET}@mongo:27017/receipt_collection?authSource=admin
+      - Infrastructure__Receipts__Mongo__Database=receipt_collection
+      - Infrastructure__Receipts__Mongo__Collection=receipt_requests
+      - Infrastructure__Receipts__Mongo__UsersCollection=system_users
+      - Infrastructure__Receipts__Synchronization__Skip=${ANALYTICS_SYNC_SKIP:-true}
+      - Infrastructure__AuthLinks__BaseUrl=${ANALYTICS_AUTHLINK_BASE_URL}
+      - Infrastructure__AuthLinks__LifetimeMinutes=15
+      - Infrastructure__AdminUsers__TelegramIds__0=${ANALYTICS_ADMIN_TELEGRAM_ID_0}
+      - Infrastructure__AdminUsers__TelegramIds__1=${ANALYTICS_ADMIN_TELEGRAM_ID_1}
+    expose:
+      - "5039"
+    networks: [collector-net]
+    volumes:
+      - analytics-wwwroot:/srv/wwwroot
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5039/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  nginx:
+    container_name: receipt-nginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ${SSL_CERTS_PATH}:/etc/nginx/ssl/certs/
+      - analytics-wwwroot:/usr/share/nginx/html:ro
+    depends_on:
+      analytics:
+        condition: service_healthy
+    networks: [collector-net]
+
+volumes:
+  analytics-wwwroot:
+
 networks:
   collector-net:

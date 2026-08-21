@@ -1,0 +1,142 @@
+using Microsoft.EntityFrameworkCore;
+using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.Receipts.Models;
+using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
+
+namespace ReceiptCollector.Analytics.Infrastructure.Modules.Receipts;
+
+internal sealed class ReceiptReadService : IReceiptReadService
+{
+    private readonly ReceiptDbContext _dbContext;
+
+    public ReceiptReadService(ReceiptDbContext dbContext)
+    {
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    }
+
+    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetRecentAsync(Guid userId, int limit, int offset, CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be positive.");
+        }
+
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative.");
+        }
+
+        return await _dbContext.Receipts
+            .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
+            .Where(receipt => receipt.UserId == userId)
+            .OrderByDescending(receipt => receipt.PurchasedAt)
+            .Skip(offset)
+            .Take(limit)
+            .Select(receipt => new ReceiptSummaryDto(
+                receipt.Id,
+                new MerchantDto(
+                    receipt.Merchant.Id,
+                    receipt.Merchant.Name,
+                    (int)receipt.Merchant.Category,
+                    receipt.Merchant.Address,
+                    receipt.Merchant.Inn),
+                receipt.TotalAmount,
+                receipt.PurchasedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.UserId == userId)
+            .CountAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<ReceiptDetailsDto?> GetByIdAsync(Guid userId, Guid receiptId, CancellationToken cancellationToken = default)
+    {
+        var entity = await _dbContext.Receipts
+            .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
+            .Include(receipt => receipt.Items)
+            .FirstOrDefaultAsync(receipt => receipt.Id == receiptId && receipt.UserId ==userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        return ToReceiptDto(entity);
+    }
+
+    private static ReceiptDetailsDto ToReceiptDto(ReceiptEntity entity)
+    {
+        var items = entity.Items
+            .OrderBy(item => item.Name)
+            .Select(item => new ReceiptItemDto(
+                item.Name,
+                item.Quantity,
+                item.UnitPrice,
+                item.Quantity * item.UnitPrice,
+                item.CategoryId))
+            .ToList();
+
+        return new ReceiptDetailsDto(
+            entity.Id,
+            new MerchantDto(
+                entity.Merchant.Id,
+                entity.Merchant.Name,
+                (int)entity.Merchant.Category,
+                entity.Merchant.Address,
+                entity.Merchant.Inn),
+            entity.TotalAmount,
+            entity.PurchasedAt,
+            items);
+    }
+
+    public async Task<IReadOnlyCollection<ReceiptSummaryDto>> GetByMerchantIdAsync(Guid userId, Guid merchantId, int limit = 10, int offset = 0, CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be positive.");
+        }
+
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative.");
+        }
+
+        return await _dbContext.Receipts
+            .AsNoTracking()
+            .Include(receipt => receipt.Merchant)
+            .Where(receipt => receipt.UserId == userId && receipt.MerchantId == merchantId)
+            .OrderByDescending(receipt => receipt.PurchasedAt)  // Consistent ordering for pagination
+            .Skip(offset)
+            .Take(limit)
+            .Select(receipt => new ReceiptSummaryDto(
+                receipt.Id,
+                new MerchantDto(
+                    receipt.Merchant.Id,
+                    receipt.Merchant.Name,
+                    (int)receipt.Merchant.Category,
+                    receipt.Merchant.Address,
+                    receipt.Merchant.Inn),
+                receipt.TotalAmount,
+                receipt.PurchasedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<int> GetTotalCountByMerchantIdAsync(Guid userId, Guid merchantId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.UserId == userId && receipt.MerchantId == merchantId)
+            .CountAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+}
