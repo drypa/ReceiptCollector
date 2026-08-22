@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc/credentials"
 	"log"
@@ -141,30 +140,27 @@ func startServer(receiptRepository receipts.Repository,
 	usersController := users.New(userRepository)
 	wasteController := waste.New(wasteRepository)
 	basicAuth := auth.New(userRepository)
-	router := mux.NewRouter()
-	registerUnauthenticatedRoutes(router, usersController, receiptsController)
-
-	router.HandleFunc("/api/market", marketsController.MarketsBaseHandler)
-	router.HandleFunc("/api/market/{id:[a-zA-Z0-9]+}", marketsController.ConcreteMarketHandler).Methods(http.MethodPut, http.MethodGet, http.MethodDelete)
-
-	router.HandleFunc("/api/receipt", receiptsController.GetReceiptsHandler).Methods(http.MethodGet)
-	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.GetReceiptDetailsHandler).Methods(http.MethodGet)
-	router.HandleFunc("/api/receipt/{id:[a-zA-Z0-9]+}", receiptsController.DeleteReceiptHandler).Methods(http.MethodDelete)
-	router.HandleFunc("/api/receipt/from-bar-code", receiptsController.AddReceiptHandler).Methods(http.MethodPost)
-	router.HandleFunc("/api/receipt/batch", receiptsController.BatchAddReceiptHandler).Methods(http.MethodPost)
-
-	router.HandleFunc("/api/device", deviceController.AddDeviceHandler).Methods(http.MethodPost)
-
-	router.HandleFunc("/api/waste", wasteController.GetHandler).Methods(http.MethodGet)
-
-	loginRoute := "/api/login"
-	router.HandleFunc(loginRoute, usersController.LoginHandler).Methods(http.MethodPost)
-	http.Handle("/", basicAuth.RequireBasicAuth(router))
+	handlers := apiHandlers{
+		marketsBase:      marketsController.MarketsBaseHandler,
+		concreteMarket:   marketsController.ConcreteMarketHandler,
+		getReceipts:      receiptsController.GetReceiptsHandler,
+		receiptDetails:   receiptsController.GetReceiptDetailsHandler,
+		deleteReceipt:    receiptsController.DeleteReceiptHandler,
+		addReceipt:       receiptsController.AddReceiptHandler,
+		batchAddReceipt:  receiptsController.BatchAddReceiptHandler,
+		addDevice:        deviceController.AddDeviceHandler,
+		waste:            wasteController.GetHandler,
+		login:            usersController.LoginHandler,
+		userRegistration: usersController.UserRegistrationHandler,
+		internalAccount:  usersController.GetUserByTelegramIdHandler,
+		internalReceipt:  receiptsController.AddReceiptForTelegramUserHandler,
+	}
+	rootHandler := newRootHandler(basicAuth.RequireBasicAuth, handlers)
 	address := ":8888"
 	log.Printf("Starting http server at: \"%s\"...", address)
 	s := &http.Server{
 		Addr:    address,
-		Handler: router,
+		Handler: rootHandler,
 	}
 	go func() {
 		err := s.ListenAndServe()
@@ -174,20 +170,6 @@ func startServer(receiptRepository receipts.Repository,
 	}()
 
 	return s
-}
-
-func registerUnauthenticatedRoutes(router *mux.Router, usersController users.Controller, receiptsController receipts.Controller) {
-	registrationRoute := "/api/user/register"
-	router.HandleFunc(registrationRoute, usersController.UserRegistrationHandler).Methods(http.MethodPost)
-
-	registrationByTelegramRoute := "/internal/account"
-	router.HandleFunc(registrationByTelegramRoute, usersController.GetUserByTelegramIdHandler).Methods(http.MethodPost)
-
-	addReceiptRoute := "/internal/receipt"
-	router.HandleFunc(addReceiptRoute, receiptsController.AddReceiptForTelegramUserHandler).Methods(http.MethodPost)
-
-	http.Handle(registrationRoute, router)
-	http.Handle("/internal/", router)
 }
 
 func check(err error) {

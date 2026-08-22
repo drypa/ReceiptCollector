@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"receipt_collector/dispose"
 	"receipt_collector/passwords"
+	"receipt_collector/route"
 	"time"
 )
 
@@ -102,12 +102,10 @@ func mapToContractList(model []User) []user {
 
 func getFromQuery(paramName string, request *http.Request) (string, error) {
 	//TODO: move to base controller
-	err := request.ParseForm()
-	if err != nil {
-		return "", err
+	id, ok := route.PathID(request, paramName)
+	if !ok {
+		return "", errors.New("path parameter is missing or invalid")
 	}
-	vars := mux.Vars(request)
-	id := vars[paramName]
 	return id, nil
 }
 

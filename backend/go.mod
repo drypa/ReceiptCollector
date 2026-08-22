@@ -6,7 +6,6 @@ require (
 	github.com/drypa/ReceiptCollector/api/inside v0.0.0-20260322103942-d1abb1e46beb
 	github.com/go-co-op/gocron v1.28.2
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
-	github.com/gorilla/mux v1.8.0
 	github.com/robfig/cron/v3 v3.0.1
 	go.mongodb.org/mongo-driver v1.11.3
 	golang.org/x/crypto v0.7.0

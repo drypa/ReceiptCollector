@@ -1,10 +1,11 @@
 package markets
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
+	"receipt_collector/route"
 )
 
 type Controller struct {
@@ -41,8 +42,13 @@ func onError(writer http.ResponseWriter, err error) {
 }
 
 func (controller Controller) ConcreteMarketHandler(writer http.ResponseWriter, request *http.Request) {
+	id, ok := route.PathID(request, "id")
+	if !ok {
+		http.NotFound(writer, request)
+		return
+	}
 	if request.Method == http.MethodGet {
-		market, err := controller.getMarketHandler(request)
+		market, err := controller.getMarketHandler(request.Context(), id)
 		if err != nil {
 			onError(writer, err)
 			return
@@ -69,15 +75,7 @@ func writeResponse(responseObject interface{}, writer http.ResponseWriter) {
 	}
 }
 
-func (controller Controller) getMarketHandler(request *http.Request) (*Market, error) {
-	err := request.ParseForm()
-	if err != nil {
-		return nil, err
-	}
-
-	ctx := request.Context()
-	vars := mux.Vars(request)
-	id := vars["id"]
+func (controller Controller) getMarketHandler(ctx context.Context, id string) (*Market, error) {
 	market, err := controller.repository.GetById(ctx, id)
 	return &market, err
 }

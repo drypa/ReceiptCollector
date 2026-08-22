@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"net/http"
 	"receipt_collector/auth"
 	"receipt_collector/dispose"
 	"receipt_collector/nalogru/qr"
+	"receipt_collector/route"
 	"strings"
 )
 
@@ -142,6 +142,11 @@ func (controller Controller) GetReceiptDetailsHandler(writer http.ResponseWriter
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
+	if id == "" {
+		// Id is missing or rejected by validation, 404 already written.
+		return
+	}
+
 	userId := getUserId(ctx)
 
 	receipt, err := controller.getReceiptById(ctx, userId, id)
@@ -162,19 +167,17 @@ func getUserId(ctx context.Context) string {
 
 func getFromQuery(paramName string, request *http.Request) (string, error) {
 	//TODO: move to base controller
-	err := request.ParseForm()
-	if err != nil {
-		return "", err
+	id, ok := route.PathID(request, paramName)
+	if !ok {
+		return "", errors.New("path parameter is missing or invalid")
 	}
-	vars := mux.Vars(request)
-	id := vars[paramName]
 	return id, nil
 }
 
 func getReceiptId(writer http.ResponseWriter, request *http.Request) string {
 	id, err := getFromQuery("id", request)
 	if err != nil {
-		onError(writer, err)
+		http.NotFound(writer, request)
 		return ""
 	}
 	return id
@@ -186,6 +189,10 @@ func (controller Controller) DeleteReceiptHandler(writer http.ResponseWriter, re
 	defer dispose.Dispose(request.Body.Close, "error while request body close")
 
 	id := getReceiptId(writer, request)
+	if id == "" {
+		// Id is missing or rejected by validation, 404 already written.
+		return
+	}
 
 	userId := ctx.Value(auth.UserId)
 	err := controller.repository.Delete(ctx, userId.(string), id)
