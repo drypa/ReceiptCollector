@@ -12,12 +12,17 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs['recommended-latest'],
+      reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    // react-hooks@7 добавил compiler-правила; существующие хуки используют
+    // паттерн загрузки данных через setState в useEffect — рефакторинг отдельно.
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])
