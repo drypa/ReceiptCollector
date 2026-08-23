@@ -19,7 +19,7 @@ type Waste struct {
 	// Total spend sum.
 	Sum float32 `bson:"sum" json:"sum"`
 	// Users description.
-	Description string `bson:"description json:"description"`
+	Description string `bson:"description" json:"description"`
 	// User owner.
 	OwnerId string `bson:"owner_id" json:"owner_id"`
 	// Waste category. Defined by market type.

@@ -25,7 +25,7 @@ type QueryFilter struct {
 
 func (repository Repository) GetForUser(ctx context.Context, ownerId string) ([]Waste, error) {
 	collection := repository.getCollection()
-	cursor, err := collection.Find(ctx, bson.D{{"owner_id", ownerId}})
+	cursor, err := collection.Find(ctx, bson.D{{Key: "owner_id", Value: ownerId}})
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func readWastes(ctx context.Context, cursor *mongo.Cursor) ([]Waste, error) {
 
 func (repository Repository) GetByFilter(ctx context.Context, filter QueryFilter) ([]Waste, error) {
 	collection := repository.getCollection()
-	query := bson.D{{"owner_id", filter.UserId}}
+	query := bson.D{{Key: "owner_id", Value: filter.UserId}}
 
 	if filter.From != nil {
 		query = append(query, bson.E{Key: "date", Value: bson.M{"$gte": filter.From}})

@@ -40,7 +40,7 @@ func (repository Repository) GetByLogin(ctx context.Context, login string) (User
 	collection := repository.getCollection()
 
 	var user User
-	err := collection.FindOne(ctx, bson.D{{"name", login}}).Decode(&user)
+	err := collection.FindOne(ctx, bson.D{{Key: "name", Value: login}}).Decode(&user)
 
 	return user, err
 }
@@ -50,7 +50,7 @@ func (repository Repository) GetByTelegramId(ctx context.Context, telegramId int
 	collection := repository.getCollection()
 
 	var user User
-	err := collection.FindOne(ctx, bson.D{{"telegram_id", telegramId}}).Decode(&user)
+	err := collection.FindOne(ctx, bson.D{{Key: "telegram_id", Value: telegramId}}).Decode(&user)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}

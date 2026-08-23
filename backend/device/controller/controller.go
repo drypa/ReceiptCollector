@@ -20,7 +20,8 @@ func NewController(service nalogru.Devices) *Controller {
 }
 func (c *Controller) AddDeviceHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "Error while request body close")
-	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(request.Context(), 10*time.Second)
+	defer cancel()
 	if request.Method == http.MethodPost {
 		request, err := getAddDeviceRequestFromBody(request)
 		if err != nil {

@@ -27,7 +27,8 @@ func New(repository Repository) Controller {
 // UserRegistrationHandler provides user registration.
 func (controller Controller) UserRegistrationHandler(writer http.ResponseWriter, request *http.Request) {
 	defer dispose.Dispose(request.Body.Close, "Error while request body close")
-	ctx, _ := context.WithTimeout(request.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(request.Context(), 10*time.Second)
+	defer cancel()
 	if request.Method == http.MethodPost {
 		registrationRequest, err := getUserRequestFromQuery(request)
 		if err != nil {

@@ -102,9 +102,8 @@ func main() {
 
 	server := startServer(receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
-	sigChan := make(chan os.Signal)
-	signal.Notify(sigChan, os.Kill)
-	signal.Notify(sigChan, os.Interrupt)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Kill, os.Interrupt)
 
 	sig := <-sigChan
 

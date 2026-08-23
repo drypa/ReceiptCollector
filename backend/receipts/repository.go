@@ -60,7 +60,7 @@ func (repository *Repository) GetByUser(ctx context.Context, userId string) ([]U
 	if err != nil {
 		return nil, err
 	}
-	cursor, err := collection.Find(ctx, bson.D{{"owner", id}})
+	cursor, err := collection.Find(ctx, bson.D{{Key: "owner", Value: id}})
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (repository *Repository) Delete(ctx context.Context, userId string, receipt
 	if err != nil {
 		return err
 	}
-	filter := bson.D{{"owner", ownerId}, {"_id", id}}
+	filter := bson.D{{Key: "owner", Value: ownerId}, {Key: "_id", Value: id}}
 	update := bson.M{"$set": bson.M{"deleted": true}}
 	_, err = collection.UpdateOne(ctx, filter, update)
 	return err
@@ -108,7 +108,7 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 		return nil, err
 	}
 
-	query := bson.D{{"owner", ownerId}, {"query_string", queryString}}
+	query := bson.D{{Key: "owner", Value: ownerId}, {Key: "query_string", Value: queryString}}
 
 	result := collection.FindOne(ctx, query)
 	err = result.Err()
@@ -130,7 +130,7 @@ func (repository *Repository) GetByQueryString(ctx context.Context, userId strin
 func (repository *Repository) GetAllOwnersByQueryString(ctx context.Context, queryString string) (*UsersReceipt, error) {
 	collection := repository.getCollection()
 
-	query := bson.D{{"query_string", queryString}}
+	query := bson.D{{Key: "query_string", Value: queryString}}
 
 	result := collection.FindOne(ctx, query)
 	err := result.Err()
@@ -158,7 +158,7 @@ func (repository *Repository) GetById(ctx context.Context, userId string, receip
 		return receipt, err
 	}
 
-	query := bson.D{{"owner", ownerId}, {"_id", id}}
+	query := bson.D{{Key: "owner", Value: ownerId}, {Key: "_id", Value: id}}
 
 	result := collection.FindOne(ctx, query)
 	if result.Err() != nil {

@@ -45,7 +45,7 @@ func (worker Worker) Process(ctx context.Context, mongoClient *mongo.Client) err
 
 func createWasteForUser(ctx context.Context, user User, client *mongo.Client, wg *sync.WaitGroup) error {
 	collection := getReceiptsCollection(client)
-	cursor, err := collection.Find(ctx, bson.D{{"owner", user.Id}})
+	cursor, err := collection.Find(ctx, bson.D{{Key: "owner", Value: user.Id}})
 	if err != nil {
 		return err
 	}
