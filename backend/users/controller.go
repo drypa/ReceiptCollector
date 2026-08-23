@@ -65,6 +65,12 @@ func (controller Controller) GetUserByTelegramIdHandler(writer http.ResponseWrit
 		onError(writer, err)
 		return
 	}
+
+	if telegramId <= 0 {
+		onError(writer, errors.New("invalid telegram id"))
+		return
+	}
+
 	user, err := controller.repository.GetByTelegramId(ctx, int(telegramId))
 	if err != nil {
 		onError(writer, err)
