@@ -140,6 +140,13 @@ go run .
 - The bot connects to the backend via TLS gRPC (`BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`), so the backend must be running and the same TLS certs must be present at `/usr/share/receipts/ssl/certs/certificate.crt`.
 - `BOT_DEBUG=true` enables the Telegram API debug logging.
 
+### Database
+
+- **MongoDB 8.2.3** (`mongo:8.2.3` in docker-compose) stores raw receipts, devices and sessions.
+- Backup: `./backup.sh` dumps both business databases (`receipt_collection`, `receipt-data`) into `${MONGO_BACKUP}`.
+- Restore: `./restore.sh <dump-directory>`.
+- Upgrading from MongoDB 4.x requires `mongodump → mongorestore` into a fresh empty data directory (WiredTiger formats are not compatible across major versions). See [ADR-015](docs/adr/015-mongodb-upgrade-8.2.md) and the ops runbook [docs/runbooks/mongodb-upgrade-manual-ops.md](docs/runbooks/mongodb-upgrade-manual-ops.md).
+
 ### Useful scripts
 
 ```javascript

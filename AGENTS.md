@@ -116,7 +116,14 @@ Analytics connection strings are in `appsettings.{*.Development}.json`.
 
 ## Database Notes
 
-- **MongoDB**: Raw receipt data, device tracking, sessions. Volume: `${MONGO_DATA}` (default `/home/drypa/receipts/backup`)
+- **MongoDB 8.2.3** (`mongo:8.2.3`): Raw receipt data, device tracking, sessions.
+  Volume: `${MONGO_DATA}` — должен указывать на **чистый каталог**, инициализированный
+  версией 8.x (формат данных WiredTiger несовместим с 4.x). Обновление с 4.1
+  выполнялось по схеме `mongodump → mongorestore`: см.
+  [ADR-015](docs/adr/015-mongodb-upgrade-8.2.md) и инструкцию для персонала
+  [docs/runbooks/mongodb-upgrade-manual-ops.md](docs/runbooks/mongodb-upgrade-manual-ops.md).
+- **Бэкап**: `./backup.sh` дампит **обе** бизнес-базы (`receipt_collection` и
+  `receipt-data`) в `${MONGO_BACKUP}`; восстановление — `./restore.sh <каталог-дампа>`.
 - **PostgreSQL**: Analytics service only. Migrations run via separate `.Net` project before API starts.
 
 ## Development Shortcuts

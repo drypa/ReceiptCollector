@@ -3,7 +3,7 @@ version: '2.4'
 services:
   mongo:
     container_name: receipt-mongo
-    image: mongo:4.1
+    image: mongo:8.2.3
     restart: unless-stopped
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_LOGIN}
@@ -13,11 +13,11 @@ services:
       - ${MONGO_BACKUP}:/backup
     networks: [collector-net]
     healthcheck:
-      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 30s
 
   postgres:
     container_name: receipt-postgres
