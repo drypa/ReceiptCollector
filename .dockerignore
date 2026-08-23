@@ -4,6 +4,10 @@
 /data/
 .gitignore
 .dockerignore
+.git
+.env
+.env.example
 *.key
 *.pem
 .run
+/docs/

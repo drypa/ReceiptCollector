@@ -39,7 +39,9 @@ services:
 
   collector:
     container_name: receipt-collector
-    build: backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     image: drypa/receipt-collector:latest
     restart: always
     depends_on:
@@ -62,7 +64,9 @@ services:
 
   bot:
     container_name: receipt-bot
-    build: bot
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
     image: drypa/receipt-telegram-bot:latest
     restart: unless-stopped
     depends_on:
