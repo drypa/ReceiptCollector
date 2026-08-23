@@ -15,7 +15,9 @@ func getQr(update tgbotapi.Update) (string, error) {
 }
 
 func tryAddReceipt(userId string, messageText string, grpc *backend.GrpcClient) error {
-	responseMessage, err := grpc.AddReceipt(getContext(), userId, messageText)
+	ctx, cancel := getContext()
+	defer cancel()
+	responseMessage, err := grpc.AddReceipt(ctx, userId, messageText)
 	if err != nil {
 		return err
 	}

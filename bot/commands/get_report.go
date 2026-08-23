@@ -32,7 +32,9 @@ func (g GetReceiptReportCommand) Execute(update tgbotapi.Update, bot *tgbotapi.B
 		return err
 	}
 
-	report, fileName, err := g.grpcClient.GetReceiptReport(getContext(), id, qr)
+	ctx, cancel := getContext()
+	defer cancel()
+	report, fileName, err := g.grpcClient.GetReceiptReport(ctx, id, qr)
 	if err != nil {
 		return err
 	}

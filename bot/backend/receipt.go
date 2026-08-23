@@ -18,10 +18,7 @@ func (client Client) AddReceipt(userId string, text string) error {
 	if err != nil {
 		return err
 	}
-	switch response.StatusCode {
-	case http.StatusOK:
-		return nil
-	default:
+	if response.StatusCode != http.StatusOK {
 		return errors.New(response.Status)
 	}
 	return nil

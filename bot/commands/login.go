@@ -18,7 +18,9 @@ func (c *GetLoginLinkCommand) Accepted(message string) bool {
 }
 
 func (c *GetLoginLinkCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
-	link, err := c.analyticsClient.GetLoginLink(getContext(), update.Message.From.ID)
+	ctx, cancel := getContext()
+	defer cancel()
+	link, err := c.analyticsClient.GetLoginLink(ctx, update.Message.From.ID)
 	responseText := link
 	if err != nil {
 		responseText = err.Error()
