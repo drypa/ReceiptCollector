@@ -77,6 +77,7 @@ services:
       - BACKEND_GRPC_ADDR=collector:15000
       - REPORTS_GRPC_ADDR=collector:15001
       - HTTP_PROXY=${HTTP_PROXY}
+      - ANALYTICS_URL=http://analytics:5039   # внутренняя сеть collector-net, минуя публичный nginx
     networks: [collector-net]
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
