@@ -7,26 +7,23 @@ import (
 	"receipt_collector/device"
 	"receipt_collector/nalogru"
 	nalogDevice "receipt_collector/nalogru/device"
-	"receipt_collector/users/link"
 )
 
-// Processor provides method to return login link.
+// Processor handles user operations: retrieval, registration and phone verification via nalog.ru.
 type Processor struct {
 	repository    *Repository
 	deviceService *device.Service
 	nalogClient   *nalogru.Client
 	clientSecret  string
-	client        *link.Client
 }
 
 // NewProcessor constructs Processor.
-func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, client *link.Client, secret string) *Processor {
+func NewProcessor(repository *Repository, nalogClient *nalogru.Client, d *device.Service, secret string) *Processor {
 	return &Processor{
 		repository:    repository,
 		nalogClient:   nalogClient,
 		deviceService: d,
 		clientSecret:  secret,
-		client:        client,
 	}
 }
 

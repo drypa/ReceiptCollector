@@ -20,7 +20,7 @@
 
 1. **Инфраструктура**: `./up.dev.sh` поднимает dev-контейнеры из `docker-compose.develop.yml` (mongo на `:27017`, pg на `:5432`, nginx на `:8080`).
 2. **TLS-сертификаты**: `./generate-ssl-cert.sh` — генерирует сертификаты (читает `BACKEND_GRPC_HOST` из `.env`). Backend и бот жёстко читают их из `/usr/share/receipts/ssl/certs/` (`certificate.crt`, `private.key`).
-3. **Backend** (`backend/`): экспорт переменных (`MONGO_URL`, `MONGO_LOGIN`, `MONGO_SECRET`, `CLIENT_SECRET`, `OPEN_URL`, `NALOGRU_BASE_ADDR`, `TEMPLATES_PATH`, `GET_RECEIPT_WORKER_INTERVAL`) → `go run .`. Слушает `:8888` (HTTP), `:15000` и `:15001` (gRPC).
+3. **Backend** (`backend/`): экспорт переменных (`MONGO_URL`, `MONGO_LOGIN`, `MONGO_SECRET`, `CLIENT_SECRET`, `NALOGRU_BASE_ADDR`, `TEMPLATES_PATH`, `GET_RECEIPT_WORKER_INTERVAL`) → `go run .`. Слушает `:8888` (HTTP), `:15000` и `:15001` (gRPC).
 4. **Analytics Migrations**: `cd ReceiptCollector.Analytics.Migrations && dotnet run` — применяет SQL-миграции к PostgreSQL.
 5. **Analytics API**: `cd ReceiptCollector.Analytics.Api && dotnet run` — API на `:5039`; в Development-конфигурации (`appsettings.Development.json`) connection strings указывают на `localhost`.
 6. **Frontend**: `cd Analytics/frontend && npm install && npm run dev` — Vite dev-сервер на `:5173`, проксирует `/api` на `:5039`.
@@ -59,8 +59,8 @@
 - FR-3.3. Обеспечивает наличие путей для TLS-сертификатов и шаблонов чеков, которые сервисы читают из фиксированных путей (`/usr/share/receipts/ssl/certs/`, `TEMPLATES_PATH`).
 
 ### FR-4. Запуск Backend (Go)
-- FR-4.1. Запускается `go run .` в каталоге `backend/` с переменными из `.env`: `MONGO_URL`, `MONGO_LOGIN`, `MONGO_SECRET`, `CLIENT_SECRET`, `OPEN_URL`, `NALOGRU_BASE_ADDR`, `TEMPLATES_PATH`, `GET_RECEIPT_WORKER_INTERVAL` (+ прочие, если требуются).
-- FR-4.2. Значения по умолчанию для локальной разработки (если в `.env` не заданы): `MONGO_URL=mongodb://localhost:27017`, `OPEN_URL=http://localhost:5173/login`, `NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888`, `GET_RECEIPT_WORKER_INTERVAL=1m`.
+- FR-4.1. Запускается `go run .` в каталоге `backend/` с переменными из `.env`: `MONGO_URL`, `MONGO_LOGIN`, `MONGO_SECRET`, `CLIENT_SECRET`, `NALOGRU_BASE_ADDR`, `TEMPLATES_PATH`, `GET_RECEIPT_WORKER_INTERVAL` (+ прочие, если требуются).
+- FR-4.2. Значения по умолчанию для локальной разработки (если в `.env` не заданы): `MONGO_URL=mongodb://localhost:27017`, `NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888`, `GET_RECEIPT_WORKER_INTERVAL=1m`.
 
 ### FR-5. Запуск Analytics (.NET)
 - FR-5.1. Сначала выполняются миграции: `dotnet run` в `ReceiptCollector.Analytics.Migrations`.
@@ -132,7 +132,6 @@
 | `ANALYTICS_SYNC_SKIP` | Пропуск синхронизации MongoDB→PG | `true` |
 | `ANALYTICS_AUTHLINK_BASE_URL` | Base URL ссылки авторизации Analytics | `http://localhost:8080` |
 | `ANALYTICS_ADMIN_TELEGRAM_ID_0` / `..._1` | Telegram ID администраторов | `123456789` / `987654321` (примеры) |
-| `OPEN_URL` | URL открытия чека (backend) | `http://localhost:5173/login` |
 | `NALOGRU_BASE_ADDR` | Базовый адрес nalog.ru API | `https://irkkt-mobile.nalog.ru:8888` |
 | `GET_RECEIPT_WORKER_INTERVAL` | Интервал polling-воркера | `1m` |
 | `MONGO_URL` | URL MongoDB для backend | `mongodb://localhost:27017` |

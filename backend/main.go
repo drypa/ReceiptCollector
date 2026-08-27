@@ -22,7 +22,6 @@ import (
 	"receipt_collector/reports"
 	"receipt_collector/reports/dal"
 	"receipt_collector/users"
-	"receipt_collector/users/link"
 	"receipt_collector/waste"
 	"receipt_collector/workers"
 	"time"
@@ -33,7 +32,6 @@ var baseAddress = os.Getenv("NALOGRU_BASE_ADDR")
 var mongoURL = os.Getenv("MONGO_URL")
 var mongoUser = os.Getenv("MONGO_LOGIN")
 var mongoSecret = os.Getenv("MONGO_SECRET")
-var openUrl = os.Getenv("OPEN_URL")
 var templatePath = os.Getenv("TEMPLATES_PATH")
 var clientSecret = os.Getenv("CLIENT_SECRET")
 
@@ -88,8 +86,7 @@ func main() {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
 
-	linkClient := link.NewClient(openUrl)
-	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, linkClient, clientSecret)
+	var accountProcessor internal.AccountProcessor = users.NewProcessor(&userRepository, nalogruClient, deviceService, clientSecret)
 	r := render.New(templatePath)
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)

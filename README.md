@@ -107,7 +107,6 @@ export MONGO_URL=mongodb://localhost:27017
 export MONGO_LOGIN=admin
 export MONGO_SECRET=secret
 export CLIENT_SECRET=your_client_secret
-export OPEN_URL=http://localhost:5173/login
 export NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
 export TEMPLATES_PATH=/usr/share/receipts/templates
 export GET_RECEIPT_WORKER_INTERVAL=1m

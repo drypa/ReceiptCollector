@@ -55,8 +55,6 @@ PG_DATA=/home/drypa/receipts/pgdata
 # ----------------------------------------------------------------------------
 # Секрет клиента для backend. ОБЯЗАТЕЛЬНО.
 CLIENT_SECRET=
-# URL открытия чека (redirect после регистрации)
-OPEN_URL=http://localhost:5173/login
 # Базовый адрес API nalog.ru
 NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
 # Путь к шаблонам чеков
@@ -361,7 +359,6 @@ export MONGO_URL="${MONGO_URL:-mongodb://localhost:27017}"
 export MONGO_LOGIN="${MONGO_LOGIN:-admin}"
 export MONGO_SECRET="${MONGO_SECRET:-secret}"
 export CLIENT_SECRET="${CLIENT_SECRET:-}"
-export OPEN_URL="${OPEN_URL:-http://localhost:5173/login}"
 export NALOGRU_BASE_ADDR="${NALOGRU_BASE_ADDR:-https://irkkt-mobile.nalog.ru:8888}"
 export TEMPLATES_PATH="${TEMPLATES_PATH:-/usr/share/receipts/templates}"
 export GET_RECEIPT_WORKER_INTERVAL="${GET_RECEIPT_WORKER_INTERVAL:-1m}"
