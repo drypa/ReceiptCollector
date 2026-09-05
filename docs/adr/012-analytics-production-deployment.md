@@ -387,8 +387,8 @@ services:
     container_name: receipt-nginx
     image: nginx:alpine
     ports:
-      - "80:80"
-      - "443:443"
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ${SSL_CERTS_PATH}:/etc/nginx/ssl/certs/

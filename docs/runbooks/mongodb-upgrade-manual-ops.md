@@ -60,7 +60,7 @@
   ✅ Ожидаемый результат: команда прошла без ошибок.
   Проверка: `echo "$MONGO_LOGIN"` — выводится имя пользователя БД (например, `admin`).
 
-- Скрипты запуска/останова используют проект docker-compose с именем
+- Скрипты запуска/останова используют проект docker compose с именем
   `receipt-collector`. Не добавляйте `-p` вручную — скрипты `./up.sh`,
   `./down.sh` уже делают это правильно.
 
@@ -310,7 +310,7 @@ docker rm -f mongo82-test
 
 ```bash
 cd <REPO>
-docker-compose -p receipt-collector stop collector bot analytics nginx analytics-migrations
+docker compose -p receipt-collector stop collector bot analytics nginx analytics-migrations
 ```
 
 ✅ Ожидаемый результат: перечисленные имена контейнеров. Проверка:
@@ -354,7 +354,7 @@ ls -lh "$MONGO_BACKUP/final-pre81.archive"
 ### 3.1. Остановите старый контейнер mongo
 
 ```bash
-docker-compose -p receipt-collector stop mongo
+docker compose -p receipt-collector stop mongo
 ```
 
 ✅ Ожидаемый результат: `Stopping receipt-mongo ... Done`.
@@ -412,7 +412,7 @@ grep '^MONGO_DATA=' .env
 ### 3.5. Запустите только новый mongo
 
 ```bash
-docker-compose -p receipt-collector up -d mongo
+docker compose -p receipt-collector up -d mongo
 ```
 
 ✅ Ожидаемый результат: контейнер создан и запущен.
@@ -635,7 +635,7 @@ restore в 8.2.3, будут потеряны — это принятое огр
 в `MONGO_DATA` указан **непустой** каталог со старыми данными 4.x — сервер
 завершается с ошибкой несовместимости формата. Решение: убедиться, что
 `MONGO_DATA` указывает на новый **пустой** каталог (шаг 3.4), пересоздать
-контейнер: `docker-compose -p receipt-collector up -d --force-recreate mongo`.
+контейнер: `docker compose -p receipt-collector up -d --force-recreate mongo`.
 Не решается за 15 минут — [откат](#откат).
 
 **4. `Authentication failed` при подключении к новой базе.**

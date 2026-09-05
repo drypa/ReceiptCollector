@@ -32,6 +32,13 @@ The system uses nginx as a reverse proxy for:
 
 Nginx is configured with proper SSL certificates and security headers.
 
+The host ports published by the nginx container are configurable via environment variables in `.env` (template in `.env.example`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NGINX_HTTP_PORT` | `80` | Host port mapped to the container's HTTP port (80) |
+| `NGINX_HTTPS_PORT` | `443` | Host port mapped to the container's HTTPS port (443) |
+
 ### Development Environment Setup
 For development, all services are proxied through Nginx. The analytics service will be available at:
 

@@ -80,6 +80,8 @@ Environment variables required (see `.env`):
 | SSL_CERTS_PATH | `/usr/share/receipts/ssl/certs/` | file mount |
 | RAW_TICKET_DUMP_PATH | `/var/lib/receipts/raw/` | file mount |
 | GET_TICKET_ERROR_PATH | `/var/lib/receipts/error/` | file mount |
+| NGINX_HTTP_PORT | `80` | From `.env` (host map to nginx :80) |
+| NGINX_HTTPS_PORT | `443` | From `.env` (host map to nginx :443) |
 
 Analytics connection strings are in `appsettings.{*.Development}.json`.
 
