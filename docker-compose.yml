@@ -28,7 +28,7 @@ services:
       POSTGRES_USER: ${PG_LOGIN}
       POSTGRES_PASSWORD: ${PG_SECRET}
     volumes:
-      - ${PG_DATA}:/var/lib/postgresql/data
+      - ${PG_DATA}:/var/lib/postgresql/18/main
     networks: [collector-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_LOGIN} -d postgres"]
