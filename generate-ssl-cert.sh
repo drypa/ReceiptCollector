@@ -165,12 +165,14 @@ cat "$cert_tmp" "$ca_cert" > "$fullchain"
 # ---------------------------------------------------------------------------
 # 8. Удаляем промежуточные артефакты
 # ---------------------------------------------------------------------------
-rm -f "$csr_config" "$cert_conf" "$csr" "$cert_tmp"
+rm -f "$csr_config" "$cert_conf" "$csr"
+# certificate.crt ($cert_tmp) сохраняется — его загружает Go-бэкенд для gRPC
 # Артефакты предыдущих версий скрипта (если остались в ssl/): старый формат
 # вывода certificate.crt. root.srl намеренно сохраняется — это серийник CA.
 
 echo "Done. Generated files in $ssl_path:"
-echo "  fullchain.pem  — ssl certificate chain (server + CA)"
+echo "  fullchain.pem  — ssl certificate chain (server + CA, для nginx)"
+echo "  certificate.crt — server certificate (для gRPC в Go-бэкенде)"
 echo "  private.key    — server private key"
 echo "  root.crt       — CA certificate"
 echo "  root.key       — CA private key"
