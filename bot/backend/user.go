@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//GetUser returns user by telegram id.
+// GetUser returns user by telegram id.
 func (client Client) GetUser(userId int) (User, error) {
 	var u User
 	registerUrl := client.backendUrl + "/internal/account"
@@ -17,7 +17,7 @@ func (client Client) GetUser(userId int) (User, error) {
 	if err != nil {
 		return u, err
 	}
-	response, err := http.Post(registerUrl, "text/javascript", reader)
+	response, err := client.httpClient.Post(registerUrl, "text/javascript", reader)
 	if err != nil {
 		log.Print("User request error.")
 		return u, err
@@ -32,10 +32,10 @@ func (client Client) GetUser(userId int) (User, error) {
 	}
 }
 
-//GetLoginLink returns URL for automatic login.
+// GetLoginLink returns URL for automatic login.
 func (client Client) GetLoginLink(userId int) (string, error) {
 	getLinkUrl := fmt.Sprintf("%s/internal/%d/login-link", client.backendUrl, userId)
-	response, err := http.Get(getLinkUrl)
+	response, err := client.httpClient.Get(getLinkUrl)
 	if err != nil {
 		log.Print("Get login link request error.")
 		return "", err

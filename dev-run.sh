@@ -261,7 +261,7 @@ export BACKEND_GRPC_HOST="${BACKEND_GRPC_HOST:-localhost}"
 
 export BOT_TOKEN="${BOT_TOKEN:-}"
 export BOT_DEBUG="${BOT_DEBUG:-true}"
-export HTTP_PROXY="${HTTP_PROXY:-}"
+export TG_PROXY_URL="${TG_PROXY_URL:-}"   # прокси только для Telegram-клиента бота (ADR-018)
 export ANALYTICS_URL="${ANALYTICS_URL:-http://localhost:5039}"
 export BACKEND_GRPC_ADDR="${BACKEND_GRPC_ADDR:-localhost:15000}"
 export REPORTS_GRPC_ADDR="${REPORTS_GRPC_ADDR:-localhost:15001}"

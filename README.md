@@ -135,7 +135,7 @@ cd bot
 # Set environment variables
 export BOT_TOKEN=your_telegram_bot_token
 export BOT_DEBUG=true
-export HTTP_PROXY= # optional, leave empty
+export TG_PROXY_URL= # optional, leave empty; proxy only for Telegram client (from .env TG_PROXY_URL)
 export ANALYTICS_URL=http://localhost:5039
 export BACKEND_GRPC_ADDR=localhost:15000
 export REPORTS_GRPC_ADDR=localhost:15001

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//AddReceipt adds receipt for user.
+// AddReceipt adds receipt for user.
 func (client Client) AddReceipt(userId string, text string) error {
 	addReceiptUrl := client.backendUrl + "/internal/receipt"
 	request := addReceiptRequest{ReceiptString: text, UserId: userId}
@@ -14,7 +14,7 @@ func (client Client) AddReceipt(userId string, text string) error {
 	if err != nil {
 		return err
 	}
-	response, err := http.Post(addReceiptUrl, "text/javascript", reader)
+	response, err := client.httpClient.Post(addReceiptUrl, "text/javascript", reader)
 	if err != nil {
 		return err
 	}

@@ -70,8 +70,8 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 		log.Println("Bot options invalid")
 		return nil, err
 	}
-	if options.HttpProxyUrl != "" {
-		proxyUrl, err := url.Parse(options.HttpProxyUrl)
+	if options.TelegramProxyUrl != "" {
+		proxyUrl, err := url.Parse(options.TelegramProxyUrl)
 		if err != nil {
 			log.Println("Proxy url invalid")
 			return nil, err

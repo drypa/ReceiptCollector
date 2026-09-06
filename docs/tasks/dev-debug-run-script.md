@@ -24,7 +24,7 @@
 4. **Analytics Migrations**: `cd ReceiptCollector.Analytics.Migrations && dotnet run` — применяет SQL-миграции к PostgreSQL.
 5. **Analytics API**: `cd ReceiptCollector.Analytics.Api && dotnet run` — API на `:5039`; в Development-конфигурации (`appsettings.Development.json`) connection strings указывают на `localhost`.
 6. **Frontend**: `cd Analytics/frontend && npm install && npm run dev` — Vite dev-сервер на `:5173`, проксирует `/api` на `:5039`.
-7. **Telegram Bot** (`bot/`): экспорт переменных (`BOT_TOKEN`, `BOT_DEBUG`, `HTTP_PROXY`, `ANALYTICS_URL`, `BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`) → `go run .`. Подключается к backend по TLS gRPC; ждёт готовности gRPC (5 минут).
+7. **Telegram Bot** (`bot/`): экспорт переменных (`BOT_TOKEN`, `BOT_DEBUG`, `TG_PROXY_URL`, `ANALYTICS_URL`, `BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`) → `go run .`. Подключается к backend по TLS gRPC; ждёт готовности gRPC (5 минут).
 
 Проблемы текущего состояния:
 - Все шаги выполняются вручную в разных терминалах.
@@ -72,7 +72,7 @@
 - FR-6.2. При отсутствии `node_modules` выполняется `npm install`.
 
 ### FR-7. Запуск Telegram Bot (Go)
-- FR-7.1. Запускается `go run .` в каталоге `bot/` с переменными из `.env`: `BOT_TOKEN`, `BOT_DEBUG`, `HTTP_PROXY`, `ANALYTICS_URL`, `BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`.
+- FR-7.1. Запускается `go run .` в каталоге `bot/` с переменными из `.env`: `BOT_TOKEN`, `BOT_DEBUG`, `TG_PROXY_URL`, `ANALYTICS_URL`, `BACKEND_GRPC_ADDR`, `REPORTS_GRPC_ADDR`.
 - FR-7.2. Значения по умолчанию для локальной разработки: `BOT_DEBUG=true`, `ANALYTICS_URL=http://localhost:5039`, `BACKEND_GRPC_ADDR=localhost:15000`, `REPORTS_GRPC_ADDR=localhost:15001`.
 
 ### FR-8. Поведение при завершении
@@ -128,7 +128,7 @@
 | `GET_TICKET_ERROR_PATH` | Путь для ошибочных чеков | `/var/lib/receipts/error/` |
 | `BACKEND_GRPC_HOST` | CN для генерации TLS-сертификатов (`generate-ssl-cert.sh`) | `localhost` |
 | `BOT_TOKEN` | Токен Telegram-бота | — (обязателен) |
-| `HTTP_PROXY` | Прокси для бота (может быть пустым) | пусто |
+| `TG_PROXY_URL` | `.env`-переменная; прокси только для Telegram-клиента бота (см. ADR-018). Стандартные `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` не используются | пусто |
 | `ANALYTICS_SYNC_SKIP` | Пропуск синхронизации MongoDB→PG | `true` |
 | `ANALYTICS_AUTHLINK_BASE_URL` | Base URL ссылки авторизации Analytics | `http://localhost:8080` |
 | `ANALYTICS_ADMIN_TELEGRAM_ID_0` / `..._1` | Telegram ID администраторов | `123456789` / `987654321` (примеры) |

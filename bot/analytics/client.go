@@ -32,6 +32,12 @@ func NewClient(baseURL string) *Client {
 	return &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
+			// Внутренний сервис: прямой доступ, минуя прокси.
+			// defense-in-depth: даже если HTTP_PROXY попадёт в окружение,
+			// Analytics будет доступен напрямую (ADR-018).
+			Transport: &http.Transport{
+				Proxy: nil,
+			},
 			Timeout: 10 * time.Second,
 		},
 		MaxRetries: 3,
