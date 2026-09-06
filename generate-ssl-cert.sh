@@ -127,6 +127,7 @@ subjectAltName = @alt_names
 [ alt_names ]
 DNS.1 = $dns
 DNS.2 = localhost
+DNS.3 = collector
 IP.1 = 127.0.0.1
 
 EOF
@@ -145,6 +146,7 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = $dns
+DNS.2 = collector
 
 EOF
 
