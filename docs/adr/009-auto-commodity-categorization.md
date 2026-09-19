@@ -19,11 +19,11 @@
 Ключевые факты о текущем коде, на которых строится решение:
 
 - **Analytics — четырёхпроектное .NET-решение**: `ReceiptCollector.Analytics.Api`, `.Application`, `.Domain`, `.Infrastructure`, а также `ReceiptCollector.Analytics.Migrations` (SQL-скрипты, `MigrationRunner`) и тесты `Analytics/tests/ReceiptCollector.Analytics.Api.Tests`. Слоистость защищается тестами архитектуры `Architecture/ProjectDependencyTests.cs` (Domain не зависит ни от чего; Application — только от Domain; Infrastructure — от Application и Domain; Api — от всех трёх).
-- **HTTP API Analytics** — minimal APIs: группы эндпоинтов в `Api/Modules/` (`ReceiptEndpoints` — группа `/api/receipts`, `CommodityEndpoints` — группа `/api/commodities`, `MerchantEndpoints` — `/api/merchants`, `UserAuthEndpoints`), регистрируются в `Program.cs` (`app.MapReceiptEndpoints()`, `app.MapCommodityEndpoints()` и т.д.). Авторизация — через `UserContext.UserId` (AsyncLocal, устанавливается `UserAuthCookieMiddleware`); неавторизованный пользователь получает `401 Unauthorized`, проверки прав — в каждом методе (паттерн ADR 008).
+- **HTTP API Analytics** — minimal APIs: группы эндпоинтов в `Api/Modules/` (`ReceiptEndpoints` — группа `/api/receipts`, `CommodityEndpoints` — группа `/api/commodities`, `MerchantEndpoints` — `/api/merchants`, `UserAuthEndpoints`), регистрируются в `Program.cs` (`app.MapReceiptEndpoints()`, `app.MapCommodityEndpoints()` и т.д.). Авторизация — через `UserContext.UserId` (AsyncLocal, устанавливается `UserAuthCookieMiddleware`); проверки прав — в каждом методе. Существующие read-эндпоинты (`GET /api/receipts`, `GET /api/commodities`) при неавторизованном пользователе возвращают `400`; для **новых** эндпоинтов категоризации принимается `401 Unauthorized` (паттерн ADR 008).
 - **Owner-scoping в PostgreSQL**: `ReceiptDbContext` имеет глобальный query filter `r.UserId == CurrentUserId`; read-сервисы (`IReceiptReadService.GetByIdAsync(userId, receiptId)`) фильтруют по `userId`. Чек другого пользователя не доступен → `404`.
 - **Синхронизация MongoDB → PostgreSQL**: `MongoReceiptBatchLoader` (read-only: только `Find().Skip().Limit()`) → `MongoReceiptMapper.Map/MapItem` → `ReceiptRepository.AddAsync`. В `MongoReceiptDocumentDto.ReceiptItemDto` есть поле `Categories` (7 значений backend), но при маппинге оно **игнорируется** (в `MapItem` передаётся `null`); категории в PostgreSQL проставляются отдельно (ADR 005, администратор вручную). MongoDB используется исключительно как источник сырых данных, записей в неё Analytics не делает.
 - **PostgreSQL-схема для категорий уже готова**: таблица `commodities` содержит колонки `category_id integer` и `category_name varchar(128)` (миграция `Migrations/Scripts/20241019160000_initial_create.sql`). Доменная сущность `Commodity` (`Domain/Modules/Commodities/Commodity.cs`) имеет `Category? Category` и метод `AssignCategory(Category)`; `CommodityEntity` (`Persistence/Postgres/ReceiptEntity.cs`) — `CategoryId`/`CategoryName`; `ICommodityRepository.UpdateCategoryAsync(commodityId, CommodityCategory)` уже реализован. Существующий эндпоинт ручной категоризации товара — `PUT /api/commodities/{id:guid}/category` (`CommodityEndpoints`).
-- **Справочник категорий**: `CommodityCategory` — enum, **43 значения (0–17, 18–41, `Other = 255`)** (`Undefined = 0`, `Food = 1`, `Clothing = 2`, `Electronics = 3`, `CosmeticsAndHygiene = 4`, `Pharmacy = 5`, `SportingGoods = 6`, `ChildrenGoods = 7`, `StationeryAndBooks = 8`, `PetSupplies = 9`, `HomeGoods = 10`, `ConstructionAndRepair = 11`, `AutomotiveGoods = 12`, `Flowers = 13`, `Fuel = 14`, `Alcohol = 15`, `Tools = 16`, `Footwear = 17`, `Beverages = 18`, `Groceries = 19`, `Meat = 20`, `Poultry = 21`, `FishAndSeafood = 22`, `Dairy = 23`, `Eggs = 24`, `Vegetables = 25`, `Fruits = 26`, `Bakery = 27`, `Confectionery = 28`, `ReadyMeals = 29`, `FastFood = 30`, `TollRoads = 31`, `PublicTransport = 32`, `RailwayTickets = 33`, `AirTickets = 34`, `Taxi = 35`, `Carsharing = 36`, `Parking = 37`, `Tobacco = 38`, `Telecommunication = 39`, `Utilities = 40`, `Entertainment = 41`, `Other = 255`; состав расширен ADR 010 — [Расширение справочника категорий товаров](010-commodity-categories-expansion.md)) + статический `CommodityCategoryHelper` (русские `DisplayNames`, `GetDisplayName()`, `GetAll()`). Список отдаётся эндпоинтом `GET /api/commodities/categories` (`CategoryDto[]`). Это единственный источник истины для категоризации в данной задаче; 7 значений backend (`purchase.Category`) в сценарии не используются.
+- **Справочник категорий**: `CommodityCategory` — enum в `Domain/Modules/Commodities/CommodityCategory.cs` + статический `CommodityCategoryHelper` (русские `DisplayNames`, `GetDisplayName()`, `GetAll()`). Состав задаётся **самим перечислением** (число значений в этом документе не фиксируется; состав расширен ADR 010 — [Расширение справочника категорий товаров](010-commodity-categories-expansion.md)); актуальный перечень получается через `CommodityCategoryHelper.GetAll()`. Список отдаётся эндпоинтом `GET /api/commodities/categories` (`CategoryDto[]`). Это единственный источник истины для категоризации в данной задаче; 7 значений backend (`purchase.Category`) в сценарии не используются.
 - **webUI**: `Analytics/frontend/` — React 19 + Vite + TypeScript. Страницы в `src/components/`: `ReceiptsPage` (список чеков, детали — `ReceiptDetails`), `CommoditiesPage`/`CommodityTable` (ручная категоризация товаров, паттерн select), `MerchantsPage`/`MerchantTable`. API-клиенты — `src/api/` (`receipts.ts`, `commodities.ts`, `merchants.ts`) с `credentials: 'include'`. `ReceiptDetails.tsx` показывает позиции чека без колонки категории. Отдельного каталога `webapp/` в репозитории нет.
 - **Nginx**: `nginx.prod.conf` и `nginx.dev.conf` проксируют **весь** `/api` на Analytics (`analytics:5039` / `host.docker.internal:5039`), а `/` — на frontend. Новые эндпоинты категоризации автоматически попадают под существующий прокси — **изменения nginx не требуются**.
 - **Backend (Go) и Telegram-бот** в сценарии не участвуют: категоризация выполняется в Analytics, gRPC-контракты и команды бота не меняются, backend не изменяется.
@@ -63,7 +63,7 @@
 **Минусы:**
 - Противоречит утверждённому направлению решения (эндпоинты — в Analytics, категории — в PostgreSQL).
 - Сохранение в MongoDB ломает принятую границу «MongoDB → PostgreSQL (только чтение источника)» и порождает двустороннюю зависимость данных между сервисами.
-- Справочник `CommodityCategory` (43 значения) живёт в Analytics; backend пришлось бы дублировать логику и справочник.
+- Справочник `CommodityCategory` живёт в Analytics; backend пришлось бы дублировать логику и справочник.
 - webUI — `Analytics/frontend`; для вызова backend пришлось бы менять nginx-маршрутизацию (сейчас весь `/api` идёт на Analytics).
 - Отвергнут по явному указанию заказчика.
 
@@ -80,9 +80,9 @@
 
 ### Ключевое решение B: Справочник категорий для ИИ
 
-#### Вариант B1: `CommodityCategory` (43 значения, без `Undefined` — 42 категории в промте) — **выбран**
+#### Вариант B1: `CommodityCategory` (все значения перечисления, без `Undefined`) — **выбран**
 
-**Описание:** ИИ возвращает категорию строго из перечисления `CommodityCategory` (`Food, Clothing, Electronics, CosmeticsAndHygiene, Pharmacy, SportingGoods, ChildrenGoods, StationeryAndBooks, PetSupplies, HomeGoods, ConstructionAndRepair, AutomotiveGoods, Flowers, Fuel, Alcohol, Tools, Footwear, Beverages, Groceries, Meat, Poultry, FishAndSeafood, Dairy, Eggs, Vegetables, Fruits, Bakery, Confectionery, ReadyMeals, FastFood, TollRoads, PublicTransport, RailwayTickets, AirTickets, Taxi, Carsharing, Parking, Tobacco, Telecommunication, Utilities, Entertainment, Other` — расширен по ADR 010), в формате JSON по **имени** значения enum — `{"category": "Food"}` (числовой формат `{"category_id": N}` отклонён решением заказчика). Промт генерируется из `CommodityCategoryHelper.GetAll()` (исключая `Undefined = 0`); валидация ответа — `Enum.TryParse` по имени значения + `Enum.IsDefined` по тому же перечислению. Результат сохраняется в `commodities.category_id`/`category_name` через `CommodityCategoryHelper.GetDisplayName`. **Каркас решения не меняется при расширении справочника (ADR 010):** JSON `{"category": "Name"}`, валидация `Enum.TryParse`/`Enum.IsDefined`, генерация промта из `GetAll()` без `Undefined` и приоритеты «existing → cache → ai» остаются прежними.
+**Описание:** ИИ возвращает категорию строго из перечисления `CommodityCategory` (актуальный состав — см. `CommodityCategory.cs`, расширен по ADR 010), в формате JSON по **имени** значения enum — `{"category": "Food"}` (числовой формат `{"category_id": N}` отклонён решением заказчика). Промт генерируется из `CommodityCategoryHelper.GetAll()` (исключая `Undefined = 0`); валидация ответа — `Enum.TryParse` по имени значения + `Enum.IsDefined` по тому же перечислению. Результат сохраняется в `commodities.category_id`/`category_name` через `CommodityCategoryHelper.GetDisplayName`. **Каркас решения не меняется при расширении справочника (ADR 010):** JSON `{"category": "Name"}`, валидация `Enum.TryParse`/`Enum.IsDefined`, генерация промта из `GetAll()` без `Undefined` и приоритеты «existing → cache → ai» остаются прежними.
 
 **Плюсы:**
 - Сохранение в PostgreSQL без маппинга и потерь.
@@ -91,20 +91,20 @@
 - Достаточно точная гранулярность для аналитики по категориям расходов.
 
 **Минусы:**
-- ИИ-ответ на 42 категории требует few-shot примеров и эвристик в промте для устойчивости качества (компенсируется строгой валидацией, `source = undefined` при невалидном ответе и ручной коррекцией администратора).
+- ИИ-ответ на весь перечень значений `CommodityCategory` (без `Undefined`) требует few-shot примеров и эвристик в промте для устойчивости качества (компенсируется строгой валидацией, `source = undefined` при невалидном ответе и ручной коррекцией администратора).
 
 #### Вариант B2: 7 значений backend (`purchase.Category`)
 
 **Описание:** ИИ возвращает категорию из `food, alcohol, clothes, shoes, medicine, home_appliance, entertainment`.
 
 **Минусы:**
-- Эти значения не существуют в Analytics/PostgreSQL; для сохранения в `commodities.category_id` потребовался бы неоднозначный маппинг 7→19 (теряется точность, `entertainment` отсутствует вообще).
+- Эти значения не существуют в Analytics/PostgreSQL; для сохранения в `commodities.category_id` потребовался бы неоднозначный маппинг значений `purchase.Category` на значения `CommodityCategory` (теряется точность, `entertainment` отсутствует вообще).
 - Противоречит явному указанию заказчика использовать `CommodityCategory`.
 - Грубая гранулярность — менее точная аналитика.
 
 #### Вариант B3: Унификация справочников (`MerchantCategory` + `CommodityCategory`) в рамках задачи
 
-**Описание:** Свести `MerchantCategory` (21 значение) и `CommodityCategory` (43 значения) в единый справочник и перекодировать данные.
+**Описание:** Свести `MerchantCategory` (отдельный справочник магазинов) и `CommodityCategory` (отдельный справочник товаров) в единый справочник и перекодировать данные.
 
 **Решение заказчика: не требуется.** Вопрос закрыт (раздел 7 задачи): унификация справочников в рамках данной задачи и в планах **не выполняется** и **не планируется**. Справочники остаются независимыми (`MerchantCategory` — магазины, `CommodityCategory` — товары); ИИ работает только с `CommodityCategory`.
 
@@ -314,7 +314,7 @@ Go-backend не участвует: gRPC-контракты, воркеры и H
 
 ## Решение
 
-Выбраны: **A1** (логика в Analytics, .NET), **B1** (ИИ работает с `CommodityCategory`, 43 значения, без `Undefined` — 42 категории в промте; формат ответа — **имя enum**: `{"category": "Food"}`), **C1** (таблица `commodity_category_assignments` в PostgreSQL, **сквозной масштаб для всех пользователей — без `user_id`**, уникальный индекс по `normalized_name`; вариант C4 объединён с C1), **D1** (синхронный запрос/ответ), **E1** (HTTP-эндпоинты в `/api/receipts` + расширение `GET /api/commodities` параметром `categoryFilter`, решение I1), **F1** (собственный HTTP-клиент, Options pattern), **G1** (MongoDB — только чтение при синхронизации), **H1/H2** (backend и бот не меняются; nginx не меняется, порт Analytics — `5039`, без изменений), **I1** (список всех позиций с серверной фильтрацией).
+Выбраны: **A1** (логика в Analytics, .NET), **B1** (ИИ работает с `CommodityCategory` — все значения перечисления, без `Undefined`; формат ответа — **имя enum**: `{"category": "Food"}`), **C1** (таблица `commodity_category_assignments` в PostgreSQL, **сквозной масштаб для всех пользователей — без `user_id`**, уникальный индекс по `normalized_name`; вариант C4 объединён с C1), **D1** (синхронный запрос/ответ), **E1** (HTTP-эндпоинты в `/api/receipts` + расширение `GET /api/commodities` параметром `categoryFilter`, решение I1), **F1** (собственный HTTP-клиент, Options pattern), **G1** (MongoDB — только чтение при синхронизации), **H1/H2** (backend и бот не меняются; nginx не меняется, порт Analytics — `5039`, без изменений), **I1** (список всех позиций с серверной фильтрацией).
 
 ### Обоснование
 
@@ -344,7 +344,7 @@ Go-backend не участвует: gRPC-контракты, воркеры и H
 | `Api/Modules/Commodities/CommodityEndpoints.cs` | Расширение `GET /api/commodities` параметром `categoryFilter` (решение I1, см. п. 5) |
 | `Migrations/Scripts/<timestamp>_add_commodity_category_assignments.sql` | Миграция таблицы кэша (см. п. 2) |
 
-Также затрагиваются: `Application/Modules/Receipts/Models/ReceiptDetailsDto.cs` (добавить `Id` в `ReceiptItemDto` — для идентификации позиций при сохранении), `Application/Modules/Commodities/Contracts/ICommodityReadService.cs` и `Infrastructure/Modules/Commodities/CommodityReadService.cs` (параметр фильтра `categoryFilter` в `GetAsync`/`GetTotalCountAsync`), `Infrastructure/Configuration/DependencyInjectionExtensions.cs` (DI-регистрации).
+Также затрагиваются: `Domain/Modules/Commodities/ICommodityRepository.cs` и `Infrastructure/Persistence/Postgres/CommodityRepository.cs` (**nullable-вариант `UpdateCategoryAsync(Guid, CommodityCategory?, ct)`** — поддержка сброса `category = null` в `category_id = NULL`; см. п. 5), `Application/Modules/Receipts/Models/ReceiptDetailsDto.cs` (добавить `Id` в `ReceiptItemDto` — для идентификации позиций при сохранении), `Application/Modules/Commodities/Contracts/ICommodityReadService.cs` и `Infrastructure/Modules/Commodities/CommodityReadService.cs` (параметр фильтра `categoryFilter` в `GetAsync`/`GetTotalCountAsync`), `Infrastructure/Configuration/DependencyInjectionExtensions.cs` (DI-регистрации).
 
 #### 2. Таблица `commodity_category_assignments` (кэш ранее присвоенных категорий)
 
@@ -388,7 +388,7 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 | `AI:Concurrency` | `AI__Concurrency` | `3` | Макс. одновременных вызовов ИИ на запрос (NFR-2.3) |
 | `AI:ApiKey` | `AI__ApiKey` | пусто (опционально) | Заголовок `Authorization: Bearer` |
 
-Промт (фиксированный шаблон; **список категорий генерируется из `CommodityCategoryHelper.GetAll()` без `Undefined`** — 42 категории, состав актуален после ADR 010; пример ниже иллюстративный, а не фиксированный хардкод):
+Промт (фиксированный шаблон; **список категорий генерируется из `CommodityCategoryHelper.GetAll()` без `Undefined`** — актуальный состав перечисления (после ADR 010), в документе не перечисляется; пример ниже иллюстративный, а не фиксированный хардкод):
 ```
 Ты — сервис категоризации товаров из чеков. Отнеси товар к одной из категорий:
 <СПИСОК ИЗ GetAll() БЕЗ Undefined, например: Прочая еда, Одежда, Электроника, ...>
@@ -486,7 +486,8 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 }
 ```
 - Валидация: каждый `commodityId` принадлежит чеку владельца → иначе `400`; каждый `category` — имя значения `CommodityCategory` (`Enum.TryParse` по имени + `Enum.IsDefined`, не `Undefined`; `null` допустим — сброс в `category_id = NULL`) → иначе `400`.
-- Действие: для каждой позиции — `ICommodityRepository.UpdateCategoryAsync(commodityId, category)` (существующий метод, обновляет `category_id`/`category_name`); для каждой обновлённой позиции с назначенной категорией — `UpsertAsync(name, normalizedName, category)` в `commodity_category_assignments` (FR-4.2, чтобы FR-1.1 работал далее).
+- Действие: для каждой позиции — `ICommodityRepository.UpdateCategoryAsync(commodityId, category)` (обновляет `category_id`/`category_name`); для каждой обновлённой позиции с назначенной категорией — `UpsertAsync(name, normalizedName, category)` в `commodity_category_assignments` (FR-4.2, чтобы FR-1.1 работал далее).
+  - **Внимание (расхождение с существующим кодом):** текущая сигнатура `ICommodityRepository.UpdateCategoryAsync(Guid, CommodityCategory, CancellationToken)` — с не-nullable enum и всегда пишет число в `category_id`. Сброс (`category = null` → `category_id = NULL`) существующим методом **невозможен**. Требуется правка контракта: nullable-параметр `UpdateCategoryAsync(Guid, CommodityCategory?, CancellationToken)` (или перегрузка для сброса), реализация при `null` пишет `category_id = NULL`/`category_name = NULL`, `AssignCategory(null)`/явный сброс в `Commodity`. **`ICommodityRepository` и `CommodityRepository` включаются в список затрагиваемых файлов** (см. раздел «Детали решения», п. 1).
 - Ответ `200`: `{"receiptId": "...", "updated": <число обновлённых позиций>}`.
 
 **`GET /api/commodities?limit=50&offset=0&categoryFilter=any|uncategorized|undefined`** — списочное представление **всех позиций всех чеков** пользователя с серверной фильтрацией (решение I1, UC-6/FR-5).
@@ -497,7 +498,7 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
   - `undefined` — `commodities.category_id = (int)CommodityCategory.Undefined` («позиции с `CommodityCategory.Undefined`», FR-5.3);
   - невалидное значение → `400`.
 - Пагинация — существующая (`limit`/`offset`, заголовок `X-Total-Count`); выдаются только позиции чеков текущего пользователя (FR-5.4).
-- Ответ — `CommodityItemDto[]` (поля включают `CategoryId`/`CategoryName`; `null` = «без категории»). Позиции из списка категоризируются существующими механизмами (UC-1…UC-5, `PUT /api/commodities/{id}/category`).
+- Ответ — `CommodityItemDto[]` (поля включают `CategoryId`/`CategoryName`; `null` = «без категории»). Позиции из списка категоризируются через категоризацию чека (UC-1…UC-5, `PUT /api/receipts/{id}/categories`); для **администраторов** из списка также доступен существующий поточечный `PUT /api/commodities/{id}/category` (admin-only). Для не-админов ручная правка из списка — через переход на страницу чека и `PUT /api/receipts/{id}/categories`.
 
 #### 6. UX-флоу в webUI (`Analytics/frontend`)
 
@@ -507,11 +508,11 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 4. Кнопка «Сохранить» → `PUT /api/receipts/{id}/categories` с полным списком выборов (FR-3.5).
 5. После успешного ответа — обновление данных чека. Telegram-бот не участвует.
 
-6. **Список всех позиций (UC-6/FR-5):** страница/таблица всех позиций всех чеков (на базе `CommoditiesPage`/`CommodityTable`) с фильтром «без категории» / «`CommodityCategory.Undefined`» / «все». Фильтр передаётся серверу через `categoryFilter` (`GET /api/commodities?categoryFilter=...`); пагинация — как в существующей `CommoditiesPage`. Из списка доступны ручная категоризация (`PUT /api/commodities/{id}/category`) и переход на страницу чека для запуска категоризации (UC-1).
+6. **Список всех позиций (UC-6/FR-5):** страница/таблица всех позиций всех чеков (на базе `CommoditiesPage`/`CommodityTable`) с фильтром «без категории» / «`CommodityCategory.Undefined`» / «все». Фильтр передаётся серверу через `categoryFilter` (`GET /api/commodities?categoryFilter=...`); пагинация — как в существующей `CommoditiesPage`. Из списка доступен переход на страницу чека для запуска категоризации (UC-1) и ручная правка категорий через `PUT /api/receipts/{id}/categories` (для администраторов — дополнительно поточечный admin-only `PUT /api/commodities/{id}/category`).
 
 ## Ответы на открытые вопросы (раздел 7 задачи)
 
-1. **Справочник категорий.** ИИ возвращает категорию из **`CommodityCategory`** (`Analytics/src/.../Domain/Modules/Commodities/CommodityCategory.cs`, **43 значения: 0–17, 18–41, `Other = 255`; в промт без `Undefined` попадают 42 категории**; состав расширен ADR 010). **Унификация `MerchantCategory`/`CommodityCategory` не требуется** — вопрос закрыт решением заказчика (раздел 7 задачи), действий по унификации в рамках этой задачи и в планах нет.
+1. **Справочник категорий.** ИИ возвращает категорию из **`CommodityCategory`** (`Analytics/src/.../Domain/Modules/Commodities/CommodityCategory.cs` — актуальный состав перечисления, см. ADR 010; в промт без `Undefined`). **Унификация `MerchantCategory`/`CommodityCategory` не требуется** — вопрос закрыт решением заказчика (раздел 7 задачи), действий по унификации в рамках этой задачи и в планах нет.
 2. **Кэш ранее присвоенных категорий.** Новая таблица PostgreSQL `commodity_category_assignments` с уникальным индексом **по `normalized_name`**, **без `user_id`**; масштаб — **сквозной для всех пользователей** (решение заказчика). Per-user масштаб **отклонён**.
 3. **Формат ответа ИИ.** Категория передаётся **именем** значения enum: `{"category": "Food"}`; числовой формат `{"category_id": N}` **отклонён** решением заказчика. Парсинг по имени через `Enum.TryParse` + `Enum.IsDefined`. Промт и JSON-схема зафиксированы (п. 4); fallback — 1 повтор только при сетевых ошибках, при невалидном JSON повтор не выполняется, позиция помечается «не определена».
 4. **Место подтверждения.** **webUI = `Analytics/frontend`** (страница деталей чека). UX длинных списков — редактирование всего списка позиций на одной странице с индикацией «предложено» (FR-3.6). Бот в сценарии не участвует.
@@ -542,7 +543,7 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 
 - **Синхронный ответ вместо асинхронного job'а** — простота и соответствие критериям приёмки против жёсткой трактовки NFR-2.1 «в фоне»; эволюция на D2 зафиксирована.
 - **Сквозной кэш (без `user_id`) вместо per-user** — полнота кэша и меньше вызовов ИИ против приватности предложений; вопрос закрыт решением заказчика (приватность осознанно принесена в жертву, предложения всегда требуют явного подтверждения).
-- **42 категории `CommodityCategory` (без `Undefined`) без унификации с `MerchantCategory`** — детализированный справочник даёт осмысленную аналитику; унификация не требуется (решение заказчика). Цена детализации — необходимость few-shot примеров и эвристик в промте для разграничения схожих категорий (ADR 010, решение E1).
+- **Справочник `CommodityCategory` (все значения, кроме `Undefined`) без унификации с `MerchantCategory`** — детализированный справочник даёт осмысленную аналитику; унификация не требуется (решение заказчика). Цена детализации — необходимость few-shot примеров и эвристик в промте для разграничения схожих категорий (ADR 010, решение E1).
 - **MongoDB read-only** — чистая граница данных; исторические категории MongoDB не переносятся (решение заказчика, миграция не планируется).
 
 ### Риски
@@ -560,6 +561,6 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 - [Задача: Автоматическая категоризация товаров в чеке](../tasks/auto-commodity-categorization.md)
 - [ADR 005: Справочник категорий товаров — Enum вместо таблицы БД](005-commodity-category-as-enum.md)
 - [ADR 008: Управление категориями магазинов](008-merchant-category-management.md) (в т.ч. раздел «Риски» об унификации справочников)
-- [ADR 010: Расширение справочника категорий товаров](010-commodity-categories-expansion.md) (новый состав справочника, 43 значения; влияет на количество категорий в промте и требует few-shot/эвристик)
+- [ADR 010: Расширение справочника категорий товаров](010-commodity-categories-expansion.md) (новый состав справочника; влияет на перечень категорий в промте и требует few-shot/эвристик)
 - [План реализации: Автоматическая категоризация товаров](../plans/auto-commodity-categorization.md)
 - Фактический код: `Analytics/src/ReceiptCollector.Analytics.Domain/Modules/Commodities/CommodityCategory.cs`, `Commodity.cs`, `ICommodityRepository.cs`; `Analytics/src/ReceiptCollector.Analytics.Api/Program.cs`, `Modules/Receipts/ReceiptEndpoints.cs`, `Modules/Commodities/CommodityEndpoints.cs`, `Modules/Users/UserContext.cs`; `Analytics/src/ReceiptCollector.Analytics.Application/Modules/Receipts/Models/ReceiptDetailsDto.cs`; `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Synchronization/MongoReceiptMapper.cs`, `Synchronization/ReceiptSynchronizationService.cs`, `DataSources/Mongo/MongoReceiptBatchLoader.cs`, `DataSources/Mongo/MongoReceiptDocumentDto.cs`, `Persistence/Postgres/ReceiptEntity.cs`, `Persistence/Postgres/CommodityRepository.cs`, `Configuration/DependencyInjectionExtensions.cs`; `Analytics/src/ReceiptCollector.Analytics.Migrations/Scripts/20241019160000_initial_create.sql`; `Analytics/frontend/src/components/ReceiptDetails.tsx`, `api/receipts.ts`, `types/receipt.ts`; `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/Architecture/ProjectDependencyTests.cs`; `nginx.prod.conf`, `nginx.dev.conf`
