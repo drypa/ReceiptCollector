@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReceiptDetails, ReceiptItem } from '../types/receipt';
 import { useAdmin } from '../hooks/useAdmin';
 import { updateMerchantName } from '../api/merchants';
@@ -63,6 +63,19 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
       isOpen: false
     });
   };
+
+  // Справочник категорий нужен и вне режима категоризации (отображение названий
+  // в таблице товаров), поэтому загружаем его при открытии чека, а не только
+  // внутри runCategorization.
+  useEffect(() => {
+    if (!receipt?.id) return;
+
+    fetchCategories()
+      .then(setCategories)
+      .catch((error) => {
+        console.error('Ошибка загрузки категорий:', error);
+      });
+  }, [receipt?.id]);
 
   if (!receipt) {
     return (
@@ -186,6 +199,14 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
   /** Категории справочника, доступные для выбора: «Не указана» (Undefined) исключена — это не категория. */
   const selectableCategories = categories.filter((c) => c.key !== 'Undefined');
 
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+  /** Название категории товара по справочнику; null — категория не указана (null/0/undefined) или не найдена. */
+  const categoryNameForItem = (item: ReceiptItem): string | null => {
+    if (item.categoryId == null || item.categoryId === 0) return null;
+    return categoryById.get(item.categoryId)?.name ?? null;
+  };
+
   const suggestionByItem = (item: ReceiptItem) =>
     suggestions?.find((s) => s.commodityId === item.id) ?? null;
 
@@ -307,13 +328,14 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
                 <th>Количество</th>
                 <th>Цена за единицу</th>
                 <th>Общая цена</th>
-                {categorizeModeActive && <th>Категория</th>}
+                <th>Категория</th>
               </tr>
             </thead>
             <tbody>
               {receipt.items.map((item, index) => {
                 const suggestion = suggestionByItem(item);
                 const note = suggestion ? getSuggestionNote(suggestion.source) : null;
+                const categoryName = categoryNameForItem(item);
 
                 return (
                   <tr key={`${item.id}-${index}`}>
@@ -321,7 +343,7 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
                     <td>{item.quantity}</td>
                     <td>{currencyFormatter.format(item.unitPrice)}</td>
                     <td>{currencyFormatter.format(item.totalPrice)}</td>
-                    {categorizeModeActive && (
+                    {categorizeModeActive ? (
                       <td>
                         <select
                           value={selectedCategories[item.id] ?? ''}
@@ -347,6 +369,18 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
                             {note}
                           </div>
                         )}
+                      </td>
+                    ) : (
+                      <td>
+                        <span
+                          className={
+                            categoryName
+                              ? 'item-category-name'
+                              : 'item-category-name item-category-name--empty'
+                          }
+                        >
+                          {categoryName ?? '—'}
+                        </span>
                       </td>
                     )}
                   </tr>

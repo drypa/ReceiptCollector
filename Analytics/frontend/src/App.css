@@ -435,6 +435,26 @@ tbody td:last-child {
   color: #dc3545;
 }
 
+/* Название категории товара в обычном режиме (текст вместо <select>). */
+.item-category-name {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Категория не указана (null/0/undefined) — показываем нейтральный прочерк. */
+.item-category-name.item-category-name--empty {
+  background: transparent;
+  color: #adb5bd;
+  padding: 0;
+  font-weight: 400;
+}
+
 .date-link {
   background: none;
   border: none;
