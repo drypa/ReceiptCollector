@@ -28,6 +28,25 @@ This project consists of a backend API and a frontend application for receipt an
    }
    ```
 
+### AI Categorization Configuration
+
+The receipt item categorization feature (see [ADR 009](../docs/adr/009-auto-commodity-categorization.md)) uses an OpenAI-compatible chat-completions endpoint. It is configured in the `AI` section of `appsettings.json`, overridable via `AI__*` environment variables:
+
+| Variable | Default / Example | Description |
+|----------|-------------------|-------------|
+| `AI__BaseUrl` | `https://api.openai.com/v1` | Base URL of an OpenAI-compatible API. The client calls `{BaseUrl}/chat/completions`. **Empty value disables AI categorization** (the suggest endpoint returns `503`) |
+| `AI__Model` | `qwen` | Model name |
+| `AI__Timeout` | `00:00:10` | Per-request timeout |
+| `AI__Concurrency` | `3` | Max parallel AI calls per receipt |
+| `AI__ApiKey` | (empty) | API key sent as `Authorization: Bearer`; empty = no auth header |
+
+Example:
+
+```bash
+export AI__BaseUrl=https://api.openai.com/v1
+export AI__ApiKey=sk-...
+```
+
 ### Running the Backend
 
 1. Install dependencies:

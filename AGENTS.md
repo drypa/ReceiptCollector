@@ -83,7 +83,17 @@ Environment variables required (see `.env`):
 | NGINX_HTTP_PORT | `80` | From `.env` (host map to nginx :80) |
 | NGINX_HTTPS_PORT | `443` | From `.env` (host map to nginx :443) |
 
-Analytics connection strings are in `appsettings.{*.Development}.json`.
+Analytics configuration (connection strings, `AI` section) is in `appsettings.{*.Development}.json` and is overridable via env vars with `__` separator (e.g. `AI__BaseUrl`).
+
+**Analytics AI categorization options** (section `AI` in `appsettings.json`, overridable via `AI__*` env vars; see ADR 009, NFR-1):
+
+| Variable | Default/Example | Source |
+|----------|-----------------|--------|
+| AI__BaseUrl | `https://api.openai.com/v1` | appsettings `AI:BaseUrl` / env var; empty = AI categorization disabled (suggest returns 503) |
+| AI__Model | `qwen` | appsettings `AI:Model` / env var |
+| AI__Timeout | `00:00:10` | appsettings `AI:Timeout` / env var |
+| AI__Concurrency | `3` | appsettings `AI:Concurrency` / env var (max parallel AI calls per receipt) |
+| AI__ApiKey | empty | appsettings `AI:ApiKey` / env var (added as `Authorization: Bearer`; empty = no auth header) |
 
 ## Key Code Locations
 

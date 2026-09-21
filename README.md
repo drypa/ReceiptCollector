@@ -78,6 +78,24 @@ cd ReceiptCollector.Analytics.Migrations && dotnet run
 cd ReceiptCollector.Analytics.Api && dotnet run
 ```
 
+Сервис включает **автоматическую категоризацию товаров** (ADR 009): AI-клиент вызывается только при включённой конфигурации и только когда пользователь нажимает «Категоризировать» в webUI. Конфигурация AI задаётся в секции `AI` в `appsettings.json` или переменными окружения `AI__*` (переопределяют конфиг без пересборки, NFR-1):
+
+| Переменная | Default / Пример | Описание |
+|-----------|------------------|----------|
+| `AI__BaseUrl` | `https://api.openai.com/v1` | Базовый URL OpenAI-совместимого API (клиент обращается к `{BaseUrl}/chat/completions`). **Пустое значение = AI-категоризация отключена** (эндпоинт suggest возвращает `503`) |
+| `AI__Model` | `qwen` | Имя модели |
+| `AI__Timeout` | `00:00:10` | Таймаут одного запроса к AI |
+| `AI__Concurrency` | `3` | Макс. одновременных запросов к AI при категоризации одного чека |
+| `AI__ApiKey` | (пусто) | API-ключ, передаётся как `Authorization: Bearer`; пусто = заголовок не добавляется |
+
+Пример включения через env:
+
+```bash
+export AI__BaseUrl=https://api.openai.com/v1
+export AI__ApiKey=sk-...
+export AI__Timeout=00:00:15
+```
+
 ### Analytics Frontend (React + Vite)
 The analytics frontend is a React SPA built with Vite. To run it locally in debug mode with HMR:
 
