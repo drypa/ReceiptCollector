@@ -13,9 +13,13 @@ export interface CommodityItem {
 
 export interface Category {
   id: number;
+  /** Имя enum CommodityCategory (например, "Food") — значение <select> и строковая категория в контракте PUT. */
+  key: string;
   name: string;
   group?: string;
 }
+
+export type CommodityCategoryFilter = 'any' | 'uncategorized' | 'undefined';
 
 export interface PaginatedCommodities {
   commodities: CommodityItem[];

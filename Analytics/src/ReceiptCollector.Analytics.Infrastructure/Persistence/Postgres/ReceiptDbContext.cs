@@ -15,6 +15,7 @@ internal sealed class ReceiptDbContext : DbContext
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<MerchantEntity> Merchants => Set<MerchantEntity>();
     public DbSet<UserAuthLinkEntity> UserAuthLinks => Set<UserAuthLinkEntity>();
+    public DbSet<CommodityCategoryAssignmentEntity> CommodityCategoryAssignments => Set<CommodityCategoryAssignmentEntity>();
 
     internal Guid? CurrentUserId { get; private set; }
 
@@ -35,6 +36,7 @@ internal sealed class ReceiptDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.ApplyConfiguration(new UserAuthLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new CommodityCategoryAssignmentConfiguration());
         modelBuilder.Entity<ReceiptEntity>()
             .HasQueryFilter(r => CurrentUserId == null || r.UserId == CurrentUserId);
     }

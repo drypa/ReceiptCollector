@@ -14,11 +14,12 @@ export interface ReceiptSummary {
 }
 
 export interface ReceiptItem {
+  id: string;
   name: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  categoryId: string | null;
+  categoryId: number | null;
 }
 
 export interface ReceiptDetails {

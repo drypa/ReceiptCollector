@@ -1,16 +1,21 @@
-import type { PaginatedCommodities, CommodityItem, Category } from '../types/commodity';
+import type { PaginatedCommodities, CommodityItem, Category, CommodityCategoryFilter } from '../types/commodity';
 
 interface FetchCommoditiesOptions {
   limit: number;
   offset: number;
   signal?: AbortSignal;
+  categoryFilter?: CommodityCategoryFilter;
 }
 
-export async function fetchCommodities({ limit, offset, signal }: FetchCommoditiesOptions): Promise<PaginatedCommodities> {
+export async function fetchCommodities({ limit, offset, signal, categoryFilter = 'any' }: FetchCommoditiesOptions): Promise<PaginatedCommodities> {
   const searchParams = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
   });
+
+  if (categoryFilter !== 'any') {
+    searchParams.set('categoryFilter', categoryFilter);
+  }
 
   const response = await fetch(`/api/commodities?${searchParams.toString()}`, {
     credentials: 'include',

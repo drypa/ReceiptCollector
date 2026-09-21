@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchCommodities } from '../api/commodities';
 import type { CommodityItem } from '../types/commodity';
+import type { CommodityCategoryFilter } from '../types/commodity';
 
 interface UseCommoditiesOptions {
   pageSize?: number;
+  categoryFilter?: CommodityCategoryFilter;
 }
 
-export function useCommodities({ pageSize = 10 }: UseCommoditiesOptions = {}) {
+export function useCommodities({ pageSize = 10, categoryFilter = 'any' }: UseCommoditiesOptions = {}) {
   const [commodities, setCommodities] = useState<CommodityItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -26,7 +28,7 @@ export function useCommodities({ pageSize = 10 }: UseCommoditiesOptions = {}) {
       setIsLoading(true);
       setError(null);
 
-      fetchCommodities({ limit: pageSize, offset, signal: controller.signal })
+      fetchCommodities({ limit: pageSize, offset, signal: controller.signal, categoryFilter })
         .then(({ commodities: pageCommodities, totalItems: total, currentPage: responsePage, pageSize: responsePageSize }) => {
           const effectivePageSize = responsePageSize > 0 ? responsePageSize : pageSize;
           const effectivePage = responsePage > 0 ? responsePage : normalizedPage;
@@ -50,7 +52,7 @@ export function useCommodities({ pageSize = 10 }: UseCommoditiesOptions = {}) {
           }
         });
     },
-    [pageSize],
+    [pageSize, categoryFilter],
   );
 
   // When pageSize changes, reset to first page

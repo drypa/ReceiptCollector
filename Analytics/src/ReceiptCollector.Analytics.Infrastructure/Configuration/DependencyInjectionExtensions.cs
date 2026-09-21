@@ -11,6 +11,7 @@ using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
+using ReceiptCollector.Analytics.Infrastructure.AI;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
@@ -28,6 +29,9 @@ public static class DependencyInjectionExtensions
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<ICommodityReadService, CommodityReadService>();
         services.AddScoped<ICommodityRepository, CommodityRepository>();
+        services.AddScoped<ICategoryAssignmentRepository, CategoryAssignmentRepository>();
+        services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
+        services.AddHttpClient<IAiClient, OpenAiCompatibleAiClient>();
         services.AddScoped<IReceiptReadService, ReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
         services.AddScoped<IMerchantRepository, MerchantRepository>();
@@ -57,6 +61,9 @@ public static class DependencyInjectionExtensions
             
         services.AddOptions<AdminUserOptions>()
             .Bind(configuration.GetSection(AdminUserOptions.SectionName));
+
+        services.AddOptions<AiOptions>()
+            .Bind(configuration.GetSection(AiOptions.SectionName));
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {

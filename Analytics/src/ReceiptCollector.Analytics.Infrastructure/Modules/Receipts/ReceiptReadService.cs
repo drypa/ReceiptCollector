@@ -78,6 +78,7 @@ internal sealed class ReceiptReadService : IReceiptReadService
         var items = entity.Items
             .OrderBy(item => item.Name)
             .Select(item => new ReceiptItemDto(
+                item.Id,
                 item.Name,
                 item.Quantity,
                 item.UnitPrice,

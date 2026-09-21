@@ -37,7 +37,7 @@ internal sealed class CommodityRepository : ICommodityRepository
                 : null);
     }
 
-    public async Task UpdateCategoryAsync(Guid commodityId, CommodityCategory category, CancellationToken cancellationToken = default)
+    public async Task UpdateCategoryAsync(Guid commodityId, CommodityCategory? category, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.Commodities
             .FirstOrDefaultAsync(c => c.Id == commodityId, cancellationToken)
@@ -48,8 +48,16 @@ internal sealed class CommodityRepository : ICommodityRepository
             throw new InvalidOperationException($"Commodity with id '{commodityId}' not found.");
         }
 
-        entity.CategoryId = (int)category;
-        entity.CategoryName = CommodityCategoryHelper.GetDisplayName(category);
+        if (category.HasValue)
+        {
+            entity.CategoryId = (int)category.Value;
+            entity.CategoryName = CommodityCategoryHelper.GetDisplayName(category.Value);
+        }
+        else
+        {
+            entity.CategoryId = null;
+            entity.CategoryName = null;
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

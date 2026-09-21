@@ -7,4 +7,5 @@ public sealed record ReceiptDetailsDto(
     DateTime PurchasedAt,
     IReadOnlyCollection<ReceiptItemDto> Items);
 
-public sealed record ReceiptItemDto(string Name, decimal Quantity, decimal UnitPrice, decimal TotalPrice, int? CategoryId);
+/// <summary>Товар в детализации чека. Id — идентификатор товара (commodities.id), нужен для сохранения категорий.</summary>
+public sealed record ReceiptItemDto(Guid Id, string Name, decimal Quantity, decimal UnitPrice, decimal TotalPrice, int? CategoryId);

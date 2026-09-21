@@ -22,11 +22,12 @@ public static class CommodityEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAll(
+    public static async Task<IResult> GetAll(
         HttpContext httpContext,
         [FromServices] ICommodityReadService service,
         [FromQuery] int limit = 10,
         [FromQuery] int offset = 0,
+        [FromQuery] string? categoryFilter = null,
         CancellationToken cancellationToken = default)
     {
         var userId = UserContext.UserId;
@@ -45,14 +46,20 @@ public static class CommodityEndpoints
             return Results.BadRequest("offset cannot be negative.");
         }
 
-        var commodities = await service.GetAsync(userId.Value, limit, offset, cancellationToken);
-        var totalCount = await service.GetTotalCountAsync(userId.Value, cancellationToken);
+        if (!TryParseCategoryFilter(categoryFilter, out var filter))
+        {
+            return Results.BadRequest(
+                $"Invalid categoryFilter '{categoryFilter}'. Allowed values: any, uncategorized, undefined.");
+        }
+
+        var commodities = await service.GetAsync(userId.Value, limit, offset, filter, cancellationToken);
+        var totalCount = await service.GetTotalCountAsync(userId.Value, filter, cancellationToken);
 
         httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString(CultureInfo.InvariantCulture);
         return Results.Ok(commodities);
     }
 
-    private static async Task<IResult> UpdateCategory(
+    public static async Task<IResult> UpdateCategory(
         Guid id,
         [FromBody] UpdateCategoryRequest request,
         [FromServices] ICommodityRepository commodityRepository,
@@ -88,13 +95,25 @@ public static class CommodityEndpoints
         return Results.Ok(new { categoryId = request.CategoryId, categoryName = CommodityCategoryHelper.GetDisplayName(category) });
     }
 
-    private static IResult ListCategories()
+    public static IResult ListCategories()
     {
         var categories = CommodityCategoryHelper.GetAll()
-            .Select(c => new CategoryDto((int)c.Id, c.Name, CommodityCategoryHelper.GetGroup(c.Id)))
+            .Select(c => new CategoryDto((int)c.Id, c.Id.ToString(), c.Name, CommodityCategoryHelper.GetGroup(c.Id)))
             .ToList();
 
         return Results.Ok(categories);
+    }
+
+    private static bool TryParseCategoryFilter(string? value, out CommodityCategoryFilter filter)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            filter = CommodityCategoryFilter.Any;
+            return true;
+        }
+
+        return Enum.TryParse(value, ignoreCase: true, out filter)
+               && Enum.IsDefined(filter);
     }
 }
 

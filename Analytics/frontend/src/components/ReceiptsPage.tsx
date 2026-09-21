@@ -164,7 +164,15 @@ export function ReceiptsPage() {
               <span className="spinner" aria-hidden="true" /> Загружаем детали чека...
             </div>
           ) : (
-            <ReceiptDetails receipt={receiptDetails} onBack={handleBackToList} />
+            <ReceiptDetails
+              receipt={receiptDetails}
+              onBack={handleBackToList}
+              onReceiptRefresh={() => {
+                if (selectedReceiptId) {
+                  handleReceiptClick(selectedReceiptId);
+                }
+              }}
+            />
           )}
         </>
       )}

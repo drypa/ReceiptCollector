@@ -29,6 +29,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapReceiptEndpoints();
+app.MapReceiptCategorizationEndpoints();
 app.MapUserAuthEndpoints();
 app.MapCommodityEndpoints();
 app.MapMerchantEndpoints();

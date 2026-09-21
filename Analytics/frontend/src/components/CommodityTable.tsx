@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchCategories, updateCommodityCategory } from '../api/commodities';
 import type { CommodityItem, Category } from '../types/commodity';
+import { renderCategorySelectOptions } from '../utils/categoryOptions';
 
 interface CommodityTableProps {
   commodities: CommodityItem[];
@@ -22,41 +23,6 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   hour: '2-digit',
   minute: '2-digit',
 });
-
-/**
- * Рендер опций категорий с группировкой по полю group (решение D1 ADR 010).
- * Категории с пустой/отсутствующей группой (старые категории 0–17 и Other=255)
- * выводятся плоским списком — прямые дети <select> (у <optgroup> обязателен
- * непустой label). Порядок групп — по порядку первого появления в массиве.
- */
-function renderCategoryOptions(categories: Category[]) {
-  const grouped = new Map<string, Category[]>();
-
-  for (const cat of categories) {
-    const group = cat.group ?? '';
-    const bucket = grouped.get(group) ?? [];
-    bucket.push(cat);
-    grouped.set(group, bucket);
-  }
-
-  return Array.from(grouped.entries()).map(([group, items]) => {
-    const options = items.map((cat) => (
-      <option key={cat.id} value={String(cat.id)}>
-        {cat.name}
-      </option>
-    ));
-
-    if (group === '') {
-      return options;
-    }
-
-    return (
-      <optgroup key={group} label={group}>
-        {options}
-      </optgroup>
-    );
-  });
-}
 
 export function CommodityTable({ commodities, isAdmin, onReceiptClick, onRefresh }: CommodityTableProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -141,7 +107,7 @@ export function CommodityTable({ commodities, isAdmin, onReceiptClick, onRefresh
                       autoFocus
                     >
                       <option value="">—</option>
-                      {renderCategoryOptions(categories)}
+                      {renderCategorySelectOptions(categories)}
                     </select>
                   ) : (
                     <div className="category-display">

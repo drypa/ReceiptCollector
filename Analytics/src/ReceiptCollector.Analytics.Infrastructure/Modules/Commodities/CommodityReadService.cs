@@ -15,13 +15,17 @@ internal sealed class CommodityReadService : ICommodityReadService
     }
 
     public async Task<IReadOnlyCollection<CommodityItemDto>> GetAsync(
-        Guid userId, int limit, int offset, CancellationToken cancellationToken = default)
+        Guid userId, int limit, int offset,
+        CommodityCategoryFilter categoryFilter = CommodityCategoryFilter.Any,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Commodities
+        var query = ApplyFilter(_dbContext.Commodities
             .AsNoTracking()
             .Include(c => c.Receipt)
             .ThenInclude(r => r.Merchant)
-            .Where(c => c.Receipt.UserId == userId)
+            .Where(c => c.Receipt.UserId == userId), categoryFilter);
+
+        return await query
             .OrderByDescending(c => c.Receipt.PurchasedAt)
             .ThenBy(c => c.Name)
             .Skip(offset)
@@ -41,12 +45,27 @@ internal sealed class CommodityReadService : ICommodityReadService
             .ConfigureAwait(false);
     }
 
-    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<int> GetTotalCountAsync(
+        Guid userId,
+        CommodityCategoryFilter categoryFilter = CommodityCategoryFilter.Any,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Commodities
+        return await ApplyFilter(_dbContext.Commodities
             .AsNoTracking()
-            .Where(c => c.Receipt.UserId == userId)
+            .Where(c => c.Receipt.UserId == userId), categoryFilter)
             .CountAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private static IQueryable<CommodityEntity> ApplyFilter(
+        IQueryable<CommodityEntity> query,
+        CommodityCategoryFilter categoryFilter)
+    {
+        return categoryFilter switch
+        {
+            CommodityCategoryFilter.Uncategorized => query.Where(c => c.CategoryId == null),
+            CommodityCategoryFilter.Undefined => query.Where(c => c.CategoryId == 0),
+            _ => query
+        };
     }
 }

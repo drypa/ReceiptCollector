@@ -395,6 +395,46 @@ tbody td:last-child {
   background-color: #f8f9fa;
 }
 
+.receipt-items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.categorization-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.item-category-select {
+  min-width: 180px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.category-suggestion {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.category-suggestion-cache {
+  color: #0d6efd;
+}
+
+.category-suggestion-ai {
+  color: #198754;
+}
+
+.category-suggestion-undefined {
+  color: #dc3545;
+}
+
 .date-link {
   background: none;
   border: none;

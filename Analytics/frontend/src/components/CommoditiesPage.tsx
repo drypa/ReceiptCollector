@@ -1,14 +1,23 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageSize } from '../contexts/PageSizeContext';
 import { useCommodities } from '../hooks/useCommodities';
 import { useAdmin } from '../hooks/useAdmin';
 import { Pagination } from './Pagination';
 import { CommodityTable } from './CommodityTable';
+import type { CommodityCategoryFilter } from '../types/commodity';
+
+const CATEGORY_FILTER_LABELS: Array<{ value: CommodityCategoryFilter; label: string }> = [
+  { value: 'any', label: 'Все товары' },
+  { value: 'uncategorized', label: 'Без категории' },
+  { value: 'undefined', label: 'Категория «Не указана»' },
+];
 
 export function CommoditiesPage() {
   const navigate = useNavigate();
   const { pageSize, setPageSize, pageSizeOptions } = usePageSize();
   const { isAdmin } = useAdmin();
+  const [categoryFilter, setCategoryFilter] = useState<CommodityCategoryFilter>('any');
 
   const {
     data,
@@ -21,7 +30,7 @@ export function CommoditiesPage() {
     nextPage,
     previousPage,
     refresh,
-  } = useCommodities({ pageSize });
+  } = useCommodities({ pageSize, categoryFilter });
 
   const handleReceiptClick = (receiptId: string) => {
     navigate(`/?receiptId=${receiptId}`);
@@ -48,6 +57,21 @@ export function CommoditiesPage() {
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
                   {size}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="page-size-selector">
+            <label htmlFor="commodity-category-filter-select">Категория: </label>
+            <select
+              id="commodity-category-filter-select"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as CommodityCategoryFilter)}
+              disabled={isLoading}
+            >
+              {CATEGORY_FILTER_LABELS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </select>
