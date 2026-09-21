@@ -171,7 +171,7 @@ stop_service() {
     done
 
     # 3) Бот (без портов): pgrep по cmdline с фильтром по рабочему каталогу
-    if [ "${#ports[@]:-0}" -eq 0 ]; then
+    if [ "${#ports[@]}" -eq 0 ]; then
         local bpid
         for bpid in $(pgrep -f 'go run' 2>/dev/null || true) $(pgrep -x bot 2>/dev/null || true); do
             local bcwd
@@ -202,6 +202,8 @@ stop_service() {
     for p in "${ports[@]:-}"; do
         [ -n "$p" ] && wait_port_free "$p" "$name"
     done
+
+    return 0
 }
 
 # cleanup — останавливает процессы, запущенные ЭТИМ экземпляром (FR-8.3)
@@ -327,17 +329,27 @@ for d in "$SYSTEM_CERT_DIR" "$SYSTEM_TEMPLATES_DIR" "$RAW_DIR" "$ERR_DIR"; do
     ensure_writable_dir "$d"
 done
 
-# Генерация сертификатов ТОЛЬКО при их отсутствии (FR-3.2, NFR-2)
-if [ ! -f "$PROJECT_ROOT/ssl/certificate.crt" ] || [ ! -f "$PROJECT_ROOT/ssl/private.key" ]; then
-    log "  Сертификаты не найдены — запускаю ./generate-ssl-cert.sh"
-    mkdir -p "$PROJECT_ROOT/ssl"
-    ./generate-ssl-cert.sh
-else
-    log "  Сертификаты уже существуют (ssl/) — пропускаю генерацию."
+# Каталог-источник сертификатов — тот же, куда пишет generate-ssl-cert.sh:
+# либо SSL_CERTS_PATH из .env, либо ssl/ рядом с проектом.
+SSL_SOURCE_DIR="$PROJECT_ROOT/ssl"
+if [ -n "${SSL_CERTS_PATH:-}" ]; then
+    case "$SSL_CERTS_PATH" in
+        /*) SSL_SOURCE_DIR="$SSL_CERTS_PATH" ;;
+        *)  SSL_SOURCE_DIR="$PROJECT_ROOT/$SSL_CERTS_PATH" ;;
+    esac
 fi
 
-cp -f "$PROJECT_ROOT/ssl/certificate.crt" "$SYSTEM_CERT_DIR/"
-cp -f "$PROJECT_ROOT/ssl/private.key" "$SYSTEM_CERT_DIR/"
+# Генерация сертификатов ТОЛЬКО при их отсутствии (FR-3.2, NFR-2)
+if [ ! -f "$SSL_SOURCE_DIR/certificate.crt" ] || [ ! -f "$SSL_SOURCE_DIR/private.key" ]; then
+    log "  Сертификаты не найдены — запускаю ./generate-ssl-cert.sh"
+    mkdir -p "$SSL_SOURCE_DIR"
+    ./generate-ssl-cert.sh
+else
+    log "  Сертификаты уже существуют ($SSL_SOURCE_DIR) — пропускаю генерацию."
+fi
+
+cp -f "$SSL_SOURCE_DIR/certificate.crt" "$SYSTEM_CERT_DIR/"
+cp -f "$SSL_SOURCE_DIR/private.key" "$SYSTEM_CERT_DIR/"
 
 cp -f "$PROJECT_ROOT/backend/render/templates/"*.html "$SYSTEM_TEMPLATES_DIR/" 2>/dev/null || \
     log "  Внимание: не найдены шаблоны в backend/render/templates"
