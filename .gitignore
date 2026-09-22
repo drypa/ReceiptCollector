@@ -30,3 +30,6 @@ obj
 
 #builed frontend
 wwwroot
+
+#mongo data folder
+data/
