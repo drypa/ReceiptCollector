@@ -8,6 +8,7 @@ import { fetchCategories } from '../api/commodities';
 import type { Category } from '../types/commodity';
 import { renderCategorySelectOptions } from '../utils/categoryOptions';
 import { CustomDialog } from './CustomDialog';
+import { useToast } from './Toasts';
 
 interface ReceiptDetailsProps {
   receipt: ReceiptDetails | null;
@@ -33,6 +34,7 @@ function getSuggestionNote(source: ReceiptItemSuggestion['source']): string | nu
 
 export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDetailsProps) {
   const { isAdmin } = useAdmin();
+  const toast = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -183,14 +185,15 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
       }));
 
       const result = await saveReceiptCategories(receipt.id, items);
-      showDialog('Готово', `Сохранено категорий: ${result.updated}.`, () => {
-        setSuggestions(null);
-        setSelectedCategories({});
-        onReceiptRefresh?.();
-      });
+      setSuggestions(null);
+      setSelectedCategories({});
+      onReceiptRefresh?.();
+      toast.success(`Сохранено категорий: ${result.updated}`);
     } catch (error) {
       console.error('Ошибка сохранения категорий:', error);
-      showDialog('Ошибка', error instanceof Error ? error.message : 'Не удалось сохранить категории товаров');
+      toast.error(
+        error instanceof Error ? error.message : 'Не удалось сохранить категории товаров'
+      );
     } finally {
       setSavingCategories(false);
     }

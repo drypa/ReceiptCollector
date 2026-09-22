@@ -20,6 +20,8 @@ export function PageSizeProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Хук и провайдер намеренно в одном файле — существующий контекст-паттерн проекта.
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePageSize(): PageSizeContextValue {
   const context = useContext(PageSizeContext);
   if (!context) throw new Error('usePageSize must be used within a PageSizeProvider');
