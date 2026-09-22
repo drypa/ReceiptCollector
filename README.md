@@ -96,6 +96,12 @@ export AI__ApiKey=sk-...
 export AI__Timeout=00:00:15
 ```
 
+Для сокращения вызовов AI используется **in-memory кэш** ранее присвоенных категорий (ADR 019): ключ — нормализованное название товара, значение — категория. Кэш наполняется при старте сервиса из позиций `commodities` с заданной категорией (≠ `Undefined`) и обновляется при подтверждении категоризации и ручном `PUT /api/commodities/{id}/category`. При совпадении названия с кэшем AI не вызывается.
+
+| Переменная | Default / Пример | Описание |
+|-----------|------------------|----------|
+| `CommodityCategoryCache__MaxSize` | `1000` | Максимальное число записей в кэше (секция `CommodityCategoryCache:MaxSize` в `appsettings.json`). При достижении лимита кэш «замерзает» (новые записи не добавляются, вытеснения нет); `≤ 0` отключает кэш (AI вызывается для каждого нового названия) |
+
 ### Analytics Frontend (React + Vite)
 The analytics frontend is a React SPA built with Vite. To run it locally in debug mode with HMR:
 

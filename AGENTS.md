@@ -95,6 +95,12 @@ Analytics configuration (connection strings, `AI` section) is in `appsettings.{*
 | AI__Concurrency | `3` | appsettings `AI:Concurrency` / env var (max parallel AI calls per receipt) |
 | AI__ApiKey | empty | appsettings `AI:ApiKey` / env var (added as `Authorization: Bearer`; empty = no auth header) |
 
+**In-memory commodity category cache options** (section `CommodityCategoryCache` in `appsettings.json`, overridable via `CommodityCategoryCache__*` env vars; see ADR 019):
+
+| Variable | Default/Example | Source |
+|----------|-----------------|--------|
+| CommodityCategoryCache__MaxSize | `1000` | appsettings `CommodityCategoryCache:MaxSize` / env var; max cache entries (normalized commodity name → category). The cache freezes (stops accepting new entries, no eviction) when the limit is reached. `<= 0` disables the cache (AI is called for every name). Populated at service startup from `commodities` having a category != `Undefined`. |
+
 ## Key Code Locations
 
 ### Backend (`backend/`)
