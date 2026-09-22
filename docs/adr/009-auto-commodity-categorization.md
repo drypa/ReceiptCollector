@@ -4,6 +4,14 @@
 
 Принято (перевалидировано под решения заказчика, раздел 7 задачи; реализация запланирована; декомпозиция — в [docs/plans/auto-commodity-categorization.md](../plans/auto-commodity-categorization.md))
 
+> **Изменено (2026-09-22):** решение **C1/C4** (таблица `commodity_category_assignments` как кэш ранее
+> присвоенных категорий) и связанные детали (доменная сущность `CommodityCategoryAssignment`, контракт
+> `ICategoryAssignmentRepository`, репозиторий `CategoryAssignmentRepository`, миграция
+> `20260919120000_add_commodity_category_assignments.sql`) **заменены in-memory кэшем** — см.
+> [ADR 019](019-in-memory-commodity-category-cache.md) и [задачу](../tasks/in-memory-commodity-category-cache.md).
+> Остальные решения настоящего ADR (алгоритм «existing → cache → ai», эндпоинты, `AI:*`, webUI, nginx) —
+> без изменений.
+
 ## Контекст
 
 Пользователь ведёт категории товаров вручную или не ведёт вовсе, поэтому аналитика по категориям расходов неполная. Требуется дать пользователю возможность одним действием получить предложения категорий для всех позиций чека с обязательным подтверждением перед сохранением.
@@ -314,7 +322,7 @@ Go-backend не участвует: gRPC-контракты, воркеры и H
 
 ## Решение
 
-Выбраны: **A1** (логика в Analytics, .NET), **B1** (ИИ работает с `CommodityCategory` — все значения перечисления, без `Undefined`; формат ответа — **имя enum**: `{"category": "Food"}`), **C1** (таблица `commodity_category_assignments` в PostgreSQL, **сквозной масштаб для всех пользователей — без `user_id`**, уникальный индекс по `normalized_name`; вариант C4 объединён с C1), **D1** (синхронный запрос/ответ), **E1** (HTTP-эндпоинты в `/api/receipts` + расширение `GET /api/commodities` параметром `categoryFilter`, решение I1), **F1** (собственный HTTP-клиент, Options pattern), **G1** (MongoDB — только чтение при синхронизации), **H1/H2** (backend и бот не меняются; nginx не меняется, порт Analytics — `5039`, без изменений), **I1** (список всех позиций с серверной фильтрацией).
+Выбраны: **A1** (логика в Analytics, .NET), **B1** (ИИ работает с `CommodityCategory` — все значения перечисления, без `Undefined`; формат ответа — **имя enum**: `{"category": "Food"}`), **C1** (таблица `commodity_category_assignments` в PostgreSQL, **сквозной масштаб для всех пользователей — без `user_id`**, уникальный индекс по `normalized_name`; вариант C4 объединён с C1) — **C1/C4 заменено in-memory кэшем (ADR 019)**, **D1** (синхронный запрос/ответ), **E1** (HTTP-эндпоинты в `/api/receipts` + расширение `GET /api/commodities` параметром `categoryFilter`, решение I1), **F1** (собственный HTTP-клиент, Options pattern), **G1** (MongoDB — только чтение при синхронизации), **H1/H2** (backend и бот не меняются; nginx не меняется, порт Analytics — `5039`, без изменений), **I1** (список всех позиций с серверной фильтрацией).
 
 ### Обоснование
 
@@ -346,7 +354,13 @@ Go-backend не участвует: gRPC-контракты, воркеры и H
 
 Также затрагиваются: `Domain/Modules/Commodities/ICommodityRepository.cs` и `Infrastructure/Persistence/Postgres/CommodityRepository.cs` (**nullable-вариант `UpdateCategoryAsync(Guid, CommodityCategory?, ct)`** — поддержка сброса `category = null` в `category_id = NULL`; см. п. 5), `Application/Modules/Receipts/Models/ReceiptDetailsDto.cs` (добавить `Id` в `ReceiptItemDto` — для идентификации позиций при сохранении), `Application/Modules/Commodities/Contracts/ICommodityReadService.cs` и `Infrastructure/Modules/Commodities/CommodityReadService.cs` (параметр фильтра `categoryFilter` в `GetAsync`/`GetTotalCountAsync`), `Infrastructure/Configuration/DependencyInjectionExtensions.cs` (DI-регистрации).
 
-#### 2. Таблица `commodity_category_assignments` (кэш ранее присвоенных категорий)
+#### 2. Таблица `commodity_category_assignments` (кэш ранее присвоенных категорий) — **заменено ADR 019: in-memory кэш в Analytics**
+
+> **Внимание:** пункт исторический, реализован (миграция `20260919120000_add_commodity_category_assignments.sql`
+> применялась), но **заменяется** [ADR 019](019-in-memory-commodity-category-cache.md): кэш переносится в память
+> сервиса Analytics (наполнение при старте из `commodities`), таблица удаляется миграцией
+> `20260922120000_drop_commodity_category_assignments.sql`, доменный/EF-код таблицы удаляется.
+> Описание ниже сохранено для истории исходного решения C1/C4.
 
 ```sql
 CREATE TABLE commodity_category_assignments
@@ -513,7 +527,7 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 ## Ответы на открытые вопросы (раздел 7 задачи)
 
 1. **Справочник категорий.** ИИ возвращает категорию из **`CommodityCategory`** (`Analytics/src/.../Domain/Modules/Commodities/CommodityCategory.cs` — актуальный состав перечисления, см. ADR 010; в промт без `Undefined`). **Унификация `MerchantCategory`/`CommodityCategory` не требуется** — вопрос закрыт решением заказчика (раздел 7 задачи), действий по унификации в рамках этой задачи и в планах нет.
-2. **Кэш ранее присвоенных категорий.** Новая таблица PostgreSQL `commodity_category_assignments` с уникальным индексом **по `normalized_name`**, **без `user_id`**; масштаб — **сквозной для всех пользователей** (решение заказчика). Per-user масштаб **отклонён**.
+2. **Кэш ранее присвоенных категорий.** ~~Новая таблица PostgreSQL `commodity_category_assignments` с уникальным индексом по `normalized_name`, без `user_id`; масштаб — сквозной для всех пользователей~~. **Заменено ADR 019:** in-memory кэш в Analytics (ключ — нормализованное название, значение — `CommodityCategory`), сквозной масштаб сохраняется (без `user_id`), наполнение при старте из `commodities`, таблица удаляется миграцией.
 3. **Формат ответа ИИ.** Категория передаётся **именем** значения enum: `{"category": "Food"}`; числовой формат `{"category_id": N}` **отклонён** решением заказчика. Парсинг по имени через `Enum.TryParse` + `Enum.IsDefined`. Промт и JSON-схема зафиксированы (п. 4); fallback — 1 повтор только при сетевых ошибках, при невалидном JSON повтор не выполняется, позиция помечается «не определена».
 4. **Место подтверждения.** **webUI = `Analytics/frontend`** (страница деталей чека). UX длинных списков — редактирование всего списка позиций на одной странице с индикацией «предложено» (FR-3.6). Бот в сценарии не участвует.
 5. **Какие позиции участвуют.** **Все позиции чека.** Позиции с уже заданными категориями не вызывают ИИ (`source = existing`), но возвращаются в списке, чтобы пользователь мог их изменить.
@@ -535,7 +549,7 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 
 ### Отрицательные
 
-- Одна новая миграция БД (`commodity_category_assignments`) и её запуск до эксплуатации категоризации.
+- Одна новая миграция БД (`commodity_category_assignments`) и её запуск до эксплуатации категоризации. **Изменено ADR 019:** таблица удаляется миграцией `20260922120000_drop_commodity_category_assignments.sql`; кэш — in-memory в Analytics.
 - Синхронный `POST .../suggest` может длиться дольше стандартных таймаутов при большом числе позиций → при необходимости увеличивается `proxy_read_timeout` nginx (секция `/api`).
 - Исторические категории (7 значений) из MongoDB в PostgreSQL не переносятся — решение заказчика (миграция не выполняется и не планируется); категоризация стартует с чистой базы PostgreSQL.
 
@@ -559,6 +573,8 @@ CREATE UNIQUE INDEX ux_commodity_category_assignments_normalized_name
 ## Ссылки
 
 - [Задача: Автоматическая категоризация товаров в чеке](../tasks/auto-commodity-categorization.md)
+- [ADR 019: In-memory кэш категорий товаров (замена `commodity_category_assignments`)](019-in-memory-commodity-category-cache.md) — заменяет решение C1/C4 настоящего ADR
+- [Задача: In-memory кэш категорий товаров](../tasks/in-memory-commodity-category-cache.md)
 - [ADR 005: Справочник категорий товаров — Enum вместо таблицы БД](005-commodity-category-as-enum.md)
 - [ADR 008: Управление категориями магазинов](008-merchant-category-management.md) (в т.ч. раздел «Риски» об унификации справочников)
 - [ADR 010: Расширение справочника категорий товаров](010-commodity-categories-expansion.md) (новый состав справочника; влияет на перечень категорий в промте и требует few-shot/эвристик)
