@@ -71,15 +71,9 @@ func main() {
 	//	}
 	//}()
 
-	// Create separate contexts for each worker with appropriate timeouts
-	receiptCtx, receiptCancel := context.WithTimeout(ctx, 60*time.Second)
-	go worker.GetReceiptStart(receiptCtx, settings)
-	defer receiptCancel()
+	go worker.GetReceiptStart(ctx, settings)
 
-	// Electronic receipt worker runs once daily (long interval)
-	eRecCtx, eRecCancel := context.WithTimeout(ctx, 60*time.Minute)
-	worker.GetElectronicReceiptStart(eRecCtx)
-	defer eRecCancel()
+	worker.GetElectronicReceiptStart(ctx)
 
 	creds, err := credentials.NewServerTLSFromFile("/usr/share/receipts/ssl/certs/certificate.crt", "/usr/share/receipts/ssl/certs/private.key")
 	if err != nil {
@@ -91,11 +85,8 @@ func main() {
 
 	var receiptProcessor internal.ReceiptProcessor = receipts.NewProcessor(&receiptRepository, r)
 
-	// gRPC listeners
-	_, reportsCancel := context.WithTimeout(ctx, 60*time.Minute)
 	go internal.Serve(":15000", creds, &accountProcessor, &receiptProcessor)
 	go reports.Serve(":15001", creds, &userRepository, &receiptReportRepository)
-	defer reportsCancel()
 
 	server := startServer(receiptRepository, userRepository, marketRepository, wasteRepository, deviceService)
 
@@ -106,9 +97,6 @@ func main() {
 
 	log.Printf("Service is shutting down... %s\n,", sig)
 	// Cancel all worker contexts in proper order (shortest to longest timeout)
-	receiptCancel()
-	reportsCancel()
-	eRecCancel()
 	cancelFunc()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	err = server.Shutdown(ctx)
