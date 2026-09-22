@@ -64,6 +64,7 @@ public static class CommodityEndpoints
         [FromBody] UpdateCategoryRequest request,
         [FromServices] ICommodityRepository commodityRepository,
         [FromServices] IUserRepository userRepository,
+        [FromServices] ICommodityCategoryCache cache,
         CancellationToken cancellationToken)
     {
         var userId = UserContext.UserId;
@@ -91,6 +92,13 @@ public static class CommodityEndpoints
 
         var category = (CommodityCategory)request.CategoryId;
         await commodityRepository.UpdateCategoryAsync(id, category, cancellationToken);
+
+        // Ручное назначение категории обновляет сквозной кэш (FR-1.3, ADR 019 п.6 — причина 1).
+        // Сброс в Undefined в кэш не пишется (инвариант 8); TryAdd синхронный, await не нужен.
+        if (category != CommodityCategory.Undefined)
+        {
+            cache.TryAdd(CommodityNameNormalizer.NormalizeName(commodity.Name), category);
+        }
 
         return Results.Ok(new { categoryId = request.CategoryId, categoryName = CommodityCategoryHelper.GetDisplayName(category) });
     }

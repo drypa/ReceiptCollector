@@ -16,17 +16,23 @@ public class CommodityCategorizationServiceTests
     private readonly Guid _receiptId = Guid.NewGuid();
     private readonly IReceiptRepository _receiptRepository = Substitute.For<IReceiptRepository>();
     private readonly ICommodityRepository _commodityRepository = Substitute.For<ICommodityRepository>();
-    private readonly ICategoryAssignmentRepository _categoryAssignmentRepository = Substitute.For<ICategoryAssignmentRepository>();
+    private readonly ICommodityCategoryCache _cache = Substitute.For<ICommodityCategoryCache>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
 
     private CommodityCategorizationService CreateService(AiOptions? options = null) =>
         new(
             _receiptRepository,
             _commodityRepository,
-            _categoryAssignmentRepository,
+            _cache,
             _aiClient,
             Options.Create(options ?? new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 }),
             NullLogger<CommodityCategorizationService>.Instance);
+
+    private void ArrangeCacheHit(string normalized, CommodityCategory category)
+    {
+        _cache.TryGet(normalized, out Arg.Any<CommodityCategory>())
+            .Returns(callInfo => { callInfo[1] = category; return true; });
+    }
 
     private static Commodity CreateCommodity(Guid receiptId, string name, int? categoryId = null, string? categoryName = null)
     {
@@ -55,7 +61,28 @@ public class CommodityCategorizationServiceTests
         Assert.Null(suggestion.Error);
 
         await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
-        await _categoryAssignmentRepository.DidNotReceiveWithAnyArgs().GetByNormalizedNameAsync(default!, default);
+        // Приоритет «existing → cache → ai» (FR-2.1): кэш не опрашивается, если категория уже есть.
+        _cache.DidNotReceiveWithAnyArgs().TryGet(default!, out _);
+    }
+
+    [Fact]
+    public async Task Suggest_uses_cache_and_skips_ai_for_ai95k5()
+    {
+        // Сценарий «АИ-95-К5» (FR-2.2): позиция без категории, нормализованное название есть в кэше.
+        var item = CreateCommodity(_receiptId, "АИ-95-К5");
+        ArrangeReceipt(item);
+        ArrangeCacheHit("аи-95-к5", CommodityCategory.Fuel);
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Cache, suggestion.Source);
+        Assert.Equal((int)CommodityCategory.Fuel, suggestion.CategoryId);
+        Assert.Equal("Топливо", suggestion.CategoryName); // дисплейное имя из CommodityCategoryHelper (ADR 019)
+        Assert.Null(suggestion.Error);
+
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default); // ИИ не вызван
     }
 
     [Fact]
@@ -63,10 +90,7 @@ public class CommodityCategorizationServiceTests
     {
         var item = CreateCommodity(_receiptId, "Кефир", (int)CommodityCategory.Undefined, "Не указана");
         ArrangeReceipt(item);
-
-        _categoryAssignmentRepository
-            .GetByNormalizedNameAsync("кефир", Arg.Any<CancellationToken>())
-            .Returns(new CommodityCategoryAssignment(Guid.NewGuid(), "кефир", "Кефир", (int)CommodityCategory.Dairy, "Молочные продукты", DateTime.UtcNow));
+        ArrangeCacheHit("кефир", CommodityCategory.Dairy);
 
         var service = CreateService();
         var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
@@ -187,7 +211,7 @@ public class CommodityCategorizationServiceTests
         await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
 
         await _commodityRepository.DidNotReceiveWithAnyArgs().UpdateCategoryAsync(default, default, default);
-        await _categoryAssignmentRepository.DidNotReceiveWithAnyArgs().UpsertAsync(default!, default!, default, default);
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
     }
 
     [Fact]
@@ -206,11 +230,11 @@ public class CommodityCategorizationServiceTests
 
         Assert.Equal(1, updated);
         await _commodityRepository.Received(1).UpdateCategoryAsync(item.Id, CommodityCategory.Dairy, Arg.Any<CancellationToken>());
-        await _categoryAssignmentRepository.Received(1).UpsertAsync("Сыр", "сыр", CommodityCategory.Dairy, Arg.Any<CancellationToken>());
+        _cache.Received(1).TryAdd("сыр", CommodityCategory.Dairy); // FR-1.3
     }
 
     [Fact]
-    public async Task ApplyConfirmedCategories_null_category_resets_existing_one_without_cache_update()
+    public async Task ApplyConfirmedCategories_null_category_resets_without_cache_update()
     {
         var item = CreateCommodity(_receiptId, "Старый товар", (int)CommodityCategory.Electronics, "Электроника");
         ArrangeReceipt(item);
@@ -222,7 +246,8 @@ public class CommodityCategorizationServiceTests
 
         Assert.Equal(1, updated);
         await _commodityRepository.Received(1).UpdateCategoryAsync(item.Id, (CommodityCategory?)null, Arg.Any<CancellationToken>());
-        await _categoryAssignmentRepository.DidNotReceiveWithAnyArgs().UpsertAsync(default!, default!, default, default);
+        // Сброс (null) в кэш не пишется и не удаляется (ADR 019, «Отрицательные последствия»).
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
     }
 
     [Fact]
@@ -242,7 +267,7 @@ public class CommodityCategorizationServiceTests
 
         Assert.Equal(0, updated);
         await _commodityRepository.DidNotReceiveWithAnyArgs().UpdateCategoryAsync(default, default, default);
-        await _categoryAssignmentRepository.DidNotReceiveWithAnyArgs().UpsertAsync(default!, default!, default, default);
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
     }
 
     [Fact]

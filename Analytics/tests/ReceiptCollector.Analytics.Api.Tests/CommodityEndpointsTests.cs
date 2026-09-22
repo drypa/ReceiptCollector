@@ -6,12 +6,16 @@ using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
+using ReceiptCollector.Analytics.Domain.Modules.Users;
 
 namespace ReceiptCollector.Analytics.Api.Tests;
 
 public class CommodityEndpointsTests
 {
     private readonly ICommodityReadService _service = Substitute.For<ICommodityReadService>();
+    private readonly ICommodityRepository _commodityRepository = Substitute.For<ICommodityRepository>();
+    private readonly IUserRepository _userRepository = Substitute.For<IUserRepository>();
+    private readonly ICommodityCategoryCache _cache = Substitute.For<ICommodityCategoryCache>();
 
     private static IReadOnlyCollection<CommodityItemDto> EmptyCommodities() => [];
 
@@ -108,5 +112,81 @@ public class CommodityEndpointsTests
         Assert.Contains(categories, c => c.Key == "Undefined" && c.Id == 0);
         Assert.All(categories, c => Assert.NotNull(c.Name));
         Assert.DoesNotContain(categories, c => string.IsNullOrWhiteSpace(c.Key));
+    }
+
+    [Fact]
+    public async Task UpdateCategory_writes_category_to_cache()
+    {
+        var userId = Guid.NewGuid();
+        var commodityId = Guid.NewGuid();
+        var receiptId = Guid.NewGuid();
+        using var _ = UserContext.SetUserId(userId);
+
+        _userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new User(userId, "admin", "ext", isAdmin: true));
+        _commodityRepository.GetByIdAsync(commodityId, Arg.Any<CancellationToken>())
+            .Returns(new Commodity(commodityId, receiptId, "АИ-95-К5", 1m, 100m, 0, 0m));
+
+        var result = await CommodityEndpoints.UpdateCategory(
+            commodityId,
+            new UpdateCategoryRequest((int)CommodityCategory.Fuel),
+            _commodityRepository,
+            _userRepository,
+            _cache,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        await _commodityRepository.Received(1).UpdateCategoryAsync(commodityId, CommodityCategory.Fuel, Arg.Any<CancellationToken>());
+        _cache.Received(1).TryAdd("аи-95-к5", CommodityCategory.Fuel); // FR-1.3, причина 1 из ADR 019
+    }
+
+    [Fact]
+    public async Task UpdateCategory_does_not_write_undefined_to_cache()
+    {
+        var userId = Guid.NewGuid();
+        var commodityId = Guid.NewGuid();
+        var receiptId = Guid.NewGuid();
+        using var _ = UserContext.SetUserId(userId);
+
+        _userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new User(userId, "admin", "ext", isAdmin: true));
+        _commodityRepository.GetByIdAsync(commodityId, Arg.Any<CancellationToken>())
+            .Returns(new Commodity(commodityId, receiptId, "АИ-95-К5", 1m, 100m, 0, 0m));
+
+        var result = await CommodityEndpoints.UpdateCategory(
+            commodityId,
+            new UpdateCategoryRequest((int)CommodityCategory.Undefined),
+            _commodityRepository,
+            _userRepository,
+            _cache,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        await _commodityRepository.Received(1).UpdateCategoryAsync(commodityId, CommodityCategory.Undefined, Arg.Any<CancellationToken>());
+        // Сброс в Undefined в кэш не пишется (инвариант 8).
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
+    }
+
+    [Fact]
+    public async Task UpdateCategory_returns_forbidden_for_non_admin()
+    {
+        var userId = Guid.NewGuid();
+        var commodityId = Guid.NewGuid();
+        using var _ = UserContext.SetUserId(userId);
+
+        _userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new User(userId, "user", "ext", isAdmin: false));
+
+        var result = await CommodityEndpoints.UpdateCategory(
+            commodityId,
+            new UpdateCategoryRequest((int)CommodityCategory.Fuel),
+            _commodityRepository,
+            _userRepository,
+            _cache,
+            CancellationToken.None);
+
+        Assert.IsType<ForbidHttpResult>(result);
+        await _commodityRepository.DidNotReceiveWithAnyArgs().UpdateCategoryAsync(default, default, default);
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
     }
 }

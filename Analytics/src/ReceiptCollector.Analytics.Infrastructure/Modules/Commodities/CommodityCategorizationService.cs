@@ -10,16 +10,16 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 
 /// <summary>
 /// Реализация сценария «Автоматическая категоризация товаров чека» (UC-5, ADR 009).
-/// Приоритет: категория из чека → кэш commodity_category_assignments → AI (решение C2).
-/// Suggest ничего не сохраняет; подтверждение пользвателя применяется через
+/// Приоритет: категория из чека → in-memory кэш категорий (ADR 019) → AI (решение C2).
+/// Suggest ничего не сохраняет; подтверждение пользователя применяется через
 /// <see cref="ApplyConfirmedCategoriesAsync"/>. При подтверждении категория кладётся
-/// в сквозной кэш (без userId — решение заказчика C1/C4).
+/// в сквозной in-memory кэш (без userId — ADR 019, FR-2.4).
 /// </summary>
 internal sealed class CommodityCategorizationService : ICommodityCategorizationService
 {
     private readonly IReceiptRepository _receiptRepository;
     private readonly ICommodityRepository _commodityRepository;
-    private readonly ICategoryAssignmentRepository _categoryAssignmentRepository;
+    private readonly ICommodityCategoryCache _cache;
     private readonly IAiClient _aiClient;
     private readonly ILogger<CommodityCategorizationService> _logger;
     private readonly SemaphoreSlim _aiSemaphore;
@@ -33,14 +33,14 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
     public CommodityCategorizationService(
         IReceiptRepository receiptRepository,
         ICommodityRepository commodityRepository,
-        ICategoryAssignmentRepository categoryAssignmentRepository,
+        ICommodityCategoryCache cache,
         IAiClient aiClient,
         IOptions<AiOptions> aiOptions,
         ILogger<CommodityCategorizationService> logger)
     {
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
         _commodityRepository = commodityRepository ?? throw new ArgumentNullException(nameof(commodityRepository));
-        _categoryAssignmentRepository = categoryAssignmentRepository ?? throw new ArgumentNullException(nameof(categoryAssignmentRepository));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _aiClient = aiClient ?? throw new ArgumentNullException(nameof(aiClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -76,18 +76,16 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
             }
         }
 
-        // Шаг 2: сквозной кэш ранее присвоенных категорий.
+        // Шаг 2: in-memory кэш ранее присвоенных категорий (сквозной, без userId; FR-2.4).
         var aiCandidates = new List<Commodity>();
         foreach (var item in pending)
         {
             var normalized = CommodityNameNormalizer.NormalizeName(item.Name);
-            var assignment = await _categoryAssignmentRepository
-                .GetByNormalizedNameAsync(normalized, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (assignment is not null)
+            if (_cache.TryGet(normalized, out var category))
             {
-                results.Add(CreateResult(item, assignment.CategoryId, assignment.CategoryName, CategorizationSource.Cache, null));
+                // Дисплейное имя — из CommodityCategoryHelper, а не из БД (ADR 019, «Как новая схема устраняет причины»).
+                var categoryName = CommodityCategoryHelper.GetDisplayName(category);
+                results.Add(CreateResult(item, (int)category, categoryName, CategorizationSource.Cache, null));
             }
             else
             {
@@ -156,9 +154,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
             if (assignment.Category is { } category)
             {
                 var normalized = CommodityNameNormalizer.NormalizeName(commodity.Name);
-                await _categoryAssignmentRepository
-                    .UpsertAsync(commodity.Name, normalized, category, cancellationToken)
-                    .ConfigureAwait(false);
+                _cache.TryAdd(normalized, category); // first-wins (FR-1.4); no-op при лимите (FR-1.5)
             }
 
             updated++;

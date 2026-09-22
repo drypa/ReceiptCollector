@@ -5,7 +5,7 @@ namespace ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 
 /// <summary>
 /// Сценарий «Автоматическая категоризация товаров чека» (UC-5, ADR 009).
-/// Приоритет: категория из чека → кэш ранее присвоенных категорий → AI (решение C2).
+/// Приоритет: категория из чека → in-memory кэш категорий (ADR 019) → AI (решение C2).
 /// Suggest-режим ничего не сохраняет: обновление категорий выполняется только
 /// через подтверждение пользователем (PUT /api/receipts/{id}/categories).
 /// </summary>
@@ -25,7 +25,7 @@ public interface ICommodityCategorizationService
     /// Подтверждает (сохраняет) категории товаров чека. Чек должен принадлежать пользователю.
     /// Пустая категория (null) сбрасывает категорию у товаров без категории.
     /// Категория Undefined (0) запрещена к явному присвоению — ArgumentException.
-    /// Категория сохраняется в сквозной кэш commodity_category_assignments (без userId).
+    /// Категория сохраняется в сквозной in-memory кэш (ADR 019, без userId).
     /// Возвращает количество обработанных товаров.
     /// </summary>
     /// <param name="userId">Владелец чека.</param>

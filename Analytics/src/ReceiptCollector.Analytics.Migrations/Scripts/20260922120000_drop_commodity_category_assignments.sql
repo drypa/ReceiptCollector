@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS commodity_category_assignments;

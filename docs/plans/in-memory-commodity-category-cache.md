@@ -1,5 +1,9 @@
 # План: In-memory кэш категорий товаров (замена `commodity_category_assignments`)
 
+> **Для разработчиков:** детализированные пошаговые инструкции (конкретные файлы, точный объём изменений,
+> критерии готовности шага, тесты со сценарием «АИ-95-К5») — см.
+> [in-memory-commodity-category-cache-steps.md](in-memory-commodity-category-cache-steps.md).
+
 ## Описание задачи
 
 Реализовать замену кэша ранее присвоенных категорий по [задаче in-memory-commodity-category-cache](../tasks/in-memory-commodity-category-cache.md)

@@ -29,7 +29,11 @@ public static class DependencyInjectionExtensions
         services.ConfigureInfrastructureOptions(configuration);
         services.AddScoped<ICommodityReadService, CommodityReadService>();
         services.AddScoped<ICommodityRepository, CommodityRepository>();
-        services.AddScoped<ICategoryAssignmentRepository, CategoryAssignmentRepository>();
+
+        // In-memory кэш категорий — Singleton; опция читается при старте (изменение MaxSize требует рестарта).
+        services.AddSingleton<ICommodityCategoryCache>(sp => new InMemoryCommodityCategoryCache(
+            sp.GetRequiredService<IOptions<CommodityCategoryCacheOptions>>().Value.MaxSize));
+
         services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
         services.AddHttpClient<IAiClient, OpenAiCompatibleAiClient>();
         services.AddScoped<IReceiptReadService, ReceiptReadService>();
@@ -42,6 +46,7 @@ public static class DependencyInjectionExtensions
         services.AddHostedService<ReceiptSynchronizationHostedService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddHostedService<AdminUserHostedService>();
+        services.AddHostedService<CommodityCategoryCacheInitializationHostedService>();
         return services;
     }
 
@@ -64,6 +69,9 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<AiOptions>()
             .Bind(configuration.GetSection(AiOptions.SectionName));
+
+        services.AddOptions<CommodityCategoryCacheOptions>()
+            .Bind(configuration.GetSection(CommodityCategoryCacheOptions.SectionName));
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {
