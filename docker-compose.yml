@@ -46,13 +46,13 @@ services:
       mongo:
         condition: service_healthy
     environment:
-      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_URL=${MONGO_URL:-mongodb://mongo:27017}
       - MONGO_LOGIN=${MONGO_LOGIN}
       - MONGO_SECRET=${MONGO_SECRET}
       - CLIENT_SECRET=${CLIENT_SECRET}
       - TEMPLATES_PATH=/usr/share/receipts/templates
-      - GET_RECEIPT_WORKER_INTERVAL=15m
-      - NALOGRU_BASE_ADDR=https://irkkt-mobile.nalog.ru:8888
+      - GET_RECEIPT_WORKER_INTERVAL=${GET_RECEIPT_WORKER_INTERVAL:-15m}
+      - NALOGRU_BASE_ADDR=${NALOGRU_BASE_ADDR:-https://irkkt-mobile.nalog.ru:8888}
     networks: [collector-net]
     volumes:
       - "${SSL_CERTS_PATH}:/usr/share/receipts/ssl/certs/"
@@ -72,6 +72,7 @@ services:
         condition: service_healthy
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_DEBUG=${BOT_DEBUG}
       - BACKEND_GRPC_ADDR=collector:15000
       - REPORTS_GRPC_ADDR=collector:15001
       - TG_PROXY_URL=${TG_PROXY_URL}   # прокси только для Telegram-клиента (ADR-018); HTTP_PROXY/HTTPS_PROXY/NO_PROXY не передаются в контейнер
@@ -112,6 +113,14 @@ services:
       - ASPNETCORE_URLS=http://+:5039
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+      # AI-категоризация товаров (ADR 009, NFR-1). Пустой AI__BaseUrl = категоризация
+      # отключена (suggest -> 503). Типизированные поля — с :-дефолтами (крэш при пустой строке).
+      - AI__BaseUrl=${AI__BaseUrl}
+      - AI__Model=${AI__Model:-qwen}
+      - AI__Timeout=${AI__Timeout:-00:00:10}
+      - AI__Concurrency=${AI__Concurrency:-3}
+      - AI__ApiKey=${AI__ApiKey}
+      - CommodityCategoryCache__MaxSize=${CommodityCategoryCache__MaxSize:-1000}
       - Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
       - Infrastructure__Receipts__Mongo__ConnectionString=mongodb://${MONGO_LOGIN}:${MONGO_SECRET}@mongo:27017/receipt_collection?authSource=admin
       - Infrastructure__Receipts__Mongo__Database=receipt_collection
