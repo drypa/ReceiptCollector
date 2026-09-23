@@ -89,6 +89,9 @@ public static class DependencyInjectionExtensions
 
         services.AddSingleton<IMongoReceiptBatchLoader, MongoReceiptBatchLoader>();
         services.AddSingleton<IMongoUserLoader, MongoUserLoader>();
+        // D3: resolver и loader владельца — singleton (кэш ConcurrentDictionary переживает циклы синхронизации).
+        services.AddSingleton<IMongoReceiptRequestLoader, MongoReceiptRequestLoader>();
+        services.AddSingleton<IReceiptOwnerResolver, ReceiptOwnerResolver>();
     }
 }
 

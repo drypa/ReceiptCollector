@@ -17,4 +17,11 @@ public sealed class ReceiptSynchronizationOptions
     /// По умолчанию <c>false</c> — синхронизация выполняется.
     /// </summary>
     public bool Skip { get; init; } = false;
+
+    /// <summary>
+    /// Интервал периодической синхронизации в секундах (D6): первый запуск — сразу при
+    /// старте, далее каждые IntervalSeconds. По умолчанию 600 (10 минут), допустимо 60–3600.
+    /// </summary>
+    [Range(60, 3600)]
+    public int IntervalSeconds { get; init; } = 600;
 }

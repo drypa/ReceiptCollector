@@ -8,28 +8,31 @@ internal static class MongoReceiptMapper
 {
     private const decimal MinorUnitsFactor = 100m;
 
-    public static Receipt Map(MongoReceiptDocumentDto document, Guid userId, Guid merchantId)
+    /// <summary>
+    /// D8: источник — RawTicketDocument/ReceiptPayload; ExternalId = id тикета
+    /// (fallback — _id.ToString()), purchasedAt — по D5 (QR t → datetime), totalAmount = totalsum/100
+    /// (одинаково для legacy и нового формата — требование консистентности natural key, D4).
+    /// </summary>
+    public static Receipt Map(RawTicketDocument document, Guid userId, Guid merchantId)
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        var receiptDto = document.Receipt ?? document.Ticket?.Document?.Receipt
-                         ?? throw new InvalidOperationException("Mongo receipt document is missing receipt payload.");
+        var payload = document.GetPayload()
+                      ?? throw new InvalidOperationException("Mongo receipt document is missing receipt payload.");
 
-        var externalId = document.Id.ToString();
+        var externalId = document.ExternalId ?? document.MongoId.ToString();
+        var purchasedAt = document.GetPurchasedAt()
+                          ?? throw new InvalidOperationException("Receipt payload does not contain purchase timestamp.");
+        var totalAmount = ConvertMinorUnits(payload.TotalSumMinor ?? 0);
 
-        var purchasedAt = GetPurchasedAt(receiptDto);
-        var totalAmount = ConvertMinorUnits(receiptDto.TotalSum);
+        var receiptId = CreateDeterministicGuid(externalId);
 
-        var receiptId = string.IsNullOrWhiteSpace(document.ExternalId)
-            ? Guid.NewGuid()
-            : CreateDeterministicGuid(document.ExternalId);
-
-        var items = receiptDto.Items?.Select(item => MapItem(item, receiptId)).ToList();
+        var items = payload.Items.Select(item => MapItem(item, receiptId)).ToList();
 
         return new Receipt(receiptId, userId, merchantId, totalAmount, purchasedAt, externalId, items);
     }
 
-    private static Commodity MapItem(MongoReceiptDocumentDto.ReceiptItemDto item, Guid receiptId)
+    private static Commodity MapItem(ReceiptItemPayload item, Guid receiptId)
     {
         var itemName = string.IsNullOrWhiteSpace(item.Name) ? "<Unknown item>" : item.Name;
 
@@ -37,43 +40,27 @@ internal static class MongoReceiptMapper
             Guid.NewGuid(),
             receiptId,
             itemName,
-            Convert.ToDecimal(item.Quantity),
-            ConvertMinorUnits(item.Price),
-            item.Nds,
-            ConvertMinorUnits(item.NdsSum),
+            item.QuantityRaw is null ? 0m : Convert.ToDecimal(item.QuantityRaw.Value),
+            ConvertMinorUnits(item.PriceMinor ?? 0),
+            item.Nds ?? 0,
+            ConvertMinorUnits(item.NdsSumMinor ?? 0),
             null);
     }
 
     private static decimal ConvertMinorUnits(long value) => decimal.Divide(value, MinorUnitsFactor);
 
-    private static DateTime GetPurchasedAt(MongoReceiptDocumentDto.ReceiptDto receiptDto)
+    internal static string GetMerchantName(RawTicketDocument document)
     {
-        if (receiptDto.TimestampSeconds > 0)
+        var payload = document.GetPayload();
+
+        if (!string.IsNullOrWhiteSpace(payload?.User))
         {
-            return DateTimeOffset.FromUnixTimeSeconds(receiptDto.TimestampSeconds).UtcDateTime;
+            return payload.User;
         }
 
-        if (!string.IsNullOrWhiteSpace(receiptDto.Datetime) &&
-            DateTime.TryParse(receiptDto.Datetime, out var parsed))
+        if (!string.IsNullOrWhiteSpace(document.SellerName))
         {
-            return parsed;
-        }
-
-        throw new InvalidOperationException("Receipt payload does not contain purchase timestamp.");
-    }
-
-    internal static string GetMerchantName(MongoReceiptDocumentDto document)
-    {
-        var receiptDto = document.Receipt ?? document.Ticket?.Document?.Receipt;
-
-        if (!string.IsNullOrWhiteSpace(receiptDto?.User))
-        {
-            return receiptDto.User;
-        }
-
-        if (!string.IsNullOrWhiteSpace(document.Seller?.Name))
-        {
-            return document.Seller.Name;
+            return document.SellerName;
         }
 
         return "<Unknown merchant>";

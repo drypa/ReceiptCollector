@@ -1,0 +1,82 @@
+{
+  // Обезличенный снимок формата документа из коллекции raw_tickets (новый формат, D2).
+  // Контрольный снимок получен по исходникам backend (mongo-driver v1.17.9, без mgocompat):
+  // ключи хранятся в lowercase (дефолтный реестр приводим имя поля к нижнему регистру),
+  // payload лежит вложенно в ticket.document.receipt, receipt.datetime — int64 (unix-секунды),
+  // id — UUID-строка тикета (совпадает с receipt_requests.ticket_id).
+  // Персональные данные (ФИО, адреса, ИНН) обезличены; структура/типы/связи сохранены.
+  "_id" : ObjectId("66f0aa000000000000000001"),
+  "status" : 2,
+  "id" : "3f2b4a9c-8e27-4a1b-9c55-6f7a1b2c3d4e",
+  "kind" : "1",
+  "createdat" : "2026-09-22T08:41:15.421Z",
+  "qr" : "t=20260922T0841&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+  "operation" : {
+    "date" : "2026-09-22T08:41:15",
+    "type" : 1,
+    "sum" : 112700
+  },
+  "query" : {
+    "operationtype" : 1,
+    "sum" : 112700,
+    "documentid" : 11401,
+    "fsid" : "9282000100254567",
+    "fiscalsign" : "371532793",
+    "date" : "2026-09-22T08:41:15"
+  },
+  "ticket" : {
+    "document" : {
+      "receipt" : {
+        "datetime" : NumberLong(1780116075),
+        "cashtotalsum" : 0,
+        "code" : 3,
+        "creditsum" : 0,
+        "ecashtotalsum" : 112700,
+        "fiscaldocumentnumber" : NumberLong(11401),
+        "fiscaldrivenumber" : "9282000100254567",
+        "fiscalsign" : NumberLong(371532793),
+        "fnsurl" : "https://www.nalog.ru/",
+        "items" : [
+          {
+            "name" : "ПАНЕЛЬ 250Х3000",
+            "nds" : 20,
+            "ndssum" : 14800,
+            "paymenttype" : 4,
+            "price" : 88800,
+            "producttype" : 1,
+            "quantity" : 1.0,
+            "sum" : 88800
+          },
+          {
+            "name" : "МОМЕНТ МОНТАЖ 400 ГР",
+            "nds" : 20,
+            "ndssum" : 3983,
+            "paymenttype" : 4,
+            "price" : 23900,
+            "producttype" : 1,
+            "quantity" : 1.0,
+            "sum" : 23900
+          }
+        ],
+        "kktregid" : "0000720135045844",
+        "nds10" : 0,
+        "nds18" : 18783,
+        "operationtype" : 1,
+        "operator" : "18 ИВАНОВА",
+        "prepaidsum" : 0,
+        "provisionsum" : 0,
+        "requestnumber" : 42,
+        "retailplace" : "МАГАЗИН",
+        "retailplaceaddress" : "117556 г. Москва, Варшавское шоссе, 97",
+        "shiftnumber" : 7,
+        "totalsum" : 112700,
+        "user" : "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+        "userinn" : "5003042456"
+      }
+    }
+  },
+  "seller" : {
+    "name" : "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+    "inn" : "5003042456"
+  }
+}

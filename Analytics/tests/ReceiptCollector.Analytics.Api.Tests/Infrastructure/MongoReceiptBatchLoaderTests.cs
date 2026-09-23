@@ -13,7 +13,7 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
     private readonly MongoDbContainer _mongoContainer;
     private string _connectionString = string.Empty;
     private readonly string _databaseName = "analytics_test_db";
-    private readonly string _collectionName = "receipts";
+    private readonly string _collectionName = "raw_tickets";
 
     public MongoReceiptBatchLoaderTests()
     {
@@ -24,62 +24,163 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LoadAllAsync_logs_each_document()
+    public async Task LoadPageAsync_walks_all_pages_with_keyset_pagination()
     {
-        var client = new MongoClient(_connectionString);
-        var database = client.GetDatabase(_databaseName);
-        var collection = database.GetCollection<MongoReceiptDocumentDto>(_collectionName);
+        var ids = Enumerable.Range(1, 5).Select(_ => ObjectId.GenerateNewId()).ToArray();
+        await SeedAsync(ids.Select(id => CreateRawTicket(id, $"doc-{id}")));
 
-        await collection.InsertManyAsync(new[]
+        var loader = CreateLoader();
+        var allExternalIds = new List<string>();
+
+        var afterId = ObjectId.Empty;
+        while (true)
         {
-            CreateDocument("doc-1"),
-            CreateDocument("doc-2"),
-        });
+            var page = await loader.LoadPageAsync(afterId, 2, CancellationToken.None);
+            if (page.Count == 0)
+            {
+                break;
+            }
 
-        var options = Options.Create(new MongoReceiptSourceOptions
-        {
-            ConnectionString = _connectionString,
-            Database = _databaseName,
-            Collection = _collectionName
-        });
+            allExternalIds.AddRange(page.Select(d => d.ExternalId!));
+            afterId = page[^1].MongoId;
+        }
 
-        var logger = new TestLogger<MongoReceiptBatchLoader>();
-        var loader = new MongoReceiptBatchLoader(options, logger);
-
-        await loader.LoadAllAsync(batchSize: 1, CancellationToken.None);
-
-        var informationLogs = logger.Entries.Where(entry => entry.Level == LogLevel.Information).ToList();
-        Assert.Equal(2, informationLogs.Count);
+        Assert.Equal(ids.Length, allExternalIds.Count);
+        // Детерминированный порядок: документы приходят по возрастанию _id.
+        Assert.Equal(ids.Select(id => $"doc-{id}"), allExternalIds);
     }
 
     [Fact]
-    public async Task LoadBatchAsync_respects_skip_and_batch_size()
+    public async Task LoadPageAsync_respects_batch_size_and_after_id()
     {
-        var client = new MongoClient(_connectionString);
-        var database = client.GetDatabase(_databaseName);
-        var collection = database.GetCollection<MongoReceiptDocumentDto>(_collectionName);
+        var ids = Enumerable.Range(1, 4).Select(_ => ObjectId.GenerateNewId()).ToArray();
+        await SeedAsync(ids.Select(id => CreateRawTicket(id, $"doc-{id}")));
 
-        await collection.InsertManyAsync(new[]
+        var loader = CreateLoader();
+
+        var firstPage = await loader.LoadPageAsync(ObjectId.Empty, 2, CancellationToken.None);
+        Assert.Equal(2, firstPage.Count);
+
+        var secondPage = await loader.LoadPageAsync(firstPage[^1].MongoId, 2, CancellationToken.None);
+        Assert.Equal(2, secondPage.Count);
+        Assert.NotEqual(firstPage[0].MongoId, secondPage[0].MongoId);
+
+        var emptyPage = await loader.LoadPageAsync(secondPage[^1].MongoId, 2, CancellationToken.None);
+        Assert.Empty(emptyPage);
+    }
+
+    [Fact]
+    public async Task LoadPageAsync_excludes_documents_with_explicit_null_ticket()
+    {
+        var fulfilledId = ObjectId.GenerateNewId();
+        var notFulfilledId = ObjectId.GenerateNewId();
+
+        await SeedAsync(
+        [
+            CreateRawTicket(fulfilledId, "fulfilled"),
+            CreateRawTicket(notFulfilledId, "not-fulfilled", withPayload: false)
+        ]);
+
+        var loader = CreateLoader();
+        var page = await loader.LoadPageAsync(ObjectId.Empty, 10, CancellationToken.None);
+
+        var document = Assert.Single(page);
+        Assert.Equal(fulfilledId, document.MongoId);
+        Assert.Equal("fulfilled", document.ExternalId);
+    }
+
+    [Fact]
+    public async Task LoadPageAsync_excludes_documents_without_ticket_key()
+    {
+        // Требование 1 (D7): MongoDB-семантика $ne: null — отсутствующий ключ трактуется
+        // как null, поэтому документы БЕЗ ключа ticket (legacy-формат 2020) не возвращаются.
+        // Проверяем это поведение явно.
+        var legacyDocument = new BsonDocument
         {
-            CreateDocument("doc-1"),
-            CreateDocument("doc-2"),
-            CreateDocument("doc-3"),
-        });
+            ["_id"] = ObjectId.GenerateNewId(),
+            ["id"] = "legacy-2020-id",
+            ["receipt"] = new BsonDocument
+            {
+                ["datetime"] = "2019-10-05T15:48:00",
+                ["totalsum"] = BsonInt64.Create(112700),
+                ["userinn"] = "5003042456"
+            }
+        };
 
-        var options = Options.Create(new MongoReceiptSourceOptions
+        await SeedAsync([legacyDocument]);
+
+        var loader = CreateLoader();
+        var page = await loader.LoadPageAsync(ObjectId.Empty, 10, CancellationToken.None);
+
+        Assert.Empty(page);
+    }
+
+    [Fact]
+    public async Task LoadPageAsync_normalizes_camelCase_keys()
+    {
+        var id = ObjectId.GenerateNewId();
+        // Верхнеуровневые ключи — в нижнем регистре (как пишет backend-драйвер 1.17.9),
+        // вложенные camelCase (дань legacy-миграциям при наполнении коллекции).
+        var camelCaseDocument = new BsonDocument
         {
-            ConnectionString = _connectionString,
-            Database = _databaseName,
-            Collection = _collectionName
-        });
+            ["_id"] = id,
+            ["id"] = "uuid-ticket-id",
+            ["qr"] = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
+            ["ticket"] = new BsonDocument
+            {
+                ["Document"] = new BsonDocument
+                {
+                    ["Receipt"] = new BsonDocument
+                    {
+                        ["DateTime"] = BsonInt64.Create(1570280880),
+                        ["TotalSum"] = BsonInt64.Create(112700),
+                        ["UserInn"] = "5003042456"
+                    }
+                }
+            }
+        };
 
-        var loader = new MongoReceiptBatchLoader(options, new TestLogger<MongoReceiptBatchLoader>());
+        await SeedAsync([camelCaseDocument]);
 
-        var batch = await loader.LoadBatchAsync(1, 2, CancellationToken.None);
+        var loader = CreateLoader();
+        var page = await loader.LoadPageAsync(ObjectId.Empty, 10, CancellationToken.None);
 
-        Assert.Equal(2, batch.Count);
-        Assert.Equal("doc-2", batch[0].ExternalId);
-        Assert.Equal("doc-3", batch[1].ExternalId);
+        var document = Assert.Single(page);
+        Assert.Equal("uuid-ticket-id", document.ExternalId);
+        Assert.Equal(id, document.MongoId);
+        Assert.Equal(112700, document.GetPayload()!.TotalSumMinor);
+        Assert.NotNull(document.GetPurchasedAt());
+    }
+
+    [Fact]
+    public async Task LoadPageAsync_applies_nd18_alias_to_nds18()
+    {
+        var id = ObjectId.GenerateNewId();
+        await SeedAsync(
+        [
+            new BsonDocument
+            {
+                ["_id"] = id,
+                ["id"] = "doc-with-nd18",
+                ["ticket"] = new BsonDocument
+                {
+                    ["document"] = new BsonDocument
+                    {
+                        ["receipt"] = new BsonDocument
+                        {
+                            ["totalsum"] = BsonInt64.Create(112700),
+                            ["nd18"] = BsonInt64.Create(18783)
+                        }
+                    }
+                }
+            }
+        ]);
+
+        var loader = CreateLoader();
+        var page = await loader.LoadPageAsync(ObjectId.Empty, 10, CancellationToken.None);
+
+        var document = Assert.Single(page);
+        Assert.Equal(18783, document.GetPayload()!.Nds18Minor);
     }
 
     public async Task InitializeAsync()
@@ -93,57 +194,76 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
         await _mongoContainer.DisposeAsync();
     }
 
-    private static MongoReceiptDocumentDto CreateDocument(string externalId)
+    private MongoReceiptBatchLoader CreateLoader()
     {
-        return new MongoReceiptDocumentDto
+        var options = Options.Create(new MongoReceiptSourceOptions
         {
-            Id = ObjectId.GenerateNewId(),
-            ExternalId = externalId,
-            TicketId = "ticket-id",
-            QueryString = "t=20191005T1548&s=1127.00&fn=9282000100254567&i=11401&fp=371532793&n=1",
-            Owner = ObjectId.GenerateNewId().ToString(),
-            Receipt = new MongoReceiptDocumentDto.ReceiptDto
-            {
-                Datetime = "2019-10-05T15:48:00",
-                TimestampSeconds = 1570280880,
-                CashTotalSum = 0,
-                ECashTotalSum = 112700,
-                FiscalDocumentNumber = 11401,
-                FiscalDriveNumber = "9282000100254567",
-                FiscalSign = 371532793,
-                Items = new List<MongoReceiptDocumentDto.ReceiptItemDto>
-                {
-                    new()
-                    {
-                        Name = "ПАНЕЛЬ  250Х3000",
-                        Quantity = 6,
-                        Price = 14800,
-                        Sum = 88800,
-                        Nds = 0,
-                        NdsSum = 0
-                    },
-                    new()
-                    {
-                        Name = "МОМЕНТ МОНТАЖ 400 ГР",
-                        Quantity = 1,
-                        Price = 23900,
-                        Sum = 23900,
-                        Nds = 0,
-                        NdsSum = 0
-                    }
-                },
-                RetailPlaceAddress = "117556 г. Москва, Варшавское шоссе, 97",
-                User = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
-                TotalSum = 112700,
-                UserInn = "5003042456"
-            }
+            ConnectionString = _connectionString,
+            Database = _databaseName,
+            Collection = _collectionName
+        });
+
+        return new MongoReceiptBatchLoader(options, new TestLogger<MongoReceiptBatchLoader>());
+    }
+
+    private async Task SeedAsync(IEnumerable<BsonDocument> documents)
+    {
+        var client = new MongoClient(_connectionString);
+        var database = client.GetDatabase(_databaseName);
+        var collection = database.GetCollection<BsonDocument>(_collectionName);
+        await collection.InsertManyAsync(documents);
+    }
+
+    private static BsonDocument CreateRawTicket(ObjectId id, string externalId, bool withPayload = true)
+    {
+        var document = new BsonDocument
+        {
+            ["_id"] = id,
+            ["status"] = withPayload ? 2 : 1,
+            ["id"] = externalId
         };
+
+        if (withPayload)
+        {
+            document["ticket"] = new BsonDocument
+            {
+                ["document"] = new BsonDocument
+                {
+                    ["receipt"] = new BsonDocument
+                    {
+                        ["datetime"] = BsonInt64.Create(1570280880),
+                        ["totalsum"] = BsonInt64.Create(112700),
+                        ["userinn"] = "5003042456",
+                        ["user"] = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+                        ["operator"] = "18 ИВАНОВА",
+                        ["retailplaceaddress"] = "117556 г. Москва, Варшавское шоссе, 97",
+                        ["items"] = new BsonArray(new[]
+                        {
+                            new BsonDocument
+                            {
+                                ["name"] = "ПАНЕЛЬ  250Х3000",
+                                ["quantity"] = 6.0,
+                                ["price"] = BsonInt64.Create(14800),
+                                ["sum"] = BsonInt64.Create(88800),
+                                ["nds"] = 20,
+                                ["ndssum"] = BsonInt64.Create(14800)
+                            }
+                        })
+                    }
+                }
+            };
+        }
+        else
+        {
+            // «Не fulfilled»: backend пишет ticket: null явно.
+            document["ticket"] = BsonNull.Value;
+        }
+
+        return document;
     }
 
     private sealed class TestLogger<T> : ILogger<T>
     {
-        public List<LogEntry> Entries { get; } = new();
-
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
 
         public bool IsEnabled(LogLevel logLevel) => true;
@@ -151,7 +271,6 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(logLevel, formatter(state, exception)));
         }
 
         private sealed class NullScope : IDisposable
@@ -163,6 +282,4 @@ public sealed class MongoReceiptBatchLoaderTests : IAsyncLifetime
             }
         }
     }
-
-    private sealed record LogEntry(LogLevel Level, string Message);
 }

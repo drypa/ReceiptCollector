@@ -109,4 +109,30 @@ internal sealed class ReceiptRepository : IReceiptRepository
             _dbContext.ClearCurrentUser();
         }
     }
+
+    public async Task<Receipt?> GetByNaturalKeyAsync(
+        Guid userId,
+        DateTime purchasedAt,
+        decimal totalAmount,
+        CancellationToken cancellationToken)
+    {
+        _dbContext.SetCurrentUser(userId);
+
+        try
+        {
+            var entity = await _dbContext.Receipts
+                .AsNoTracking()
+                .Include(r => r.Items)
+                .FirstOrDefaultAsync(
+                    r => r.UserId == userId && r.PurchasedAt == purchasedAt && r.TotalAmount == totalAmount,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return entity?.MapToDomain();
+        }
+        finally
+        {
+            _dbContext.ClearCurrentUser();
+        }
+    }
 }

@@ -112,6 +112,109 @@ public sealed class PostgresReceiptRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetByNaturalKeyAsync_returns_receipt_when_all_key_components_match()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            var stored = await repository.GetByNaturalKeyAsync(
+                receipt.UserId, receipt.PurchasedAt, receipt.TotalAmount, CancellationToken.None);
+
+            // D4: (user_id, purchased_at, total_amount) — совпадение по всем трём полям ключа.
+            Assert.NotNull(stored);
+            Assert.Equal(receipt.Id, stored!.Id);
+            Assert.Equal(receipt.ExternalId, stored.ExternalId);
+            Assert.Equal(receipt.TotalAmount, stored.TotalAmount);
+        }
+    }
+
+    [Fact]
+    public async Task GetByNaturalKeyAsync_returns_null_for_different_user_id()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            // Тот же purchased_at и total_amount, но другой владелец — чек не находится.
+            var stored = await repository.GetByNaturalKeyAsync(
+                Guid.NewGuid(), receipt.PurchasedAt, receipt.TotalAmount, CancellationToken.None);
+
+            Assert.Null(stored);
+        }
+    }
+
+    [Fact]
+    public async Task GetByNaturalKeyAsync_returns_null_for_different_purchased_at()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            // Тот же пользователь и сумма, но другая дата покупки — чек не находится.
+            var stored = await repository.GetByNaturalKeyAsync(
+                receipt.UserId, receipt.PurchasedAt.AddMinutes(1), receipt.TotalAmount, CancellationToken.None);
+
+            Assert.Null(stored);
+        }
+    }
+
+    [Fact]
+    public async Task GetByNaturalKeyAsync_returns_null_for_different_total_amount()
+    {
+        await ClearDatabaseAsync();
+
+        var receipt = CreateReceipt();
+
+        await using (var context = CreateContext())
+        {
+            await context.Merchants.AddAsync(CreateMerchant(receipt.MerchantId));
+            var repository = new ReceiptRepository(context);
+            await repository.AddAsync(receipt, CancellationToken.None);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = new ReceiptRepository(context);
+            // Тот же пользователь и дата, но другая сумма — чек не находится.
+            var stored = await repository.GetByNaturalKeyAsync(
+                receipt.UserId, receipt.PurchasedAt, receipt.TotalAmount + 1, CancellationToken.None);
+
+            Assert.Null(stored);
+        }
+    }
+
+    [Fact]
     public async Task Delete_with_different_user_does_not_remove_receipt()
     {
         await ClearDatabaseAsync();

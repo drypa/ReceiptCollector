@@ -115,9 +115,11 @@ services:
       - Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
       - Infrastructure__Receipts__Mongo__ConnectionString=mongodb://${MONGO_LOGIN}:${MONGO_SECRET}@mongo:27017/receipt_collection?authSource=admin
       - Infrastructure__Receipts__Mongo__Database=receipt_collection
-      - Infrastructure__Receipts__Mongo__Collection=receipt_requests
+      - Infrastructure__Receipts__Mongo__Collection=raw_tickets
       - Infrastructure__Receipts__Mongo__UsersCollection=system_users
-      - Infrastructure__Receipts__Synchronization__Skip=${ANALYTICS_SYNC_SKIP:-true}
+      # D8: синхронизация включена в проде по умолчанию; интервал — 600 c (5–15 мин).
+      - Infrastructure__Receipts__Synchronization__Skip=${ANALYTICS_SYNC_SKIP:-false}
+      - Infrastructure__Receipts__Synchronization__IntervalSeconds=${ANALYTICS_SYNC_INTERVAL:-600}
       - Infrastructure__AuthLinks__BaseUrl=${ANALYTICS_AUTHLINK_BASE_URL}
       - Infrastructure__AuthLinks__LifetimeMinutes=15
       - Infrastructure__AdminUsers__TelegramIds__0=${ANALYTICS_ADMIN_TELEGRAM_ID_0}
