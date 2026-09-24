@@ -51,12 +51,13 @@ public enum CommodityCategory
     Utilities = 40,
     Entertainment = 41,
 
-    // Продукты (детализация, расширение) — коды 42–46
+    // Продукты (детализация, расширение) — коды 42–47
     DriedFruits = 42,   // Сухофрукты: изюм, курага, чернослив, финики, сушёные ягоды
     Sauces = 43,        // Соусы: кетчуп, майонез, соевый соус, горчица, томатная паста
     Spices = 44,        // Приправы: перец, специи, приправы, лавровый лист, орегано
     Sausages = 45,      // Колбасные изделия: колбаса, сосиски, сардельки, ветчина
     Sweets = 46,        // Конфеты: конфеты, шоколад, мармелад, зефир, печенье
+    CannedFood = 47,    // Консервы: рыбные, мясные, овощные, паштеты, джемы и варенья (в банках)
 
     Other = 255
 }
@@ -112,6 +113,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Spices, "Приправы" },
         { CommodityCategory.Sausages, "Колбасные изделия" },
         { CommodityCategory.Sweets, "Конфеты" },
+        { CommodityCategory.CannedFood, "Консервы" },
         { CommodityCategory.Other, "Прочее" },
     };
 
@@ -131,7 +133,7 @@ public static class CommodityCategoryHelper
     /// </summary>
     private static readonly IReadOnlyDictionary<CommodityCategory, string> CategoryGroups = new Dictionary<CommodityCategory, string>
     {
-        // Продукты (18 категорий)
+        // Продукты (19 категорий)
         { CommodityCategory.Beverages, ProductsGroup },
         { CommodityCategory.Groceries, ProductsGroup },
         { CommodityCategory.Meat, ProductsGroup },
@@ -150,6 +152,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Spices, ProductsGroup },        // NEW 44
         { CommodityCategory.Sausages, ProductsGroup },      // NEW 45
         { CommodityCategory.Sweets, ProductsGroup },         // NEW 46
+        { CommodityCategory.CannedFood, ProductsGroup },      // NEW 47
         // Транспорт (7 категорий) 31–37
         { CommodityCategory.TollRoads, TransportGroup },
         { CommodityCategory.PublicTransport, TransportGroup },

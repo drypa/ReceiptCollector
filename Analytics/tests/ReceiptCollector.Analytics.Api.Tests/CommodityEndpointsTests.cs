@@ -114,6 +114,7 @@ public class CommodityEndpointsTests
         Assert.Contains(categories, c => c.Key == "DriedFruits" && c.Id == 42 && c.Group == "Продукты");
         Assert.Contains(categories, c => c.Key == "Sausages" && c.Group == "Продукты");
         Assert.Contains(categories, c => c.Key == "Sweets" && c.Id == 46 && c.Group == "Продукты");
+        Assert.Contains(categories, c => c.Key == "CannedFood" && c.Id == 47 && c.Group == "Продукты");
         Assert.All(categories, c => Assert.NotNull(c.Name));
         Assert.DoesNotContain(categories, c => string.IsNullOrWhiteSpace(c.Key));
     }

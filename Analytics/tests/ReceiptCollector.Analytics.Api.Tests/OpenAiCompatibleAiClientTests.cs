@@ -251,7 +251,7 @@ public class OpenAiCompatibleAiClientTests
     {
         // ADR 022, решение C2: в промт добавлен блок эвристик-разграничений
         // новых категорий от базовых (Сухофрукты ≠ Фрукты, Соусы/Приправы ≠ Бакалея,
-        // Колбасные изделия ≠ Мясо, Конфеты ≠ Кондитерские изделия).
+        // Колбасные изделия ≠ Мясо, Конфеты ≠ Кондитерские изделия, Консервы ≠ Бакалея).
         // Эвристики статичны, поэтому проверяем строки напрямую.
         var requestBody = string.Empty;
         var handler = CreateHandler(request =>
@@ -279,6 +279,7 @@ public class OpenAiCompatibleAiClientTests
         Assert.Contains("не Meat", requestBody);
         Assert.Contains("Sweets", requestBody);
         Assert.Contains("не Confectionery", requestBody);
+        Assert.Contains("CannedFood", requestBody);
     }
 
     [Fact]
