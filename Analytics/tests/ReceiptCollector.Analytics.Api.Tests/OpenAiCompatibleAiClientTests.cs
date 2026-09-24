@@ -247,6 +247,38 @@ public class OpenAiCompatibleAiClientTests
     }
 
     [Fact]
+    public async Task SuggestCategoryAsync_prompt_contains_new_category_heuristics()
+    {
+        // ADR 022, решение C2: в промт добавлен блок эвристик-разграничений
+        // новых категорий от базовых (Сухофрукты ≠ Фрукты, Соусы/Приправы ≠ Бакалея,
+        // Колбасные изделия ≠ Мясо). Эвристики статичны, поэтому проверяем строки напрямую.
+        var requestBody = string.Empty;
+        var handler = CreateHandler(request =>
+        {
+            requestBody = request.Content != null
+                ? request.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                : string.Empty;
+            return JsonResponse("""{"choices":[{"message":{"content":"{\"category\": \"Food\"}"}}]}""");
+        });
+
+        var client = CreateClient(handler);
+
+        await client.SuggestCategoryAsync("Курага", CategoryCatalog, CancellationToken.None);
+
+        Assert.Contains("Разграничения схожих категорий", requestBody);
+        Assert.Contains("Сухофрукты", requestBody);
+        Assert.Contains("DriedFruits", requestBody);
+        Assert.Contains("не Fruits", requestBody);
+        Assert.Contains("Соусы", requestBody);
+        Assert.Contains("Sauces", requestBody);
+        Assert.Contains("Приправы", requestBody);
+        Assert.Contains("Spices", requestBody);
+        Assert.Contains("не Groceries", requestBody);
+        Assert.Contains("Sausages", requestBody);
+        Assert.Contains("не Meat", requestBody);
+    }
+
+    [Fact]
     public async Task SuggestCategoryAsync_throws_invalid_operation_when_base_url_empty()
     {
         var handler = CreateHandler(_ => throw new InvalidOperationException("Should not be called"));

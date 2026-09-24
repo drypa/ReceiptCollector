@@ -183,6 +183,11 @@ public class CommodityCategorizationServiceTests
                 names.Contains("Food") &&
                 names.Contains("Dairy") &&
                 !names.Contains("Undefined") &&
+                // Новые категории автоматически попадают в реестр через GetAll() (FR-4)
+                names.Contains("DriedFruits") &&
+                names.Contains("Sauces") &&
+                names.Contains("Spices") &&
+                names.Contains("Sausages") &&
                 names.Count == CommodityCategoryHelper.GetAll().Count(c => c.Id != CommodityCategory.Undefined)),
             Arg.Any<CancellationToken>());
     }

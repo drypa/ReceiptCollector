@@ -51,6 +51,12 @@ public enum CommodityCategory
     Utilities = 40,
     Entertainment = 41,
 
+    // Продукты (детализация, расширение) — коды 42–45
+    DriedFruits = 42,   // Сухофрукты: изюм, курага, чернослив, финики, сушёные ягоды
+    Sauces = 43,        // Соусы: кетчуп, майонез, соевый соус, горчица, томатная паста
+    Spices = 44,        // Приправы: перец, специи, приправы, лавровый лист, орегано
+    Sausages = 45,      // Колбасные изделия: колбаса, сосиски, сардельки, ветчина
+
     Other = 255
 }
 
@@ -100,6 +106,10 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Telecommunication, "Связь и интернет" },
         { CommodityCategory.Utilities, "ЖКХ и коммунальные услуги" },
         { CommodityCategory.Entertainment, "Развлечения и досуг" },
+        { CommodityCategory.DriedFruits, "Сухофрукты" },
+        { CommodityCategory.Sauces, "Соусы" },
+        { CommodityCategory.Spices, "Приправы" },
+        { CommodityCategory.Sausages, "Колбасные изделия" },
         { CommodityCategory.Other, "Прочее" },
     };
 
@@ -109,19 +119,59 @@ public static class CommodityCategoryHelper
     public static IReadOnlyCollection<(CommodityCategory Id, string Name)> GetAll()
         => DisplayNames.Select(kv => (kv.Key, kv.Value)).ToList();
 
+    private const string ProductsGroup = "Продукты";
+    private const string TransportGroup = "Транспорт";
+    private const string OtherGroup = "Прочее";
+
+    /// <summary>
+    /// Явный маппинг «категория → группа» (ADR 022, решение B1).
+    /// Замена диапазонного switch по кодам: группировка не зависит от числовых значений enum.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<CommodityCategory, string> CategoryGroups = new Dictionary<CommodityCategory, string>
+    {
+        // Продукты (17 категорий)
+        { CommodityCategory.Beverages, ProductsGroup },
+        { CommodityCategory.Groceries, ProductsGroup },
+        { CommodityCategory.Meat, ProductsGroup },
+        { CommodityCategory.Poultry, ProductsGroup },
+        { CommodityCategory.FishAndSeafood, ProductsGroup },
+        { CommodityCategory.Dairy, ProductsGroup },
+        { CommodityCategory.Eggs, ProductsGroup },
+        { CommodityCategory.Vegetables, ProductsGroup },
+        { CommodityCategory.Fruits, ProductsGroup },
+        { CommodityCategory.Bakery, ProductsGroup },
+        { CommodityCategory.Confectionery, ProductsGroup },
+        { CommodityCategory.ReadyMeals, ProductsGroup },
+        { CommodityCategory.FastFood, ProductsGroup },
+        { CommodityCategory.DriedFruits, ProductsGroup },   // NEW 42
+        { CommodityCategory.Sauces, ProductsGroup },        // NEW 43
+        { CommodityCategory.Spices, ProductsGroup },        // NEW 44
+        { CommodityCategory.Sausages, ProductsGroup },      // NEW 45
+        // Транспорт (7 категорий) 31–37
+        { CommodityCategory.TollRoads, TransportGroup },
+        { CommodityCategory.PublicTransport, TransportGroup },
+        { CommodityCategory.RailwayTickets, TransportGroup },
+        { CommodityCategory.AirTickets, TransportGroup },
+        { CommodityCategory.Taxi, TransportGroup },
+        { CommodityCategory.Carsharing, TransportGroup },
+        { CommodityCategory.Parking, TransportGroup },
+        // Прочее (4 категории) 38–41
+        { CommodityCategory.Tobacco, OtherGroup },
+        { CommodityCategory.Telecommunication, OtherGroup },
+        { CommodityCategory.Utilities, OtherGroup },
+        { CommodityCategory.Entertainment, OtherGroup },
+    };
+
     /// <summary>
     /// Группа категории для группировки UI (&lt;optgroup&gt; в &lt;select&gt;).
     /// Источник истины группы — backend (решение D1 ADR 010), а не хардкод диапазонов на фронте.
     /// </summary>
     /// <remarks>
-    /// Старые категории (0–17 и Other = 255) возвращают пустую строку "" — они не относятся ни к одной
-    /// группе и отображаются плоским списком. Группа «Прочее» содержит только новые категории 38–41.
+    /// Группа определяется словарём <see cref="CategoryGroups"/>, а не диапазонами кодов,
+    /// поэтому новые категории с кодами вне исторических диапазонов корректно попадают в группу.
+    /// Категории, отсутствующие в словаре (legacy 0–17 и Other = 255), возвращают пустую строку "" —
+    /// они не относятся ни к одной группе и отображаются плоским списком.
     /// </remarks>
-    public static string GetGroup(CommodityCategory category) => category switch
-    {
-        >= CommodityCategory.Beverages and <= CommodityCategory.FastFood => "Продукты",    // 18–30
-        >= CommodityCategory.TollRoads and <= CommodityCategory.Parking => "Транспорт",     // 31–37
-        >= CommodityCategory.Tobacco and <= CommodityCategory.Entertainment => "Прочее",    // 38–41
-        _ => "",
-    };
+    public static string GetGroup(CommodityCategory category)
+        => CategoryGroups.GetValueOrDefault(category, "");
 }

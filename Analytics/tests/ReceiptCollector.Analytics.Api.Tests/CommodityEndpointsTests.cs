@@ -110,6 +110,9 @@ public class CommodityEndpointsTests
         Assert.Contains(categories, c => c.Key == "Food" && c.Id == (int)CommodityCategory.Food);
         Assert.Contains(categories, c => c.Key == "Dairy" && c.Group == "Продукты");
         Assert.Contains(categories, c => c.Key == "Undefined" && c.Id == 0);
+        // Новые продуктовые категории (ADR 022): коды 42–45 в группе «Продукты»
+        Assert.Contains(categories, c => c.Key == "DriedFruits" && c.Id == 42 && c.Group == "Продукты");
+        Assert.Contains(categories, c => c.Key == "Sausages" && c.Group == "Продукты");
         Assert.All(categories, c => Assert.NotNull(c.Name));
         Assert.DoesNotContain(categories, c => string.IsNullOrWhiteSpace(c.Key));
     }
