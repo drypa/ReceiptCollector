@@ -51,11 +51,12 @@ public enum CommodityCategory
     Utilities = 40,
     Entertainment = 41,
 
-    // Продукты (детализация, расширение) — коды 42–45
+    // Продукты (детализация, расширение) — коды 42–46
     DriedFruits = 42,   // Сухофрукты: изюм, курага, чернослив, финики, сушёные ягоды
     Sauces = 43,        // Соусы: кетчуп, майонез, соевый соус, горчица, томатная паста
     Spices = 44,        // Приправы: перец, специи, приправы, лавровый лист, орегано
     Sausages = 45,      // Колбасные изделия: колбаса, сосиски, сардельки, ветчина
+    Sweets = 46,        // Конфеты: конфеты, шоколад, мармелад, зефир, печенье
 
     Other = 255
 }
@@ -110,6 +111,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Sauces, "Соусы" },
         { CommodityCategory.Spices, "Приправы" },
         { CommodityCategory.Sausages, "Колбасные изделия" },
+        { CommodityCategory.Sweets, "Конфеты" },
         { CommodityCategory.Other, "Прочее" },
     };
 
@@ -129,7 +131,7 @@ public static class CommodityCategoryHelper
     /// </summary>
     private static readonly IReadOnlyDictionary<CommodityCategory, string> CategoryGroups = new Dictionary<CommodityCategory, string>
     {
-        // Продукты (17 категорий)
+        // Продукты (18 категорий)
         { CommodityCategory.Beverages, ProductsGroup },
         { CommodityCategory.Groceries, ProductsGroup },
         { CommodityCategory.Meat, ProductsGroup },
@@ -147,6 +149,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Sauces, ProductsGroup },        // NEW 43
         { CommodityCategory.Spices, ProductsGroup },        // NEW 44
         { CommodityCategory.Sausages, ProductsGroup },      // NEW 45
+        { CommodityCategory.Sweets, ProductsGroup },         // NEW 46
         // Транспорт (7 категорий) 31–37
         { CommodityCategory.TollRoads, TransportGroup },
         { CommodityCategory.PublicTransport, TransportGroup },

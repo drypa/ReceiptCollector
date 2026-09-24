@@ -6,22 +6,23 @@ namespace ReceiptCollector.Analytics.Api.Tests;
 /// Тесты консистентности справочника <see cref="CommodityCategory"/> после расширений
 /// (ADR 010: 43 значения, Food переименован в «Прочая еда», группировка UI по полю Group;
 /// ADR 022: 47 значений — добавлены Сухофрукты, Соусы, Приправы, Колбасные изделия,
-/// GetGroup переведён на словарь «категория → группа»).
+/// GetGroup переведён на словарь «категория → группа»;
+/// 48 значений — добавлены Конфеты (Sweets)).
 /// Assert делаются на источнике данных <see cref="CommodityCategoryHelper.GetAll()"/> —
 /// именно его отдаёт эндпоинт GET /api/commodities/categories.
 /// </summary>
 public class CommodityCategoryTests
 {
     [Fact]
-    public void CommodityCategory_EnumCount_ShouldBe47()
+    public void CommodityCategory_EnumCount_ShouldBe48()
     {
-        Assert.Equal(47, Enum.GetValues<CommodityCategory>().Length);
+        Assert.Equal(48, Enum.GetValues<CommodityCategory>().Length);
     }
 
     [Fact]
     public void GetAll_ContainsEveryEnumMemberWithDisplayName()
     {
-        // Защита от регрессии: пропуск записи в DisplayNames -> GetAll().Count < 47
+        // Защита от регрессии: пропуск записи в DisplayNames -> GetAll().Count < 48
         var all = CommodityCategoryHelper.GetAll();
         Assert.Equal(Enum.GetValues<CommodityCategory>().Length, all.Count);
         Assert.All(Enum.GetValues<CommodityCategory>(), category =>
@@ -49,18 +50,20 @@ public class CommodityCategoryTests
         Assert.Equal("Соусы", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Sauces));
         Assert.Equal("Приправы", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Spices));
         Assert.Equal("Колбасные изделия", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Sausages));
+        Assert.Equal("Конфеты", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Sweets));
     }
 
     [Fact]
     public void GetGroup_ReturnsExpectedGroupsForNewCategories()
     {
-        // Продукты: 18–30 + новые 42–45 (словарь, ADR 022)
+        // Продукты: 18–30 + новые 42–46 (словарь, ADR 022)
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.Beverages));
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.FastFood));
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.DriedFruits));
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.Sauces));
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.Spices));
         Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.Sausages));
+        Assert.Equal("Продукты", CommodityCategoryHelper.GetGroup(CommodityCategory.Sweets));
         // Транспорт: 31–37
         Assert.Equal("Транспорт", CommodityCategoryHelper.GetGroup(CommodityCategory.TollRoads));
         Assert.Equal("Транспорт", CommodityCategoryHelper.GetGroup(CommodityCategory.Parking));
@@ -76,6 +79,7 @@ public class CommodityCategoryTests
         Assert.Equal(43, (int)CommodityCategory.Sauces);
         Assert.Equal(44, (int)CommodityCategory.Spices);
         Assert.Equal(45, (int)CommodityCategory.Sausages);
+        Assert.Equal(46, (int)CommodityCategory.Sweets);
         Assert.Equal(255, (int)CommodityCategory.Other); // защита от переименования
     }
 
