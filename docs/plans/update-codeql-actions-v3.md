@@ -1,7 +1,13 @@
 # План: Обновление CodeQL actions до v3
 
-**Связанный ADR:** [ADR-017](../adr/017-upgrade-codeql-actions-v3.md)
-**Файл задачи:** [update-codeql-actions-v3.md](../tasks/update-codeql-actions-v3.md)
+> **НЕ ИСПОЛНЯТЬ (superseded) 2026-09-26.** План не был выполнен и не может
+> быть выполнен: `github/codeql-action` v3 работает на Node 20, отключённом в
+> GitHub Actions 2026-09-23. Выполненный план — [update-github-actions.md](update-github-actions.md)
+> (ADR-025), CodeQL переведён на **v4**. План сохранён для истории; шаги из
+> него нельзя применять к текущему состоянию репозитория.
+
+**Связанный ADR:** [ADR-017](../adr/017-upgrade-codeql-actions-v3.md) — *заменён* [ADR-025](../adr/025-update-github-actions.md)
+**Файл задачи:** [update-codeql-actions-v3.md](../tasks/update-codeql-actions-v3.md) — *заменён* [update-github-actions.md](../tasks/update-github-actions.md)
 
 ## Что меняется
 

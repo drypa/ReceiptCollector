@@ -88,4 +88,9 @@ blocker
 ## Мета
 - Автор: drypa
 - Дата создания: 2026-09-26
-- Статус: в работе (техническое решение — на подготовке у @software-architect)
+- Статус: реализовано, ожидается подтверждение приёмки по CI
+- Реализация: три коммита в `master` — `91d22c7` (`build-backend-image.yml`,
+  7 замен), `22b4891` (`codeql-analysis.yml`, 4 замены), `bcab534`
+  (`build-analytics-image.yml`, 7 замен). ADR-025, план и описания PR — в
+  `docs/adr/025-update-github-actions.md`, `docs/plans/update-github-actions.md`,
+  `docs/plans/update-github-actions-pr-descriptions.md`
