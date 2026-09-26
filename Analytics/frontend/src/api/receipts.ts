@@ -1,5 +1,20 @@
 import type { PaginatedReceipts, ReceiptSummary, ReceiptDetails } from '../types/receipt';
 
+/** Ошибка HTTP-запроса с кодом ответа: страницы различают 404 («Не найдено») и остальные сбои. */
+export class HttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+
+export function isNotFound(error: unknown): boolean {
+  return error instanceof HttpError && error.status === 404;
+}
+
 interface FetchReceiptsOptions {
   limit: number;
   offset: number;
@@ -25,7 +40,7 @@ export async function fetchReceipts({ limit, offset, signal, merchantId }: Fetch
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || 'Не удалось загрузить список чеков');
+    throw new HttpError(response.status, message || 'Не удалось загрузить список чеков');
   }
 
   const data = (await response.json()) as ReceiptSummary[];
@@ -42,14 +57,15 @@ export async function fetchReceipts({ limit, offset, signal, merchantId }: Fetch
   };
 }
 
-export async function fetchReceiptDetails(id: string): Promise<ReceiptDetails> {
+export async function fetchReceiptDetails(id: string, signal?: AbortSignal): Promise<ReceiptDetails> {
   const response = await fetch(`/api/receipts/${id}`, {
     credentials: 'include',
+    signal,
   });
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || 'Не удалось загрузить детали чека');
+    throw new HttpError(response.status, message || 'Не удалось загрузить детали чека');
   }
 
   return response.json() as Promise<ReceiptDetails>;

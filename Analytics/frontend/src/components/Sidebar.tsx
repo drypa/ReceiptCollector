@@ -10,7 +10,7 @@ export function Sidebar() {
       <nav className="sidebar-nav">
         <ul>
           <li>
-            <NavLink to="/" end className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+            <NavLink to="/receipts" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
               Чеки
             </NavLink>
           </li>

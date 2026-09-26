@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
   fetchMerchantCategories,
   updateMerchantCategory,
   updateMerchantName,
 } from '../api/merchants';
 import type { MerchantDto } from '../api/merchants';
+import { merchantReceiptsPath } from '../routes';
 import type { Category } from '../types/commodity';
 
 interface MerchantTableProps {
@@ -167,7 +169,9 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
                     </div>
                   ) : (
                     <div className="merchant-name-edit">
-                      <span>{merchant.name}</span>
+                      <Link to={merchantReceiptsPath(merchant.id)} className="merchant-link">
+                        {merchant.name}
+                      </Link>
                       {isAdmin && (
                         <button
                           type="button"

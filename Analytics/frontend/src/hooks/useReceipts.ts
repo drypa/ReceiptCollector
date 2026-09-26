@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchReceipts } from '../api/receipts';
+import { fetchReceipts, isNotFound } from '../api/receipts';
 import type { ReceiptSummary } from '../types/receipt';
 
 interface UseReceiptsOptions {
   pageSize?: number;
+  /** Задан — список чеков магазина, не задан — все чеки пользователя. */
+  merchantId?: string;
 }
 
-export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
+export function useReceipts({ pageSize = 10, merchantId }: UseReceiptsOptions = {}) {
   const [receipts, setReceipts] = useState<ReceiptSummary[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
- const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
- const loadPage = useCallback(
+  const loadPage = useCallback(
     (page: number) => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -25,8 +28,9 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
 
       setIsLoading(true);
       setError(null);
+      setNotFound(false);
 
-      fetchReceipts({ limit: pageSize, offset, signal: controller.signal })
+      fetchReceipts({ limit: pageSize, offset, signal: controller.signal, merchantId })
         .then(({ receipts: pageReceipts, totalItems: total, currentPage: responsePage, pageSize: responsePageSize }) => {
           const effectivePageSize = responsePageSize > 0 ? responsePageSize : pageSize;
           const effectivePage = responsePage > 0 ? responsePage : normalizedPage;
@@ -42,6 +46,12 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
           if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
             return;
           }
+          if (isNotFound(fetchError)) {
+            setNotFound(true);
+            setReceipts([]);
+            setTotalItems(0);
+            return;
+          }
           setError(fetchError instanceof Error ? fetchError.message : 'Неизвестная ошибка');
         })
         .finally(() => {
@@ -50,7 +60,7 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
           }
         });
     },
-    [pageSize],
+    [pageSize, merchantId],
   );
 
   // When pageSize changes, reset to first page
@@ -97,6 +107,8 @@ export function useReceipts({ pageSize = 10 }: UseReceiptsOptions = {}) {
     data: receipts,
     isLoading,
     error,
+    /** Ресурс отсутствует (404): страница решает, какой экран «Не найдено» показать. */
+    notFound,
     currentPage,
     totalPages,
     totalItems,

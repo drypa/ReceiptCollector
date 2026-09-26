@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 
 namespace ReceiptCollector.Analytics.Api.Modules.Receipts;
 
@@ -46,7 +47,7 @@ public static class ReceiptEndpoints
         return Results.Ok(receipts);
     }
 
-    private static async Task<IResult> GetById(Guid id, [FromServices] IReceiptReadService service,
+    public static async Task<IResult> GetById(Guid id, [FromServices] IReceiptReadService service,
         CancellationToken cancellationToken)
     {
         var userId = UserContext.UserId;
@@ -59,7 +60,9 @@ public static class ReceiptEndpoints
         return receipt is null ? Results.NotFound() : Results.Ok(receipt);
     }
 
-    private static async Task<IResult> GetByMerchant(HttpContext httpContext, Guid merchantId, [FromServices] IReceiptReadService service,
+    public static async Task<IResult> GetByMerchant(HttpContext httpContext, Guid merchantId,
+        [FromServices] IReceiptReadService service,
+        [FromServices] IMerchantRepository merchantRepository,
         [FromQuery] int limit = 10, [FromQuery] int offset = 0, CancellationToken cancellationToken = default)
     {
         var userId = UserContext.UserId;
@@ -76,6 +79,14 @@ public static class ReceiptEndpoints
         if (offset < 0)
         {
             return Results.BadRequest("offset cannot be negative.");
+        }
+
+        // Неизвестный магазин — 404, чтобы клиент отличал его от «магазин есть, но чеков нет» (ADR-023, H1).
+        // Проверка идёт первым запросом, поэтому для несуществующего id выборка чеков не выполняется.
+        var merchant = await merchantRepository.GetByIdAsync(merchantId, cancellationToken);
+        if (merchant is null)
+        {
+            return Results.NotFound("Merchant not found.");
         }
 
         var receipts = await service.GetByMerchantIdAsync(userId.Value, merchantId, limit, offset, cancellationToken);
