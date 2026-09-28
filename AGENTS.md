@@ -6,7 +6,7 @@ This is a **three-service microservice system**:
 
 1. **Backend (Go)**: `backend/` - Collects receipts from nalog.ru API, storage in MongoDB
 2. **Telegram Bot (Go)**: `bot/` - Telegram interface that connects to Backend via gRPC
-3. **Analytics (.NET 8)**: `Analytics/` - Migrates receipts from MongoDB → PostgreSQL, provides analytics UI
+3. **Analytics (.NET 10, `net10.0`)**: `Analytics/` - Migrates receipts from MongoDB → PostgreSQL, provides analytics UI
 
 ## Commands
 
@@ -26,7 +26,7 @@ cd backend
 CGO_ENABLED=0 go build -o receipt_collector .
 ```
 
-### Run Analytics (.NET 8 Microservice)
+### Run Analytics (.NET 10 Microservice)
 
 ```bash
 # Migrate first
