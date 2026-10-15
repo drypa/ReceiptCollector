@@ -161,14 +161,14 @@ services:
 
 **Ключевое правило: в dev окружении запускаются только сторонние сервисы.** Приложение,
 фронтенд и миграции в разработке запускаются на хосте (hot reload, отладчик,
-`npm run dev`), поэтому в dev-compose их нет.
+dev-сервер), поэтому в dev-compose их нет.
 
 | | `docker-compose.yml` (production) | `docker-compose.develop.yml` (dev) |
 |---|---|---|
 | Что поднимается | все сервисы проекта + инфраструктура | **только сторонние сервисы**: СУБД, очереди, брокеры, кэши + прокси, если он нужен |
 | Порты наружу (`ports`) | только у входа (прокси/шлюз) | у БД и у прокси — чтобы работать с хоста |
 | Внутренние сервисы | `expose` | не описаны |
-| Каталоги данных | пути, заданные оператором (`${MONGO_DATA}`) | `./data` внутри репозитория |
+| Каталоги данных | пути, заданные оператором (`${DB_DATA}`) | `./data` внутри репозитория |
 | Имя проекта compose | `name: ${COMPOSE_PROJECT_NAME:-project}` | `name: ${COMPOSE_PROJECT_NAME:-project}-dev` |
 | Скрипты | `up.sh` / `down.sh` | `up.dev.sh` / `down.dev.sh` |
 
@@ -192,20 +192,20 @@ services:
 name: ${COMPOSE_PROJECT_NAME:-project}-dev
 
 services:
-  mongo:
-    image: mongo:8
+  db:
+    image: postgres:17
     restart: unless-stopped
-    ports: [ "27017:27017" ]
+    ports: [ "5432:5432" ]
     volumes:
       - type: bind
-        source: "./data/mongo"
-        target: "/data/db"
+        source: "${DB_DATA:-./data/db}"
+        target: "/var/lib/postgresql/data"
     healthcheck:                    # ОБЯЗАТЕЛЬНО, см. шаг 7
-      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 10s
 ```
 
 ### Шаг 5. Прокси и web-интерфейс (nginx)
@@ -228,7 +228,7 @@ services:
 - Путь API (`/api`) должен быть **одинаков в обоих окружениях**, иначе
   фронтенду придётся переключать `baseURL` между сборками.
 - SPA-fallback в prod: `try_files $uri $uri/ /index.html;`, иначе перезагрузка
-  страницы на `/receipts/42` отдаст 404.
+  страницы на `/dashboard/42` отдаст 404.
 - Имена контейнеров резолвь **динамически** (`resolver 127.0.0.11;` + переменная
   в `proxy_pass`) — иначе nginx не переживёт перезапуск апстрима и будет
   возвращать `host not found in upstream`.
@@ -436,17 +436,17 @@ docker compose down
 контекст = корень. В других контекстах его следует уточнять.
 
 - Свой `.dockerignore` лежит **в каталоге контекста**: `context: .` → корень,
-  `context: ./Analytics` → `Analytics/.dockerignore`.
+  `context: ./service-b` → `service-b/.dockerignore`.
 - Минимум, кроме секретов, для любого контекста: `**/node_modules/`,
-  `**/bin/`, `**/obj/`, `**/out/`, `**/wwwroot/`, `logs/`, `ssl/`, `*.key`,
-  `*.pem`, `data/`.
+  `**/bin/`, `**/obj/`, `**/dist/`, `**/build/`, `**/target/`, `**/out/`,
+  `logs/`, `ssl/`, `*.key`, `*.pem`, `data/`.
 - **Контекст = корень монорепо — главный источник мусора в сборке.** Чужие
-  подпроекты исключай целиком (`Analytics/`, `webapp/`): иначе сборка одного
-  Go-сервиса тащит в контекст сотни мегабайт чужих `node_modules` и артефактов
+  подпроекты исключай целиком (`service-a/`, `frontend/`): иначе сборка одного
+  сервиса тащит в контекст сотни мегабайт чужих `node_modules` и артефактов
   и упирается в память и время.
-- Артефакты, которые Dockerfile собирает сам (фронтенд, `dotnet publish`),
-  исключай: локальная копия в образ не нужна и может перекрыть собранную
-  (`COPY --from=frontend … ./wwwroot`).
+- Артефакты, которые Dockerfile собирает сам (фронтенд, publish-каталог,
+  собранные вручную бинари), исключай: локальная копия в образ не нужна и может
+  перекрыть собранную (`COPY --from=frontend … ./dist`).
 - После правки `.dockerignore` проверь контекст: размер и состав должны быть
   ожидаемыми, а не «всё подряд».
 
