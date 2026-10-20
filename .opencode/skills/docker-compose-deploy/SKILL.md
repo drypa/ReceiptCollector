@@ -43,7 +43,7 @@ description: Use when a project needs to be deployed with Docker and docker-comp
 
 ### Шаг 2. Dockerfile — multi-stage
 
-Три стадии, разделённые явно:
+Основной Dockerfile приложения — три стадии, разделённые явно:
 
 1. **build** — тулчейн, сборка и unit-тесты, не требующие внешней инфраструктуры. Всё, что не нужно в рантайме.
 2. **runtime-base** — минимальный образ приложения: системные пакеты, шрифт,
@@ -62,6 +62,10 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked go mod download
 COPY . .
+# unit-тесты; интеграционные, которым нужны БД/сеть, — в CI, не в сборке
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go test ./...
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags="-s -w" -o /out/app ./cmd/app
@@ -96,6 +100,9 @@ ENTRYPOINT ["/usr/local/bin/app"]
   абсолютных путей сборки.
 - Кэш-монти (`--mount=type=cache`) **ускоряют**, но не влияют на корректность: сборка должна проходить и
   без них.
+- **Тесты в `build` — только unit.** Если тесту нужны БД, сеть или внешний сервис,
+  он не должен запускаться в сборке: иначе образ не соберётся на чистой машине.
+  Такие тесты — в CI или отдельной стадии.
 - **В финальном образе секретов быть не должно.** Секреты для доступа к сборочной
   инфраструктуре (приватный registry, зеркало пакетов, лицензионный сервер) можно
   передавать при сборке. При multi-stage они могут остаться в промежуточных
@@ -109,7 +116,7 @@ ENTRYPOINT ["/usr/local/bin/app"]
 
 ### Шаг 3. docker-compose.yml
 
-Базовый шаблон сервиса, который собирается из этого Dockerfile (обязательные и опциональные элементы помечены):
+Базовый шаблон сервиса, который собирается из основного Dockerfile (обязательные и опциональные элементы помечены):
 
 ```yaml
 name: ${COMPOSE_PROJECT_NAME:-project}
@@ -264,6 +271,33 @@ services:
 | `/` (корень, статика) | nginx **раздаёт статику сам**: `root`, SPA-fallback на `index.html`, кэш ассетов с `immutable` | nginx **проксирует на dev-сервер фронтенда** на хосте (HMR), статику не раздаёт |
 | `/api` | проксирует на внутренний сервис по имени контейнера | проксирует на API, запущенный на хосте |
 | Конфиг | `nginx.prod.conf` | `nginx.dev.conf` — отдельный файл |
+
+**Статика в production — внутри nginx-образа.** Конфиг монтируется, но
+собранный фронтенд должен попасть в финальный образ отдельной стадией. Если
+оставить только bind-mount конфига, `root` в `nginx.prod.conf` будет указывать
+в пустой каталог, и UI отдаст 404.
+
+```dockerfile
+# frontend/Dockerfile
+# syntax=docker/dockerfile:1
+FROM node:24-bookworm-slim AS frontend-build
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:stable-alpine AS nginx
+COPY --from=frontend-build /src/dist /usr/share/nginx/html
+# nginx.prod.conf не копируем: он приходит bind-mount'ом
+```
+
+В compose у nginx-сервиса тогда
+`build: { context: ./frontend, dockerfile: Dockerfile }`, а `root` в
+`nginx.prod.conf` указывает на `/usr/share/nginx/html`. Каталог сборки подставь
+фактический (`dist`, `build`, `out`). Пример для npm; для yarn/pnpm замени
+команды установки и сборки. В dev nginx-образ не собирается: прокси смотрит на
+dev-сервер фронтенда на хосте.
 
 - Путь API (`/api`) должен быть **одинаков в обоих окружениях**, иначе
   фронтенду придётся переключать `baseURL` между сборками.
@@ -523,7 +557,8 @@ echo "Данные не удалены: bind-mount'ы на хосте, named vol
 - `.dockerignore` — исключи `.git`, `.github`, `.idea`, `docs`, `.env`,
   `.env.*` (кроме `.env.example`: после `.env.*` добавь `!.env.example`),
   рабочие данные (`data`, `*.log`, `*.sqlite3*`, артефакты сборки, собранные
-  бинари), кэш сборки (`.cache/`, `*.tmp`).
+  бинари), зависимости фронтенда (`**/node_modules/`), кэш сборки (`.cache/`,
+  `*.tmp`).
 - `.gitignore` — `.env`, рабочие данные, собранные бинари, артефакты сборки,
   ключи и сертификаты (`ssl/`, `*.key`, `*.pem`).
 - Никогда не запекай секреты в образ и не коммить `.env`, а добавь его в `.dockerignore` и `.gitignore`.
@@ -726,7 +761,11 @@ ADR — отдельный жанр, см. ниже.
 
 ```
 project/
-├── Dockerfile                       # multi-stage: build → runtime-base → app / job
+├── Dockerfile                       # backend: build → runtime-base → app / job
+├── frontend/                        # web-UI, если есть (шаг 5)
+│   ├── Dockerfile                   # node build → nginx со статикой
+│   ├── .dockerignore                # для контекста ./frontend (шаг 13)
+│   └── ...                          # package.json, src
 ├── docker-compose.yml               # production: долгоживущие сервисы (шаг 3)
 ├── docker-compose.develop.yml       # dev: инфраструктура + прокси (шаг 4)
 ├── nginx.prod.conf                  # если есть web-UI (шаг 5)
