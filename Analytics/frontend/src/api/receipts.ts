@@ -95,15 +95,28 @@ export async function suggestReceiptCategories(receiptId: string): Promise<Recei
   });
 
   if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, 'Не удалось определить категории товаров'));
+    // 502/504 обычно означают, что прокси не дождался ответа AI (см. ADR 009, proxy_read_timeout).
+    const fallback =
+      response.status === 502 || response.status === 504
+        ? 'Сервер не успел определить категории товаров. Попробуйте ещё раз.'
+        : `Не удалось определить категории товаров (HTTP ${response.status}).`;
+    throw new Error(await extractErrorMessage(response, fallback));
   }
 
   return response.json() as Promise<ReceiptSuggestResult>;
 }
 
 async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  // Тело ответа можно прочитать только один раз: сначала читаем текст, затем пытаемся разобрать его как JSON.
+  // Прежняя реализация вызывала response.json(), а после ошибки разбора — response.text(),
+  // что давало «Body has already been consumed» вместо внятного сообщения об ошибке.
+  const text = (await response.text().catch(() => '')).trim();
+  if (!text) {
+    return fallback;
+  }
+
   try {
-    const body = await response.json();
+    const body = JSON.parse(text) as { error?: unknown };
     if (typeof body?.error === 'string' && body.error.length > 0) {
       return body.error;
     }
@@ -111,8 +124,8 @@ async function extractErrorMessage(response: Response, fallback: string): Promis
     // тело не JSON — используем сырой текст
   }
 
-  const text = await response.text();
-  return text || fallback;
+  // HTML-страница (например, от прокси) бесполезна в диалоге — показываем запасное сообщение.
+  return text.startsWith('<') ? fallback : text;
 }
 
 export interface SaveCategoriesItem {
@@ -140,8 +153,7 @@ export async function saveReceiptCategories(
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Не удалось сохранить категории товаров');
+    throw new Error(await extractErrorMessage(response, 'Не удалось сохранить категории товаров'));
   }
 
   return response.json() as Promise<SaveCategoriesResult>;
