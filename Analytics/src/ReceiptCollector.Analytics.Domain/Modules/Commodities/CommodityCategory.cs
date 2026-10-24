@@ -64,6 +64,10 @@ public enum CommodityCategory
     Furniture = 49,         // Мебель: стулья, столы, шкафы, диваны, кровати
     HomeAppliances = 50,    // Бытовая техника: холодильники, стиральные машины, чайники, микроволновки
 
+    // Снеки и фитнес-услуги — коды 51–52
+    Snacks = 51,            // Снеки: чипсы, сухарики, орешки, попкорн, снековые смеси
+    FitnessAndSports = 52,  // Фитнес и спорт: абонементы в фитнес-клубы, бассейн, спортивные секции
+
     Other = 255
 }
 
@@ -122,6 +126,8 @@ public static class CommodityCategoryHelper
         { CommodityCategory.CraftSupplies, "Товары для рукоделия" },
         { CommodityCategory.Furniture, "Мебель" },
         { CommodityCategory.HomeAppliances, "Бытовая техника" },
+        { CommodityCategory.Snacks, "Снеки" },
+        { CommodityCategory.FitnessAndSports, "Фитнес и спорт" },
         { CommodityCategory.Other, "Прочее" },
     };
 
@@ -141,7 +147,7 @@ public static class CommodityCategoryHelper
     /// </summary>
     private static readonly IReadOnlyDictionary<CommodityCategory, string> CategoryGroups = new Dictionary<CommodityCategory, string>
     {
-        // Продукты (19 категорий)
+        // Продукты (20 категорий)
         { CommodityCategory.Beverages, ProductsGroup },
         { CommodityCategory.Groceries, ProductsGroup },
         { CommodityCategory.Meat, ProductsGroup },
@@ -161,6 +167,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Sausages, ProductsGroup },      // NEW 45
         { CommodityCategory.Sweets, ProductsGroup },         // NEW 46
         { CommodityCategory.CannedFood, ProductsGroup },      // NEW 47
+        { CommodityCategory.Snacks, ProductsGroup },          // NEW 51
         // Транспорт (7 категорий) 31–37
         { CommodityCategory.TollRoads, TransportGroup },
         { CommodityCategory.PublicTransport, TransportGroup },
@@ -169,11 +176,12 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Taxi, TransportGroup },
         { CommodityCategory.Carsharing, TransportGroup },
         { CommodityCategory.Parking, TransportGroup },
-        // Прочее (4 категории) 38–41
+        // Прочее (4 категории) 38–41 + услуга фитнеса (NEW 52)
         { CommodityCategory.Tobacco, OtherGroup },
         { CommodityCategory.Telecommunication, OtherGroup },
         { CommodityCategory.Utilities, OtherGroup },
         { CommodityCategory.Entertainment, OtherGroup },
+        { CommodityCategory.FitnessAndSports, OtherGroup },   // NEW 52
     };
 
     /// <summary>

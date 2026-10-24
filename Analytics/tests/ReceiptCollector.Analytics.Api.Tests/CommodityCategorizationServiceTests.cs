@@ -203,6 +203,8 @@ public class CommodityCategorizationServiceTests
                 names.Contains("CraftSupplies") &&
                 names.Contains("Furniture") &&
                 names.Contains("HomeAppliances") &&
+                names.Contains("Snacks") &&
+                names.Contains("FitnessAndSports") &&
                 names.Count == CommodityCategoryHelper.GetAll().Count(c => c.Id != CommodityCategory.Undefined)),
             Arg.Any<CancellationToken>());
     }

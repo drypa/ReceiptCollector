@@ -301,6 +301,14 @@ public class OpenAiCompatibleAiClientTests
         Assert.Contains("Товары для рукоделия", requestBody);
         Assert.Contains("CraftSupplies", requestBody);
         Assert.Contains("не StationeryAndBooks", requestBody);
+        // Снеки / Фитнес и спорт (коды 51–52)
+        Assert.Contains("Снеки", requestBody);
+        Assert.Contains("Snacks", requestBody);
+        Assert.Contains("не Sweets", requestBody);
+        Assert.Contains("Фитнес и спорт", requestBody);
+        Assert.Contains("FitnessAndSports", requestBody);
+        Assert.Contains("не SportingGoods", requestBody);
+        Assert.Contains("не Entertainment", requestBody);
     }
 
     [Fact]
