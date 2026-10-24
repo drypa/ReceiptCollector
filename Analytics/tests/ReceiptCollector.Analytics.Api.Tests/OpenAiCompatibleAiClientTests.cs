@@ -291,6 +291,16 @@ public class OpenAiCompatibleAiClientTests
         Assert.Contains("Sweets", requestBody);
         Assert.Contains("не Confectionery", requestBody);
         Assert.Contains("CannedFood", requestBody);
+        // Бытовая техника / Мебель / Товары для рукоделия (коды 48–50)
+        Assert.Contains("Бытовая техника", requestBody);
+        Assert.Contains("HomeAppliances", requestBody);
+        Assert.Contains("не Electronics", requestBody);
+        Assert.Contains("Мебель", requestBody);
+        Assert.Contains("Furniture", requestBody);
+        Assert.Contains("не HomeGoods", requestBody);
+        Assert.Contains("Товары для рукоделия", requestBody);
+        Assert.Contains("CraftSupplies", requestBody);
+        Assert.Contains("не StationeryAndBooks", requestBody);
     }
 
     [Fact]

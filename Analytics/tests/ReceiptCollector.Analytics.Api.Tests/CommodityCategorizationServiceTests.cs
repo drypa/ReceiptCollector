@@ -200,6 +200,9 @@ public class CommodityCategorizationServiceTests
                 names.Contains("Sausages") &&
                 names.Contains("Sweets") &&
                 names.Contains("CannedFood") &&
+                names.Contains("CraftSupplies") &&
+                names.Contains("Furniture") &&
+                names.Contains("HomeAppliances") &&
                 names.Count == CommodityCategoryHelper.GetAll().Count(c => c.Id != CommodityCategory.Undefined)),
             Arg.Any<CancellationToken>());
     }

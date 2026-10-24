@@ -59,6 +59,11 @@ public enum CommodityCategory
     Sweets = 46,        // Конфеты: конфеты, шоколад, мармелад, зефир, печенье
     CannedFood = 47,    // Консервы: рыбные, мясные, овощные, паштеты, джемы и варенья (в банках)
 
+    // Новые розничные категории — коды 48–50 (плоский список, без группы UI)
+    CraftSupplies = 48,     // Товары для рукоделия: пряжа, ткань, бисер, фурнитура, наборы для творчества
+    Furniture = 49,         // Мебель: стулья, столы, шкафы, диваны, кровати
+    HomeAppliances = 50,    // Бытовая техника: холодильники, стиральные машины, чайники, микроволновки
+
     Other = 255
 }
 
@@ -114,6 +119,9 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Sausages, "Колбасные изделия" },
         { CommodityCategory.Sweets, "Конфеты" },
         { CommodityCategory.CannedFood, "Консервы" },
+        { CommodityCategory.CraftSupplies, "Товары для рукоделия" },
+        { CommodityCategory.Furniture, "Мебель" },
+        { CommodityCategory.HomeAppliances, "Бытовая техника" },
         { CommodityCategory.Other, "Прочее" },
     };
 

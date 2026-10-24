@@ -8,22 +8,24 @@ namespace ReceiptCollector.Analytics.Api.Tests;
 /// ADR 022: 47 значений — добавлены Сухофрукты, Соусы, Приправы, Колбасные изделия,
 /// GetGroup переведён на словарь «категория → группа»;
 /// 48 значений — добавлены Конфеты (Sweets);
-/// 49 значений — добавлены Консервы (CannedFood)).
+/// 49 значений — добавлены Консервы (CannedFood);
+/// 52 значения — добавлены Товары для рукоделия (CraftSupplies), Мебель (Furniture),
+/// Бытовая техника (HomeAppliances) — коды 48–50, без группы UI (плоский список)).
 /// Assert делаются на источнике данных <see cref="CommodityCategoryHelper.GetAll()"/> —
 /// именно его отдаёт эндпоинт GET /api/commodities/categories.
 /// </summary>
 public class CommodityCategoryTests
 {
     [Fact]
-    public void CommodityCategory_EnumCount_ShouldBe49()
+    public void CommodityCategory_EnumCount_ShouldBe52()
     {
-        Assert.Equal(49, Enum.GetValues<CommodityCategory>().Length);
+        Assert.Equal(52, Enum.GetValues<CommodityCategory>().Length);
     }
 
     [Fact]
     public void GetAll_ContainsEveryEnumMemberWithDisplayName()
     {
-        // Защита от регрессии: пропуск записи в DisplayNames -> GetAll().Count < 49
+        // Защита от регрессии: пропуск записи в DisplayNames -> GetAll().Count < 52
         var all = CommodityCategoryHelper.GetAll();
         Assert.Equal(Enum.GetValues<CommodityCategory>().Length, all.Count);
         Assert.All(Enum.GetValues<CommodityCategory>(), category =>
@@ -53,6 +55,10 @@ public class CommodityCategoryTests
         Assert.Equal("Колбасные изделия", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Sausages));
         Assert.Equal("Конфеты", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Sweets));
         Assert.Equal("Консервы", CommodityCategoryHelper.GetDisplayName(CommodityCategory.CannedFood));
+        // Товары для рукоделия, Мебель, Бытовая техника (коды 48–50)
+        Assert.Equal("Товары для рукоделия", CommodityCategoryHelper.GetDisplayName(CommodityCategory.CraftSupplies));
+        Assert.Equal("Мебель", CommodityCategoryHelper.GetDisplayName(CommodityCategory.Furniture));
+        Assert.Equal("Бытовая техника", CommodityCategoryHelper.GetDisplayName(CommodityCategory.HomeAppliances));
     }
 
     [Fact]
@@ -85,6 +91,19 @@ public class CommodityCategoryTests
         Assert.Equal(46, (int)CommodityCategory.Sweets);
         Assert.Equal(47, (int)CommodityCategory.CannedFood);
         Assert.Equal(255, (int)CommodityCategory.Other); // защита от переименования
+    }
+
+    [Fact]
+    public void NewRetailCategories_HaveExpectedCodes_And_NoGroup()
+    {
+        // Товары для рукоделия, Мебель, Бытовая техника — коды 48–50.
+        // Группа не задаётся (плоский список, как legacy 0–17): GetGroup == "".
+        Assert.Equal(48, (int)CommodityCategory.CraftSupplies);
+        Assert.Equal(49, (int)CommodityCategory.Furniture);
+        Assert.Equal(50, (int)CommodityCategory.HomeAppliances);
+        Assert.Equal("", CommodityCategoryHelper.GetGroup(CommodityCategory.CraftSupplies));
+        Assert.Equal("", CommodityCategoryHelper.GetGroup(CommodityCategory.Furniture));
+        Assert.Equal("", CommodityCategoryHelper.GetGroup(CommodityCategory.HomeAppliances));
     }
 
     [Fact]

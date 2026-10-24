@@ -115,6 +115,10 @@ public class CommodityEndpointsTests
         Assert.Contains(categories, c => c.Key == "Sausages" && c.Group == "Продукты");
         Assert.Contains(categories, c => c.Key == "Sweets" && c.Id == 46 && c.Group == "Продукты");
         Assert.Contains(categories, c => c.Key == "CannedFood" && c.Id == 47 && c.Group == "Продукты");
+        // Товары для рукоделия, Мебель, Бытовая техника — коды 48–50, без группы
+        Assert.Contains(categories, c => c.Key == "CraftSupplies" && c.Id == 48 && c.Name == "Товары для рукоделия");
+        Assert.Contains(categories, c => c.Key == "Furniture" && c.Id == 49 && c.Name == "Мебель");
+        Assert.Contains(categories, c => c.Key == "HomeAppliances" && c.Id == 50 && c.Name == "Бытовая техника");
         Assert.All(categories, c => Assert.NotNull(c.Name));
         Assert.DoesNotContain(categories, c => string.IsNullOrWhiteSpace(c.Key));
     }
