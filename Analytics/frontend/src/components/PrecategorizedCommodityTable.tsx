@@ -7,6 +7,7 @@ import {
 import { fetchCategories } from '../api/commodities';
 import type { Category } from '../types/commodity';
 import type { PrecategorizedCommodityItem } from '../types/precategorizedCommodity';
+import { renderCategorySelectOptions } from '../utils/categoryOptions';
 import { CustomDialog } from './CustomDialog';
 import { useToast } from './Toasts';
 
@@ -123,11 +124,7 @@ export function PrecategorizedCommodityTable({ items, onRefresh }: Precategorize
                       disabled={isSaving}
                       aria-label={`Категория для «${item.name}»`}
                     >
-                      {categories.map((category) => (
-                        <option key={category.id} value={String(category.id)}>
-                          {category.name}
-                        </option>
-                      ))}
+                      {renderCategorySelectOptions(categories)}
                     </select>
                   </td>
                   <td>{formatDate(item.createdAt)}</td>
