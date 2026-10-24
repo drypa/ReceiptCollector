@@ -34,8 +34,19 @@ public class OpenAiCompatibleAiClientTests
         Func<HttpRequestMessage, HttpResponseMessage> respond,
         int maxCalls = 10)
     {
+        return CreateAsyncHandler(request => Task.FromResult(respond(request)), maxCalls);
+    }
+
+    /// <summary>
+    /// Версия обработчика для тестов, которым нужно прочитать тело запроса: позволяет
+    /// сделать это через await вместо блокирующих операций (xUnit1031).
+    /// </summary>
+    private static HttpMessageHandler CreateAsyncHandler(
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> respond,
+        int maxCalls = 10)
+    {
         var calls = 0;
-        return new StubHttpMessageHandler(request =>
+        return new StubHttpMessageHandler(async request =>
         {
             calls++;
             if (calls > maxCalls)
@@ -43,7 +54,7 @@ public class OpenAiCompatibleAiClientTests
                 throw new InvalidOperationException("The handler was called more times than expected.");
             }
 
-            return respond(request);
+            return await respond(request);
         });
     }
 
@@ -228,11 +239,11 @@ public class OpenAiCompatibleAiClientTests
     {
         string? capturedRequestUri = null;
         var requestBody = string.Empty;
-        var handler = CreateHandler(request =>
+        var handler = CreateAsyncHandler(async request =>
         {
             capturedRequestUri = request.RequestUri?.ToString();
             requestBody = request.Content != null
-                ? request.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                ? await request.Content.ReadAsStringAsync(CancellationToken.None)
                 : string.Empty;
             return JsonResponse("""{"choices":[{"message":{"content":"{\"category\": \"Food\"}"}}]}""");
         });
@@ -254,10 +265,10 @@ public class OpenAiCompatibleAiClientTests
         // Колбасные изделия ≠ Мясо, Конфеты ≠ Кондитерские изделия, Консервы ≠ Бакалея).
         // Эвристики статичны, поэтому проверяем строки напрямую.
         var requestBody = string.Empty;
-        var handler = CreateHandler(request =>
+        var handler = CreateAsyncHandler(async request =>
         {
             requestBody = request.Content != null
-                ? request.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                ? await request.Content.ReadAsStringAsync(CancellationToken.None)
                 : string.Empty;
             return JsonResponse("""{"choices":[{"message":{"content":"{\"category\": \"Food\"}"}}]}""");
         });
@@ -292,20 +303,14 @@ public class OpenAiCompatibleAiClientTests
             client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None));
     }
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond)
+        : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> _respond;
-
-        public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> respond)
-        {
-            _respond = respond;
-        }
-
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(_respond(request));
+            return respond(request);
         }
     }
 }

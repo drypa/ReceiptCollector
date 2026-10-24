@@ -21,7 +21,7 @@ public class PrecategorizationOptionsTests
         Assert.True(options.Enabled);
         Assert.Equal(TimeSpan.FromMinutes(5), options.IdleTimeout);
         Assert.Equal(TimeSpan.FromSeconds(30), options.IdleCheckInterval);
-        Assert.Equal(50, options.BatchLimit);
+        Assert.Equal(5, options.BatchLimit);
         Assert.Equal(TimeSpan.FromSeconds(2), options.IntervalBetweenCalls);
     }
 

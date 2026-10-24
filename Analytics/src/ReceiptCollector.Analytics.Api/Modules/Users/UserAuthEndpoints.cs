@@ -85,12 +85,13 @@ public static class UserAuthEndpoints
         [FromServices] IUserRepository userRepository,
         CancellationToken cancellationToken)
     {
-        if (!UserContext.HasUserId)
+        var userId = UserContext.UserId;
+        if (userId is null)
         {
             return Results.Unauthorized();
         }
 
-        var user = await userRepository.GetByIdAsync(UserContext.UserId.Value, cancellationToken);
+        var user = await userRepository.GetByIdAsync(userId.Value, cancellationToken);
         if (user is null)
         {
             return Results.Unauthorized();

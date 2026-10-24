@@ -15,7 +15,7 @@ public static class UserContext
     
     private class ContextRollback<T> : IDisposable
     {
-        private readonly T originalValue;
+        private readonly T? originalValue;
         private readonly AsyncLocal<T> valueContainer;
 
         public ContextRollback(AsyncLocal<T> valueContainer)
@@ -26,7 +26,8 @@ public static class UserContext
 
         public void Dispose()
         {
-            valueContainer.Value = originalValue;
+            // Для AsyncLocal<Guid?> сброс в null — штатное состояние, хотя сеттер размечен как non-null.
+            valueContainer.Value = originalValue!;
         }
     }
 }

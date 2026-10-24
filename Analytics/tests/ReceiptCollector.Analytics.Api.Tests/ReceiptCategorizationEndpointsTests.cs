@@ -105,7 +105,8 @@ public class ReceiptCategorizationEndpointsTests
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedHttpResult>(result);
-        await _service.DidNotReceiveWithAnyArgs().ApplyConfirmedCategoriesAsync(default, default, default, default);
+        await _service.DidNotReceiveWithAnyArgs()
+            .ApplyConfirmedCategoriesAsync(default, default, default!, default);
     }
 
     [Fact]
