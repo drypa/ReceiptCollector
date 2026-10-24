@@ -11,6 +11,13 @@
 > [ADR 019](019-in-memory-commodity-category-cache.md) и [задачу](../tasks/in-memory-commodity-category-cache.md).
 > Остальные решения настоящего ADR (алгоритм «existing → cache → ai», эндпоинты, `AI:*`, webUI, nginx) —
 > без изменений.
+>
+> **Изменено (2026-10-23):** алгоритм приоритетов уточняется до «existing → cache → **precategorized** → ai»
+> (между кэшем и ИИ добавляется поиск по очереди `precategorized_commodities`; аддитивное значение
+> `source = "precategorized"`; существующий пользовательский сценарий не меняется) — см.
+> [ADR 027](027-background-commodity-precategorization.md) и
+> [задачу](../tasks/background-commodity-precategorization.md). Контракты suggest/apply и остальные
+> решения настоящего ADR — без изменений.
 
 ## Контекст
 
