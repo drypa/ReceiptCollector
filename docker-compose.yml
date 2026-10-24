@@ -121,6 +121,13 @@ services:
       - AI__Concurrency=${AI__Concurrency:-3}
       - AI__ApiKey=${AI__ApiKey}
       - CommodityCategoryCache__MaxSize=${CommodityCategoryCache__MaxSize:-1000}
+      # Фоновая предкатегоризация товаров в простое (ADR 027). Enabled=false
+      # отключает только фон; админский раздел и очередь в suggest работают.
+      - Precategorization__Enabled=${Precategorization__Enabled:-true}
+      - Precategorization__IdleTimeout=${Precategorization__IdleTimeout:-00:05:00}
+      - Precategorization__BatchLimit=${Precategorization__BatchLimit:-5}
+      - Precategorization__IntervalBetweenCalls=${Precategorization__IntervalBetweenCalls:-00:00:02}
+      - Precategorization__IdleCheckInterval=${Precategorization__IdleCheckInterval:-00:00:30}
       - Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
       - Infrastructure__Receipts__Mongo__ConnectionString=mongodb://${MONGO_LOGIN}:${MONGO_SECRET}@mongo:27017/receipt_collection?authSource=admin
       - Infrastructure__Receipts__Mongo__Database=receipt_collection

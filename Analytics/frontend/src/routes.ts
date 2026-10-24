@@ -25,6 +25,11 @@ export function merchantsPath(): string {
   return '/merchants';
 }
 
+/** Админский раздел очереди предкатегоризации (ADR-027 п.7, FR-7). */
+export function precategorizedPath(): string {
+  return '/precategorized';
+}
+
 export function merchantReceiptsPath(merchantId: string): string {
   return `/merchants/${encodeURIComponent(merchantId)}/receipts`;
 }

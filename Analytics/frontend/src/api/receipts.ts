@@ -72,7 +72,7 @@ export async function fetchReceiptDetails(id: string, signal?: AbortSignal): Pro
 }
 
 /** Источник предложенной категории (контракт POST /api/receipts/{id}/categories/suggest). */
-export type CategorizationSource = 'existing' | 'cache' | 'ai' | 'undefined';
+export type CategorizationSource = 'existing' | 'cache' | 'precategorized' | 'ai' | 'undefined';
 
 export interface ReceiptItemSuggestion {
   commodityId: string;

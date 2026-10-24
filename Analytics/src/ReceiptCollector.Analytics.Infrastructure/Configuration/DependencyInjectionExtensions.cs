@@ -36,6 +36,13 @@ public static class DependencyInjectionExtensions
 
         services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
         services.AddHttpClient<IAiClient, OpenAiCompatibleAiClient>();
+        services.AddScoped<IPrecategorizedCommodityRepository, PrecategorizedCommodityRepository>();
+        services.AddScoped<IPrecategorizedCommodityService, PrecategorizedCommodityService>();
+
+        // ADR-027 п.9 (NFR-9): единственная точка получения времени/задержек для нового кода.
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IApiActivityMonitor, ApiActivityMonitor>();
+
         services.AddScoped<IReceiptReadService, ReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
         services.AddScoped<IMerchantRepository, MerchantRepository>();
@@ -47,6 +54,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddHostedService<AdminUserHostedService>();
         services.AddHostedService<CommodityCategoryCacheInitializationHostedService>();
+        services.AddHostedService<PrecategorizationBackgroundService>();
         return services;
     }
 
@@ -72,6 +80,16 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<CommodityCategoryCacheOptions>()
             .Bind(configuration.GetSection(CommodityCategoryCacheOptions.SectionName));
+
+        // NFR-7: невалидные значения — явная ошибка на старте (OptionsValidationException),
+        // а не «тихая деградация» фона.
+        services.AddOptions<PrecategorizationOptions>()
+            .Bind(configuration.GetSection(PrecategorizationOptions.SectionName))
+            .Validate(o => o.IdleTimeout > TimeSpan.Zero, "Precategorization:IdleTimeout must be greater than zero.")
+            .Validate(o => o.IdleCheckInterval > TimeSpan.Zero, "Precategorization:IdleCheckInterval must be greater than zero.")
+            .Validate(o => o.BatchLimit >= 1, "Precategorization:BatchLimit must be at least 1.")
+            .Validate(o => o.IntervalBetweenCalls >= TimeSpan.Zero, "Precategorization:IntervalBetweenCalls cannot be negative.")
+            .ValidateOnStart();
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
         {

@@ -16,6 +16,12 @@ internal sealed class ReceiptDbContext : DbContext
     public DbSet<MerchantEntity> Merchants => Set<MerchantEntity>();
     public DbSet<UserAuthLinkEntity> UserAuthLinks => Set<UserAuthLinkEntity>();
 
+    /// <summary>
+    /// Очередь предкатегоризации — общая для всех пользователей; query-filter на неё
+    /// намеренно не ставится (ADR-027 п.2), фильтрация — по статусу/поиску в запросах.
+    /// </summary>
+    public DbSet<PrecategorizedCommodityEntity> PrecategorizedCommodities => Set<PrecategorizedCommodityEntity>();
+
     internal Guid? CurrentUserId { get; private set; }
 
     internal void SetCurrentUser(Guid userId)
@@ -35,6 +41,7 @@ internal sealed class ReceiptDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.ApplyConfiguration(new UserAuthLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new PrecategorizedCommodityConfiguration());
         modelBuilder.Entity<ReceiptEntity>()
             .HasQueryFilter(r => CurrentUserId == null || r.UserId == CurrentUserId);
     }

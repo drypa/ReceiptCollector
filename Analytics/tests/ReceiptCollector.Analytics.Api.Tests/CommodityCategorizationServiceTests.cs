@@ -17,13 +17,23 @@ public class CommodityCategorizationServiceTests
     private readonly IReceiptRepository _receiptRepository = Substitute.For<IReceiptRepository>();
     private readonly ICommodityRepository _commodityRepository = Substitute.For<ICommodityRepository>();
     private readonly ICommodityCategoryCache _cache = Substitute.For<ICommodityCategoryCache>();
+    private readonly IPrecategorizedCommodityRepository _precategorizedRepository = Substitute.For<IPrecategorizedCommodityRepository>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
+
+    public CommodityCategorizationServiceTests()
+    {
+        // ADR-027 (FR-9): по умолчанию очередь пуста — существующие сценарии не меняются.
+        _precategorizedRepository
+            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
+    }
 
     private CommodityCategorizationService CreateService(AiOptions? options = null) =>
         new(
             _receiptRepository,
             _commodityRepository,
             _cache,
+            _precategorizedRepository,
             _aiClient,
             Options.Create(options ?? new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 }),
             NullLogger<CommodityCategorizationService>.Instance);
@@ -299,5 +309,143 @@ public class CommodityCategorizationServiceTests
 
         await Assert.ThrowsAsync<ReceiptNotFoundException>(() =>
             service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, new[] { new ConfirmedCategoryAssignment(Guid.NewGuid(), CommodityCategory.Food) }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Suggest_uses_precategorized_queue_and_skips_ai()
+    {
+        // FR-9.1/9.4: наименование найдено в очереди → source = precategorized, ИИ не вызывается.
+        var item = CreateCommodity(_receiptId, "Молоко 3,2% 1л");
+        ArrangeReceipt(item);
+        _precategorizedRepository
+            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
+            {
+                ["Молоко 3,2% 1л"] = CommodityCategory.Dairy
+            });
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Precategorized, suggestion.Source);
+        Assert.Equal((int)CommodityCategory.Dairy, suggestion.CategoryId);
+        Assert.Equal("Молочные продукты", suggestion.CategoryName);
+        Assert.Null(suggestion.Error);
+
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Suggest_keeps_priority_existing_then_cache_then_precategorized_then_ai()
+    {
+        // D13: existing → cache → precategorized → ai.
+        var existing = CreateCommodity(_receiptId, "Существующая", (int)CommodityCategory.Electronics, "Электроника");
+        var cached = CreateCommodity(_receiptId, "Из кэша");
+        var queued = CreateCommodity(_receiptId, "Из очереди");
+        var ai = CreateCommodity(_receiptId, "Только ИИ");
+        ArrangeReceipt(existing, cached, queued, ai);
+
+        ArrangeCacheHit("из кэша", CommodityCategory.Food);
+        _precategorizedRepository
+            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
+            {
+                ["Из очереди"] = CommodityCategory.Bakery,
+                // Наименования, уже обслуженные existing/cache, в очередь не попадают (FR-9.3).
+                ["Из кэша"] = CommodityCategory.Meat
+            });
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Other));
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+        var items = result.Items.ToList();
+
+        Assert.Equal(CategorizationSourceNames.Existing, items[0].Source);
+        Assert.Equal(CategorizationSourceNames.Cache, items[1].Source);
+        Assert.Equal(CategorizationSourceNames.Precategorized, items[2].Source);
+        Assert.Equal(CategorizationSourceNames.Ai, items[3].Source);
+        Assert.Equal((int)CommodityCategory.Bakery, items[2].CategoryId);
+
+        await _aiClient.Received(1).SuggestCategoryAsync("Только ИИ", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Suggest_queries_queue_once_with_distinct_pending_names()
+    {
+        // FR-9.3: один batch-запрос на чек по различным наименованиям без existing/cache.
+        var first = CreateCommodity(_receiptId, "Хлеб");
+        var second = CreateCommodity(_receiptId, "Молоко");
+        var duplicate = CreateCommodity(_receiptId, "Хлеб");
+        var withExisting = CreateCommodity(_receiptId, "Сыр", (int)CommodityCategory.Dairy, "Молочные продукты");
+        ArrangeReceipt(first, second, duplicate, withExisting);
+
+        var service = CreateService();
+        await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        await _precategorizedRepository.Received(1).GetCategoriesByExactNamesAsync(
+            Arg.Is<IReadOnlyCollection<string>>(names =>
+                names.Count == 2 && names.Contains("Хлеб") && names.Contains("Молоко") && !names.Contains("Сыр")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Suggest_queue_lookup_is_read_only()
+    {
+        // FR-9.5: suggest не пишет ни в commodities, ни в очередь, ни в кэш.
+        var item = CreateCommodity(_receiptId, "Кефир");
+        ArrangeReceipt(item);
+        _precategorizedRepository
+            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
+            {
+                ["Кефир"] = CommodityCategory.Dairy
+            });
+
+        var service = CreateService();
+        await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        await _precategorizedRepository.DidNotReceiveWithAnyArgs().TryAddProposalAsync(default!, default, default);
+        await _precategorizedRepository.DidNotReceiveWithAnyArgs().ConfirmAsync(default, default, default);
+        await _precategorizedRepository.DidNotReceiveWithAnyArgs().DeleteProposedAsync(default, default);
+        await _precategorizedRepository.DidNotReceiveWithAnyArgs().UpdateProposedCategoryAsync(default, default, default);
+        await _commodityRepository.DidNotReceiveWithAnyArgs().UpdateCategoryAsync(default, default, default);
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
+    }
+
+    [Fact]
+    public async Task Suggest_falls_back_to_ai_when_queue_read_fails()
+    {
+        // FR-9.6: ошибка чтения очереди → Warning + деградация к ИИ, без исключения.
+        var item = CreateCommodity(_receiptId, "Йогурт");
+        ArrangeReceipt(item);
+        _precategorizedRepository
+            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyDictionary<string, CommodityCategory>>(_ => throw new InvalidOperationException("queue is down"));
+        _aiClient.SuggestCategoryAsync("Йогурт", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Dairy));
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
+        Assert.Equal((int)CommodityCategory.Dairy, suggestion.CategoryId);
+    }
+
+    [Fact]
+    public async Task Suggest_uses_ai_when_queue_has_no_matching_name()
+    {
+        var item = CreateCommodity(_receiptId, "Сок");
+        ArrangeReceipt(item);
+        _aiClient.SuggestCategoryAsync("Сок", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Beverages));
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
     }
 }

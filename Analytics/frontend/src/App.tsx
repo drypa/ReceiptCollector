@@ -7,8 +7,9 @@ import { ReceiptDetailsPage } from './components/ReceiptDetailsPage';
 import { MerchantReceiptsPage } from './components/MerchantReceiptsPage';
 import { CommoditiesPage } from './components/CommoditiesPage';
 import { MerchantsPage } from './components/MerchantsPage';
+import { PrecategorizedCommoditiesPage } from './components/PrecategorizedCommoditiesPage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { isGuid, receiptPath, receiptsPath } from './routes';
+import { isGuid, precategorizedPath, receiptPath, receiptsPath } from './routes';
 import { adminService } from './services/adminService';
 import { useEffect } from 'react';
 import './App.css';
@@ -32,6 +33,7 @@ export function App() {
               <Route path="/commodities" element={<CommoditiesPage />} />
               <Route path="/merchants" element={<MerchantsPage />} />
               <Route path="/merchants/:merchantId/receipts" element={<MerchantReceiptsPage />} />
+              <Route path={precategorizedPath()} element={<PrecategorizedCommoditiesPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

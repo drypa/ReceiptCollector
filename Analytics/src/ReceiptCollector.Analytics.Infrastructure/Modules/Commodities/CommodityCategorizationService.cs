@@ -10,19 +10,24 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 
 /// <summary>
 /// Реализация сценария «Автоматическая категоризация товаров чека» (UC-5, ADR 009).
-/// Приоритет: категория из чека → in-memory кэш категорий (ADR 019) → AI (решение C2).
-/// Suggest ничего не сохраняет; подтверждение пользователя применяется через
-/// <see cref="ApplyConfirmedCategoriesAsync"/>. При подтверждении категория кладётся
-/// в сквозной in-memory кэш (без userId — ADR 019, FR-2.4).
+/// Приоритет: категория из чека → in-memory кэш категорий (ADR 019) → очередь предкатегорий
+/// (ADR-027, D13/FR-9) → AI (решение C2). Suggest ничего не сохраняет; подтверждение
+/// пользователя применяется через <see cref="ApplyConfirmedCategoriesAsync"/>. При подтверждении
+/// категория кладётся в сквозной in-memory кэш (без userId — ADR 019, FR-2.4).
 /// </summary>
 internal sealed class CommodityCategorizationService : ICommodityCategorizationService
 {
     private readonly IReceiptRepository _receiptRepository;
     private readonly ICommodityRepository _commodityRepository;
     private readonly ICommodityCategoryCache _cache;
+    private readonly IPrecategorizedCommodityRepository _precategorizedRepository;
     private readonly IAiClient _aiClient;
     private readonly ILogger<CommodityCategorizationService> _logger;
     private readonly SemaphoreSlim _aiSemaphore;
+
+    /// <summary>Пустой результат поиска по очереди (деградация/нет наименований).</summary>
+    private static readonly IReadOnlyDictionary<string, CommodityCategory> EmptyQueueCategories =
+        new Dictionary<string, CommodityCategory>(StringComparer.Ordinal);
 
     /// <summary>Реестр категорий для AI (имена enum без Undefined) — строится из кода, не хардкодится.</summary>
     private static readonly IReadOnlyCollection<string> CategoryNames = CommodityCategoryHelper.GetAll()
@@ -34,6 +39,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         IReceiptRepository receiptRepository,
         ICommodityRepository commodityRepository,
         ICommodityCategoryCache cache,
+        IPrecategorizedCommodityRepository precategorizedRepository,
         IAiClient aiClient,
         IOptions<AiOptions> aiOptions,
         ILogger<CommodityCategorizationService> logger)
@@ -41,6 +47,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
         _commodityRepository = commodityRepository ?? throw new ArgumentNullException(nameof(commodityRepository));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _precategorizedRepository = precategorizedRepository ?? throw new ArgumentNullException(nameof(precategorizedRepository));
         _aiClient = aiClient ?? throw new ArgumentNullException(nameof(aiClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -77,7 +84,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         }
 
         // Шаг 2: in-memory кэш ранее присвоенных категорий (сквозной, без userId; FR-2.4).
-        var aiCandidates = new List<Commodity>();
+        var pendingAfterCache = new List<Commodity>();
         foreach (var item in pending)
         {
             var normalized = CommodityNameNormalizer.NormalizeName(item.Name);
@@ -89,11 +96,40 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
             }
             else
             {
-                aiCandidates.Add(item);
+                pendingAfterCache.Add(item);
             }
         }
 
-        // Шаг 3: AI. Одинаковые нормализованные названия категоризируем один раз.
+        // Шаг 3: очередь предкатегорий (ADR-027, D13/FR-9): один batch-запрос на чек,
+        // только для наименований, которым не нашлось категории на existing/cache (FR-9.3).
+        var aiCandidates = new List<Commodity>();
+        if (pendingAfterCache.Count > 0)
+        {
+            var queueCategories = await GetQueueCategoriesAsync(pendingAfterCache, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var item in pendingAfterCache)
+            {
+                if (queueCategories.TryGetValue(item.Name, out var queuedCategory)
+                    && queuedCategory != CommodityCategory.Undefined
+                    && Enum.IsDefined(typeof(CommodityCategory), queuedCategory))
+                {
+                    // FR-9.4: источник precategorized, ИИ для позиции не вызывается.
+                    results.Add(CreateResult(
+                        item,
+                        (int)queuedCategory,
+                        CommodityCategoryHelper.GetDisplayName(queuedCategory),
+                        CategorizationSource.Precategorized,
+                        null));
+                }
+                else
+                {
+                    aiCandidates.Add(item);
+                }
+            }
+        }
+
+        // Шаг 4: AI. Одинаковые нормализованные названия категоризируем один раз.
         if (aiCandidates.Count > 0)
         {
             var suggestions = await SuggestByAiAsync(aiCandidates, cancellationToken).ConfigureAwait(false);
@@ -161,6 +197,46 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         }
 
         return updated;
+    }
+
+    /// <summary>
+    /// Batch-поиск категорий в очереди предкатегорий по точным наименованиям (FR-9.2/9.3).
+    /// Ошибка чтения очереди не ломает категоризацию: Warning + деградация к ИИ (FR-9.6).
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, CommodityCategory>> GetQueueCategoriesAsync(
+        IReadOnlyCollection<Commodity> items,
+        CancellationToken cancellationToken)
+    {
+        var names = items
+            .Select(item => item.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (names.Count == 0)
+        {
+            return EmptyQueueCategories;
+        }
+
+        try
+        {
+            var categories = await _precategorizedRepository
+                .GetCategoriesByExactNamesAsync(names, cancellationToken)
+                .ConfigureAwait(false);
+
+            return categories ?? EmptyQueueCategories;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to read precategorized commodities; falling back to AI categorization.");
+            return EmptyQueueCategories;
+        }
     }
 
     /// <summary>Параллельный вызов AI с ограничением concurrency; возвращает словарь normalizedName → категория.</summary>

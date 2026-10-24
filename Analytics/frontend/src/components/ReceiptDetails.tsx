@@ -25,6 +25,8 @@ function getSuggestionNote(source: ReceiptItemSuggestion['source']): string | nu
       return 'предложено ИИ';
     case 'existing':
       return 'уже присвоена';
+    case 'precategorized':
+      return 'из очереди предкатегорий';
     case 'undefined':
       return 'не определена';
     default:

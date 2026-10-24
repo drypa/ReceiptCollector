@@ -3,12 +3,14 @@ using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 namespace ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 
 /// <summary>
-/// Источник предложенной категории для товара (известна из товара / из кэша / от ИИ / не определена).
+/// Источник предложенной категории для товара
+/// (известна из товара / из кэша / из очереди предкатегорий / от ИИ / не определена).
 /// </summary>
 public enum CategorizationSource
 {
     Existing,
     Cache,
+    Precategorized,
     Ai,
     Undefined
 }
@@ -18,6 +20,7 @@ public static class CategorizationSourceNames
 {
     public const string Existing = "existing";
     public const string Cache = "cache";
+    public const string Precategorized = "precategorized";
     public const string Ai = "ai";
     public const string Undefined = "undefined";
 
@@ -25,6 +28,7 @@ public static class CategorizationSourceNames
     {
         CategorizationSource.Existing => Existing,
         CategorizationSource.Cache => Cache,
+        CategorizationSource.Precategorized => Precategorized,
         CategorizationSource.Ai => Ai,
         _ => Undefined
     };

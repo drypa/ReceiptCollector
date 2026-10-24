@@ -101,6 +101,18 @@ Analytics configuration (connection strings, `AI` section) is in `appsettings.{*
 |----------|-----------------|--------|
 | CommodityCategoryCache__MaxSize | `1000` | appsettings `CommodityCategoryCache:MaxSize` / env var; max cache entries (normalized commodity name → category). The cache freezes (stops accepting new entries, no eviction) when the limit is reached. `<= 0` disables the cache (AI is called for every name). Populated at service startup from `commodities` having a category != `Undefined`. |
 
+**Background commodity precategorization options** (section `Precategorization` in `appsettings.json`, overridable via `Precategorization__*` env vars; see ADR 027):
+
+| Variable | Default/Example | Source |
+|----------|-----------------|--------|
+| Precategorization__Enabled | `true` | appsettings `Precategorization:Enabled` / env var; `false` stops the background sessions only — the admin section (`/precategorized`, `/api/precategorized-commodities`) and the queue lookup in manual `suggest` keep working on already collected rows. |
+| Precategorization__IdleTimeout | `00:05:00` | appsettings `Precategorization:IdleTimeout` / env var; how long Analytics API must see no HTTP requests before a session starts. `/health` is excluded (middleware `RequestActivityMiddleware` is registered before `UseStaticFiles`, so static/SPA requests DO count as activity). |
+| Precategorization__BatchLimit | `5` | appsettings `Precategorization:BatchLimit` / env var; max candidates processed per session (must be >= 1). |
+| Precategorization__IntervalBetweenCalls | `00:00:02` | appsettings `Precategorization:IntervalBetweenCalls` / env var; pause between AI calls (not applied to existing/cache hits; rows are saved before the pause). |
+| Precategorization__IdleCheckInterval | `00:00:30` | appsettings `Precategorization:IdleCheckInterval` / env var; how often idle state is polled (must be > 0). |
+
+Background service writes proposals to the shared (not owner-scoped) table `precategorized_commodities`; AI results are never written to `commodities` directly — an administrator confirms them (single transaction, exact-name match, all users). Single Analytics instance only — there is no distributed lock. Manual `suggest` priority becomes `existing → cache → precategorized → ai` (new additive `source = "precategorized"`).
+
 ## Key Code Locations
 
 ### Backend (`backend/`)
