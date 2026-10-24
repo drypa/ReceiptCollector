@@ -90,7 +90,6 @@ function PrecategorizedCommoditiesView() {
           value={search}
           placeholder="Наименование или магазин"
           onChange={(event) => setSearch(event.target.value)}
-          disabled={isLoading}
         />
       </div>
 
