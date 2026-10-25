@@ -173,7 +173,7 @@ go run .
 ### Database
 
 - **MongoDB 8.2.3** (`mongo:8.2.3` in docker-compose) stores raw receipts, devices and sessions.
-- Backup: `./backup.sh` dumps both business databases (`receipt_collection`, `receipt-data`) into `${MONGO_BACKUP}`.
+- Backup: `./backup.sh` dumps both business databases (`receipt_collection`, `receipt-data`) and the Analytics PostgreSQL database (`receipts`, stored as `analytics-postgres.dump`) into one dump directory `${MONGO_BACKUP}/<timestamp>`.
 - Restore: `./restore.sh <dump-directory>`.
 - Upgrading from MongoDB 4.x requires `mongodump → mongorestore` into a fresh empty data directory (WiredTiger formats are not compatible across major versions). See [ADR-015](docs/adr/015-mongodb-upgrade-8.2.md) and the ops runbook [docs/runbooks/mongodb-upgrade-manual-ops.md](docs/runbooks/mongodb-upgrade-manual-ops.md).
 

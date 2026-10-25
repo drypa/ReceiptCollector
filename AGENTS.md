@@ -152,8 +152,9 @@ Background service writes proposals to the shared (not owner-scoped) table `prec
   выполнялось по схеме `mongodump → mongorestore`: см.
   [ADR-015](docs/adr/015-mongodb-upgrade-8.2.md) и инструкцию для персонала
   [docs/runbooks/mongodb-upgrade-manual-ops.md](docs/runbooks/mongodb-upgrade-manual-ops.md).
-- **Бэкап**: `./backup.sh` дампит **обе** бизнес-базы (`receipt_collection` и
-  `receipt-data`) в `${MONGO_BACKUP}`; восстановление — `./restore.sh <каталог-дампа>`.
+- **Бэкап**: `./backup.sh` дампит **обе** бизнес-базы MongoDB (`receipt_collection` и
+  `receipt-data`) и базу PostgreSQL Analytics (`receipts`, файл `analytics-postgres.dump`)
+  в один каталог `${MONGO_BACKUP}/<timestamp>`; восстановление — `./restore.sh <каталог-дампа>`.
 - **PostgreSQL**: Analytics service only. Migrations run via separate `.Net` project before API starts.
 
 ## Development Shortcuts
