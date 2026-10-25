@@ -326,73 +326,75 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
           )}
         </div>
         {receipt.items.length > 0 ? (
-          <table className="items-table">
-            <thead>
-              <tr>
-                <th>Название</th>
-                <th>Количество</th>
-                <th>Цена за единицу</th>
-                <th>Общая цена</th>
-                <th>Категория</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receipt.items.map((item, index) => {
-                const suggestion = suggestionByItem(item);
-                const note = suggestion ? getSuggestionNote(suggestion.source) : null;
-                const categoryName = categoryNameForItem(item);
-
-                return (
-                  <tr key={`${item.id}-${index}`}>
-                    <td>{item.name}</td>
-                    <td>{item.quantity}</td>
-                    <td>{currencyFormatter.format(item.unitPrice)}</td>
-                    <td>{currencyFormatter.format(item.totalPrice)}</td>
-                    {categorizeModeActive ? (
-                      <td>
-                        <select
-                          value={selectedCategories[item.id] ?? ''}
-                          onChange={(e) =>
-                            setSelectedCategories((prev) => ({
-                              ...prev,
-                              [item.id]: e.target.value,
-                            }))
-                          }
-                          disabled={savingCategories}
-                          className="item-category-select"
-                          title={suggestion?.error ?? undefined}
-                        >
-                          <option value="">—</option>
-                          {renderCategorySelectOptions(selectableCategories, (c) => c.key)}
-                        </select>
-                        {note && (
-                          <div
-                            className={`category-suggestion category-suggestion-${
-                              suggestion?.source ?? 'undefined'
-                            }`}
+          <div className="table-wrapper">
+            <table className="items-table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Количество</th>
+                  <th>Цена за единицу</th>
+                  <th>Общая цена</th>
+                  <th>Категория</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipt.items.map((item, index) => {
+                  const suggestion = suggestionByItem(item);
+                  const note = suggestion ? getSuggestionNote(suggestion.source) : null;
+                  const categoryName = categoryNameForItem(item);
+  
+                  return (
+                    <tr key={`${item.id}-${index}`}>
+                      <td>{item.name}</td>
+                      <td>{item.quantity}</td>
+                      <td>{currencyFormatter.format(item.unitPrice)}</td>
+                      <td>{currencyFormatter.format(item.totalPrice)}</td>
+                      {categorizeModeActive ? (
+                        <td>
+                          <select
+                            value={selectedCategories[item.id] ?? ''}
+                            onChange={(e) =>
+                              setSelectedCategories((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.value,
+                              }))
+                            }
+                            disabled={savingCategories}
+                            className="item-category-select"
+                            title={suggestion?.error ?? undefined}
                           >
-                            {note}
-                          </div>
-                        )}
-                      </td>
-                    ) : (
-                      <td>
-                        <span
-                          className={
-                            categoryName
-                              ? 'item-category-name'
-                              : 'item-category-name item-category-name--empty'
-                          }
-                        >
-                          {categoryName ?? '—'}
-                        </span>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                            <option value="">—</option>
+                            {renderCategorySelectOptions(selectableCategories, (c) => c.key)}
+                          </select>
+                          {note && (
+                            <div
+                              className={`category-suggestion category-suggestion-${
+                                suggestion?.source ?? 'undefined'
+                              }`}
+                            >
+                              {note}
+                            </div>
+                          )}
+                        </td>
+                      ) : (
+                        <td>
+                          <span
+                            className={
+                              categoryName
+                                ? 'item-category-name'
+                                : 'item-category-name item-category-name--empty'
+                            }
+                          >
+                            {categoryName ?? '—'}
+                          </span>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p>Товары не найдены.</p>
         )}
