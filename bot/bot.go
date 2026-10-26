@@ -30,7 +30,7 @@ func getEnvVar(varName string) string {
 	return value
 }
 
-func start(options Options, reportsClient *report.Client, registrar *commands.Registrar) error {
+func start(options Options, reportsClient *report.Client, registrar *commands.Registrar, auth commands.Authorizator) error {
 	bot, err := create(options)
 	if err != nil {
 		log.Printf("Bot create error: %v\n", err)
@@ -45,18 +45,19 @@ func start(options Options, reportsClient *report.Client, registrar *commands.Re
 		log.Println(err)
 		return err
 	}
-	go processNotifications(bot, reportsClient.Notifications)
-	processUpdates(updatesChan, bot, registrar)
+	go processNotifications(bot, auth, reportsClient.Notifications)
+	processUpdates(updatesChan, bot, registrar, auth)
 
 	return nil
 }
 
-func processNotifications(bot *tgbotapi.BotAPI, notifications <-chan *api.Report) {
+func processNotifications(bot *tgbotapi.BotAPI, auth commands.Authorizator, notifications <-chan *api.Report) {
 	for {
 		select {
 		case r := <-notifications:
-			msg := tgbotapi.NewMessage(r.TelegramId, r.Message)
-			_, err := bot.Send(msg)
+			// Push notifications are answers to the user too, so they go
+			// through the Messenger keyboard policy (ADR-029 D7).
+			_, err := commands.NewMessenger(bot, auth, r.TelegramId, int(r.TelegramId)).SendText(r.Message)
 			if err != nil {
 				log.Printf("Failed to send message '%s' to client %d. %v \n", r.Message, r.TelegramId, err)
 			}
@@ -87,21 +88,23 @@ func create(options Options) (*tgbotapi.BotAPI, error) {
 
 func processUpdates(updatesChan tgbotapi.UpdatesChannel,
 	bot *tgbotapi.BotAPI,
-	registrar *commands.Registrar) {
+	registrar *commands.Registrar,
+	auth commands.Authorizator) {
 	for update := range updatesChan {
 		if update.Message == nil {
 			continue
 		}
 
-		processMessage(update, bot, registrar)
+		processMessage(update, bot, registrar, auth)
 	}
 }
 
-func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, registrar *commands.Registrar) {
+func processMessage(update tgbotapi.Update, bot *tgbotapi.BotAPI, registrar *commands.Registrar, auth commands.Authorizator) {
 	text := strings.TrimSpace(update.Message.Text)
 	c := registrar.Get(text)
 	if c != nil {
-		err := (*c).Execute(update, bot)
+		messenger := commands.NewMessenger(bot, auth, update.Message.Chat.ID, update.Message.From.ID)
+		err := (*c).Execute(update, messenger)
 		if err != nil {
 			log.Printf("Error while process request '%s' from %d. %v", text, update.Message.From.ID, err)
 		}

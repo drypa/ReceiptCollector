@@ -10,7 +10,7 @@ func (w WrongCommand) Accepted(_ string) bool {
 }
 
 // Execute command
-func (w WrongCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
-	_, err := sendTextMessage(update.Message.Chat.ID, bot, "Command not recognized.")
+func (w WrongCommand) Execute(update tgbotapi.Update, m *Messenger) error {
+	_, err := m.SendText("Command not recognized.")
 	return err
 }

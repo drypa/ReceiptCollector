@@ -10,7 +10,7 @@ func (e EmptyCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (e EmptyCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
-	_, err := sendTextMessage(update.Message.Chat.ID, bot, "Please enter a command.")
+func (e EmptyCommand) Execute(update tgbotapi.Update, m *Messenger) error {
+	_, err := m.SendText("Please enter a command.")
 	return err
 }

@@ -41,7 +41,7 @@ func main() {
 	}
 	analyticsClient := analytics.NewClient(options.AnalyticsUrl)
 	registrar := createCommandsRegistrar(grpcClient, &provider, analyticsClient)
-	err = start(options, reportsClient, registrar)
+	err = start(options, reportsClient, registrar, &provider)
 	if err != nil {
 		log.Fatal(err)
 	}

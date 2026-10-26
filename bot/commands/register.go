@@ -28,7 +28,7 @@ func (r RegisterCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+func (r RegisterCommand) Execute(update tgbotapi.Update, m *Messenger) error {
 	log.Printf("RegisterCommand: %s", update.Message.Text)
 	phone := r.getPhoneFromRequest(update.Message.Text)
 	err := r.register(update.Message.From.ID, phone)
@@ -36,7 +36,7 @@ func (r RegisterCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) e
 	if err != nil {
 		responseText = err.Error()
 	}
-	_, err = sendTextMessage(update.Message.Chat.ID, bot, responseText)
+	_, err = m.SendText(responseText)
 	return err
 }
 

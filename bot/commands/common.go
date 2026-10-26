@@ -8,18 +8,7 @@ import (
 
 type Command interface {
 	Accepted(message string) bool
-	Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error
-}
-
-func sendTextMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string) (tgbotapi.Message, error) {
-	msg := tgbotapi.NewMessage(chatId, responseText)
-	return bot.Send(msg)
-}
-
-func replyToMessage(chatId int64, bot *tgbotapi.BotAPI, responseText string, initialMessageId int) (tgbotapi.Message, error) {
-	msg := tgbotapi.NewMessage(chatId, responseText)
-	msg.ReplyToMessageID = initialMessageId
-	return bot.Send(msg)
+	Execute(update tgbotapi.Update, m *Messenger) error
 }
 
 func getContext() (context.Context, context.CancelFunc) {

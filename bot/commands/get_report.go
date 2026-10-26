@@ -21,7 +21,7 @@ func (g GetReceiptReportCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (g GetReceiptReportCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+func (g GetReceiptReportCommand) Execute(update tgbotapi.Update, m *Messenger) error {
 	log.Printf("GetReceiptReportCommand: %s", update.Message.Text)
 	id, err := g.provider.GetUserId(update.Message.From.ID)
 	if err != nil {
@@ -44,7 +44,7 @@ func (g GetReceiptReportCommand) Execute(update tgbotapi.Update, bot *tgbotapi.B
 	}
 	upload := tgbotapi.NewDocumentUpload(update.Message.Chat.ID, file)
 	upload.ReplyToMessageID = update.Message.MessageID
-	_, err = bot.Send(upload)
+	_, err = m.SendDocument(upload)
 
 	return err
 }

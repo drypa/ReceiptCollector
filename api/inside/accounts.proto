@@ -19,6 +19,9 @@ message LoginLinkResponse {
 message User {
     string userId = 1;
     int32 telegramId = 2;
+    // verified is true when the user completed phone confirmation (SMS code):
+    // the backend derives it from non-empty device SessionId/RefreshToken (ADR-029 D1).
+    bool verified = 3;
 }
 
 message GetUserResponse {

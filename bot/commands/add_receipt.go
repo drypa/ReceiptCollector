@@ -27,7 +27,7 @@ func (a AddReceiptCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (a AddReceiptCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
+func (a AddReceiptCommand) Execute(update tgbotapi.Update, m *Messenger) error {
 	log.Printf("AddReceiptCommand: %s", update.Message.Text)
 	id, err := a.provider.GetUserId(update.Message.From.ID)
 	if err != nil {
@@ -39,6 +39,6 @@ func (a AddReceiptCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI)
 	if err != nil {
 		responseText = err.Error()
 	}
-	_, err = replyToMessage(update.Message.Chat.ID, bot, responseText, update.Message.MessageID)
+	_, err = m.ReplyText(responseText, update.Message.MessageID)
 	return err
 }

@@ -60,6 +60,7 @@ func (c *GrpcClient) GetUsers(ctx context.Context) ([]User, error) {
 		result[i] = User{
 			UserId:     v.UserId,
 			TelegramId: int(v.TelegramId),
+			Verified:   v.Verified,
 		}
 	}
 
@@ -88,6 +89,7 @@ func (c *GrpcClient) GetUser(ctx context.Context, telegramId int) (*User, error)
 	user := User{
 		UserId:     resp.User.UserId,
 		TelegramId: int(resp.User.TelegramId),
+		Verified:   resp.User.Verified,
 	}
 	return &user, err
 }
@@ -136,8 +138,8 @@ func (c *GrpcClient) VerifyPhone(ctx context.Context, telegramId int, code strin
 }
 
 const (
-	waitForReadyInitialDelay = 500 * time.Millisecond
-	waitForReadyMaxDelay     = 30 * time.Second
+	waitForReadyInitialDelay   = 500 * time.Millisecond
+	waitForReadyMaxDelay       = 30 * time.Second
 	waitForReadyAttemptTimeout = 5 * time.Second
 )
 

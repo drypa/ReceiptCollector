@@ -10,7 +10,7 @@ func (s StartCommand) Accepted(message string) bool {
 }
 
 // Execute command
-func (s StartCommand) Execute(update tgbotapi.Update, bot *tgbotapi.BotAPI) error {
-	_, err := sendTextMessage(update.Message.Chat.ID, bot, "I'm a bot to collect Your purchase tickets.")
+func (s StartCommand) Execute(update tgbotapi.Update, m *Messenger) error {
+	_, err := m.SendText("I'm a bot to collect Your purchase tickets.")
 	return err
 }
