@@ -4,18 +4,41 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   onPrevious: () => void;
   onNext: () => void;
+  /**
+   * Полная блокировка пагинации (режим проверки на «Товарах», C5/ADR-028 п. 5).
+   * Аддитивный проп: без него поведение идентично прежнему (страницы «Чеки», «Магазины»).
+   */
+  disabled?: boolean;
+  /** Подсказка на кнопках, когда блокировка активна (title). */
+  disabledTitle?: string;
 }
 
-export function Pagination({ currentPage, totalPages, onPageChange, onPrevious, onNext }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  onPrevious,
+  onNext,
+  disabled = false,
+  disabledTitle,
+}: PaginationProps) {
   if (totalPages <= 1) {
     return null;
   }
 
   const visiblePages = createVisiblePages(currentPage, totalPages);
+  const previousDisabled = disabled || currentPage === 1;
+  const nextDisabled = disabled || currentPage === totalPages;
 
   return (
     <nav className="pagination" aria-label="Пейджинг чеков">
-      <button type="button" onClick={onPrevious} disabled={currentPage === 1}>
+      <button
+        type="button"
+        onClick={onPrevious}
+        disabled={previousDisabled}
+        aria-disabled={previousDisabled || undefined}
+        title={disabled ? disabledTitle : undefined}
+      >
         Назад
       </button>
       <ul>
@@ -26,13 +49,22 @@ export function Pagination({ currentPage, totalPages, onPageChange, onPrevious, 
               className={page === currentPage ? 'active' : ''}
               aria-current={page === currentPage ? 'page' : undefined}
               onClick={() => onPageChange(page)}
+              disabled={disabled}
+              aria-disabled={disabled || undefined}
+              title={disabled ? disabledTitle : undefined}
             >
               {page}
             </button>
           </li>
         ))}
       </ul>
-      <button type="button" onClick={onNext} disabled={currentPage === totalPages}>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={nextDisabled}
+        aria-disabled={nextDisabled || undefined}
+        title={disabled ? disabledTitle : undefined}
+      >
         Вперёд
       </button>
     </nav>

@@ -18,6 +18,13 @@
 > [ADR 027](027-background-commodity-precategorization.md) и
 > [задачу](../tasks/background-commodity-precategorization.md). Контракты suggest/apply и остальные
 > решения настоящего ADR — без изменений.
+>
+> **Дополнено (2026-10-25):** конвейер «existing → cache → precategorized → ai» выносится в общий
+> resolver и получает **второй вход** — порционную категоризацию страницы «Товары»
+> (`POST /api/commodities/categories/suggest`, порции по ≤ 5 названий) и второй контракт сохранения
+> (`PUT /api/commodities/categories`, assign-only: пустое значение = «не трогаем»). Контракты
+> suggest/apply **чека**, их поведение (включая `503` при пустом `AI:BaseUrl` и reset по пустому
+> значению) не меняются — см. [ADR 028](028-commodities-page-categorization.md).
 
 ## Контекст
 

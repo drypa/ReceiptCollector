@@ -444,6 +444,71 @@ tbody td:last-child {
   color: #dc3545;
 }
 
+/* Подписи «уже присвоена» и «из очереди предкатегорий» (ADR-028, C8) — нейтральные тона,
+   чтобы различать источники: кэш/ИИ/ошибка уже окрашены выше. */
+.category-suggestion-existing {
+  color: #495057;
+}
+
+.category-suggestion-precategorized {
+  color: #6f42c1;
+}
+
+/* Ручная правка в режиме проверки: значение пользовательское, источник перекрыт. */
+.category-suggestion-touched {
+  color: #495057;
+  font-style: italic;
+}
+
+/* Режим проверки страницы «Товары»: селект, подпись и «Повторить» в одной ячейке. */
+.category-review {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.retry-row-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 0.8rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.retry-row-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.retry-row-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Прогресс порционной категоризации «Определяем категории… X из Y» (ADR-028 п. 2). */
+.categorization-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  color: #0d6efd;
+}
+
+/* Постоянное inline-предупреждение о недоступном ИИ (ADR-028 п. 4, C7). */
+.categorization-ai-warning {
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  background: #fff3cd;
+  color: #664d03;
+  font-size: 0.9rem;
+}
+
 /* Название категории товара в обычном режиме (текст вместо <select>). */
 .item-category-name {
   display: inline-block;

@@ -28,15 +28,25 @@ public class CommodityCategorizationServiceTests
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
     }
 
-    private CommodityCategorizationService CreateService(AiOptions? options = null) =>
-        new(
-            _receiptRepository,
-            _commodityRepository,
+    private CommodityCategorizationService CreateService(AiOptions? options = null)
+    {
+        // ADR-028 п. 9: конвейер вынесен в resolver; утверждения тестов не меняются — правка
+        // только фабрики (открытый вопрос №1, вариант (a)).
+        var aiOptions = Options.Create(options ?? new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 });
+        var resolver = new CommodityCategoryResolver(
             _cache,
             _precategorizedRepository,
             _aiClient,
-            Options.Create(options ?? new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 }),
-            NullLogger<CommodityCategorizationService>.Instance);
+            aiOptions,
+            NullLogger<CommodityCategoryResolver>.Instance);
+
+        return new(
+            _receiptRepository,
+            _commodityRepository,
+            _cache,
+            resolver,
+            aiOptions);
+    }
 
     private void ArrangeCacheHit(string normalized, CommodityCategory category)
     {

@@ -38,7 +38,7 @@ public static class PrecategorizedCommodityEndpoints
         [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var authorization = await AuthorizeAdminAsync(userRepository, cancellationToken);
+        var authorization = await AdminAuthorization.AuthorizeAsync(userRepository, cancellationToken);
         if (authorization is not null)
         {
             return authorization;
@@ -68,7 +68,7 @@ public static class PrecategorizedCommodityEndpoints
         [FromServices] IUserRepository userRepository,
         CancellationToken cancellationToken)
     {
-        var authorization = await AuthorizeAdminAsync(userRepository, cancellationToken);
+        var authorization = await AdminAuthorization.AuthorizeAsync(userRepository, cancellationToken);
         if (authorization is not null)
         {
             return authorization;
@@ -100,7 +100,7 @@ public static class PrecategorizedCommodityEndpoints
         [FromServices] IUserRepository userRepository,
         CancellationToken cancellationToken)
     {
-        var authorization = await AuthorizeAdminAsync(userRepository, cancellationToken);
+        var authorization = await AdminAuthorization.AuthorizeAsync(userRepository, cancellationToken);
         if (authorization is not null)
         {
             return authorization;
@@ -126,7 +126,7 @@ public static class PrecategorizedCommodityEndpoints
         [FromServices] IUserRepository userRepository,
         CancellationToken cancellationToken)
     {
-        var authorization = await AuthorizeAdminAsync(userRepository, cancellationToken);
+        var authorization = await AdminAuthorization.AuthorizeAsync(userRepository, cancellationToken);
         if (authorization is not null)
         {
             return authorization;
@@ -140,35 +140,6 @@ public static class PrecategorizedCommodityEndpoints
             PrecategorizedOperationOutcome.Conflict => Results.Conflict("Precategorized commodity is already applied."),
             _ => Results.NoContent()
         };
-    }
-
-    /// <summary>
-    /// Проверка прав по эталону <c>MerchantEndpoints</c> (FR-5.5): нет пользователя → 401,
-    /// не админ → 403. Возвращает <c>null</c>, если доступ разрешён.
-    /// <para>
-    /// 403 отдаётся явно (<see cref="Results.StatusCode(int)"/>): в приложении не зарегистрирована
-    /// схема аутентификации, поэтому <c>Results.Forbid()</c> в рантайме бросает
-    /// <c>InvalidOperationException</c> и даёт 500 вместо 403 (тесты уровня хендлера этого не видят).
-    /// Тот же дефект у <c>MerchantEndpoints</c> — в бэклоге.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult?> AuthorizeAdminAsync(
-        IUserRepository userRepository,
-        CancellationToken cancellationToken)
-    {
-        var userId = UserContext.UserId;
-        if (userId is null || userId == Guid.Empty)
-        {
-            return Results.Unauthorized();
-        }
-
-        var user = await userRepository.GetByIdAsync(userId.Value, cancellationToken);
-        if (user is null || !user.IsAdmin)
-        {
-            return Results.StatusCode(StatusCodes.Status403Forbidden);
-        }
-
-        return null;
     }
 }
 

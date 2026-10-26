@@ -128,6 +128,9 @@ services:
       - Precategorization__BatchLimit=${Precategorization__BatchLimit:-5}
       - Precategorization__IntervalBetweenCalls=${Precategorization__IntervalBetweenCalls:-00:00:02}
       - Precategorization__IdleCheckInterval=${Precategorization__IdleCheckInterval:-00:00:30}
+      # Бюджет одного suggest-запроса страницы «Товары» (ADR 028). По истечении — частичный
+      # результат, остальное «не определена». Должен быть существенно меньше 120 c (nginx).
+      - CommodityBatchCategorization__SuggestTimeout=${CommodityBatchCategorization__SuggestTimeout:-00:00:25}
       - Infrastructure__Postgres__ConnectionString=Host=postgres;Port=5432;Database=receipts;Username=${PG_LOGIN};Password=${PG_SECRET}
       - Infrastructure__Receipts__Mongo__ConnectionString=mongodb://${MONGO_LOGIN}:${MONGO_SECRET}@mongo:27017/receipt_collection?authSource=admin
       - Infrastructure__Receipts__Mongo__Database=receipt_collection

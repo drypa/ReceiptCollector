@@ -35,6 +35,7 @@ app.MapReceiptEndpoints();
 app.MapReceiptCategorizationEndpoints();
 app.MapUserAuthEndpoints();
 app.MapCommodityEndpoints();
+app.MapCommodityBatchCategorizationEndpoints();
 app.MapMerchantEndpoints();
 app.MapPrecategorizedCommodityEndpoints();
 app.MapGet("/health", () => Results.Ok("healthy"));

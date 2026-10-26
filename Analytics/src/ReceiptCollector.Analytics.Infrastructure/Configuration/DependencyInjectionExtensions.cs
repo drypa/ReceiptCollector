@@ -35,6 +35,9 @@ public static class DependencyInjectionExtensions
             sp.GetRequiredService<IOptions<CommodityCategoryCacheOptions>>().Value.MaxSize));
 
         services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
+        // ADR-028 п. 9: общий конвейер категоризации (Scoped — SemaphoreSlim на экземпляр, как раньше).
+        services.AddScoped<ICommodityCategoryResolver, CommodityCategoryResolver>();
+        services.AddScoped<ICommodityBatchCategorizationService, CommodityBatchCategorizationService>();
         services.AddHttpClient<IAiClient, OpenAiCompatibleAiClient>();
         services.AddScoped<IPrecategorizedCommodityRepository, PrecategorizedCommodityRepository>();
         services.AddScoped<IPrecategorizedCommodityService, PrecategorizedCommodityService>();
@@ -80,6 +83,13 @@ public static class DependencyInjectionExtensions
 
         services.AddOptions<CommodityCategoryCacheOptions>()
             .Bind(configuration.GetSection(CommodityCategoryCacheOptions.SectionName));
+
+        // ADR-028 п.3: бюджет одного suggest-запроса страницы. Невалидное значение — ошибка старта
+        // (как у Precategorization, NFR-7), а не «тихая» деградация к таймауту прокси.
+        services.AddOptions<CommodityBatchCategorizationOptions>()
+            .Bind(configuration.GetSection(CommodityBatchCategorizationOptions.SectionName))
+            .Validate(o => o.SuggestTimeout > TimeSpan.Zero, "CommodityBatchCategorization:SuggestTimeout must be greater than zero.")
+            .ValidateOnStart();
 
         // NFR-7: невалидные значения — явная ошибка на старте (OptionsValidationException),
         // а не «тихая деградация» фона.

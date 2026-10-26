@@ -113,6 +113,14 @@ Analytics configuration (connection strings, `AI` section) is in `appsettings.{*
 
 Background service writes proposals to the shared (not owner-scoped) table `precategorized_commodities`; AI results are never written to `commodities` directly — an administrator confirms them (single transaction, exact-name match, all users). Single Analytics instance only — there is no distributed lock. Manual `suggest` priority becomes `existing → cache → precategorized → ai` (new additive `source = "precategorized"`).
 
+**Commodities-page batch categorization options** (section `CommodityBatchCategorization` in `appsettings.json`, overridable via `CommodityBatchCategorization__*` env vars; see ADR 028):
+
+| Variable | Default/Example | Source |
+|----------|-----------------|--------|
+| CommodityBatchCategorization__SuggestTimeout | `00:00:25` | appsettings `CommodityBatchCategorization:SuggestTimeout` / env var; budget for ONE `/api/commodities/categories/suggest` request of the commodities page. On expiry only AI calls are cancelled: the response stays `200` with a partial result, unfinished names become `undefined`. Independent of `AI:Timeout`; must be well below nginx `proxy_read_timeout` (120 s). `<= 0` is a startup validation error. |
+
+The page endpoints (`POST /api/commodities/categories/suggest`, `PUT /api/commodities/categories`) are additive and do not change receipt-page contracts: unlike `POST /api/receipts/{id}/categories/suggest` they never return `503` on empty `AI:BaseUrl` (they answer `200` with `aiAvailable = false`), and unlike `PUT /api/receipts/{id}/categories` saving is assign-only (empty category = "do not touch", no reset). Chunking (≤ 5 unique names per request) is done by the client; the server is stateless.
+
 ## Key Code Locations
 
 ### Backend (`backend/`)

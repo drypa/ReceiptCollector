@@ -7,6 +7,7 @@ import type { ReceiptItemSuggestion } from '../api/receipts';
 import { fetchCategories } from '../api/commodities';
 import type { Category } from '../types/commodity';
 import { renderCategorySelectOptions } from '../utils/categoryOptions';
+import { getSuggestionNote } from '../utils/categorizationSource';
 import { CustomDialog } from './CustomDialog';
 import { useToast } from './Toasts';
 
@@ -16,23 +17,8 @@ interface ReceiptDetailsProps {
   onReceiptRefresh?: () => void;
 }
 
-/** Источник «уже присвоена» — товар уже имел категорию в чеке, она не меняется. */
-function getSuggestionNote(source: ReceiptItemSuggestion['source']): string | null {
-  switch (source) {
-    case 'cache':
-      return 'по прошлым чекам';
-    case 'ai':
-      return 'предложено ИИ';
-    case 'existing':
-      return 'уже присвоена';
-    case 'precategorized':
-      return 'из очереди предкатегорий';
-    case 'undefined':
-      return 'не определена';
-    default:
-      return null;
-  }
-}
+// Подпись-источник предложения вынесена в utils/categorizationSource (ADR-028 п. 9) —
+// общий источник для «Деталей чека» и страницы «Товары»; текст и поведение не изменились.
 
 export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDetailsProps) {
   const { isAdmin } = useAdmin();
