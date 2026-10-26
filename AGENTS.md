@@ -112,7 +112,7 @@ Analytics configuration (connection strings, `AI` section) is in `appsettings.{*
 |----------|-----------------|--------|
 | CommodityCategoryCache__MaxSize | `1000` | appsettings `CommodityCategoryCache:MaxSize` / env var; max cache entries (normalized commodity name → category). The cache freezes (stops accepting new entries, no eviction) when the limit is reached. `<= 0` disables the cache (AI is called for every name). Populated at service startup from `commodities` having a category != `Undefined`. |
 
-**Background commodity precategorization options** (section `Precategorization` in `appsettings.json`, overridable via `Precategorization__*` env vars; see ADR 027):
+**Background commodity precategorization options** (section `Precategorization` in `appsettings.json`, overridable via `Precategorization__*` env vars; see ADR 027 and ADR 030):
 
 | Variable | Default/Example | Source |
 |----------|-----------------|--------|
@@ -121,6 +121,9 @@ Analytics configuration (connection strings, `AI` section) is in `appsettings.{*
 | Precategorization__BatchLimit | `5` | appsettings `Precategorization:BatchLimit` / env var; max candidates processed per session (must be >= 1). |
 | Precategorization__IntervalBetweenCalls | `00:00:02` | appsettings `Precategorization:IntervalBetweenCalls` / env var; pause between AI calls (not applied to existing/cache hits; rows are saved before the pause). |
 | Precategorization__IdleCheckInterval | `00:00:30` | appsettings `Precategorization:IdleCheckInterval` / env var; how often idle state is polled (must be > 0). |
+| Precategorization__WorkWindowStart | `02:00:00` | appsettings `Precategorization:WorkWindowStart` / env var; start of the daily work window (time of day, `TimeSpan` format). Sessions start and activity is polled only inside the window; a session in progress stops after the current position when the window closes. Must be set together with `WorkWindowEnd`; omit both to run around the clock (legacy behaviour). |
+| Precategorization__WorkWindowEnd | `06:00:00` | appsettings `Precategorization:WorkWindowEnd` / env var; exclusive end of the work window. `Start > End` means an overnight window (e.g. `23:00:00`–`06:00:00`); `Start == End` is a startup validation error. |
+| Precategorization__WorkWindowTimeZone | `Europe/Moscow` | appsettings `Precategorization:WorkWindowTimeZone` / env var; IANA or Windows time zone id used to interpret the window. Empty = server local time (the Analytics container is usually UTC, so set the zone explicitly). Invalid id = startup validation error. |
 
 Background service writes proposals to the shared (not owner-scoped) table `precategorized_commodities`; AI results are never written to `commodities` directly — an administrator confirms them (single transaction, exact-name match, all users). Single Analytics instance only — there is no distributed lock. Manual `suggest` priority becomes `existing → cache → precategorized → ai` (new additive `source = "precategorized"`).
 

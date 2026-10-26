@@ -99,6 +99,22 @@ public static class DependencyInjectionExtensions
             .Validate(o => o.IdleCheckInterval > TimeSpan.Zero, "Precategorization:IdleCheckInterval must be greater than zero.")
             .Validate(o => o.BatchLimit >= 1, "Precategorization:BatchLimit must be at least 1.")
             .Validate(o => o.IntervalBetweenCalls >= TimeSpan.Zero, "Precategorization:IntervalBetweenCalls cannot be negative.")
+            // ADR-030: окно задаётся обеими границами или не задаётся вовсе; границы — время суток.
+            .Validate(
+                o => o.WorkWindowStart.HasValue == o.WorkWindowEnd.HasValue,
+                "Precategorization:WorkWindowStart and Precategorization:WorkWindowEnd must be set together (or both omitted).")
+            .Validate(
+                o => o.WorkWindowStart is not { } start || (start >= TimeSpan.Zero && start < TimeSpan.FromDays(1)),
+                "Precategorization:WorkWindowStart must be within [00:00:00, 24:00:00).")
+            .Validate(
+                o => o.WorkWindowEnd is not { } end || (end >= TimeSpan.Zero && end < TimeSpan.FromDays(1)),
+                "Precategorization:WorkWindowEnd must be within [00:00:00, 24:00:00).")
+            .Validate(
+                o => !o.WorkWindowStart.HasValue || !o.WorkWindowEnd.HasValue || o.WorkWindowStart != o.WorkWindowEnd,
+                "Precategorization:WorkWindowStart and Precategorization:WorkWindowEnd must differ (omit both to run around the clock).")
+            .Validate(
+                o => IsValidTimeZoneId(o.WorkWindowTimeZone),
+                "Precategorization:WorkWindowTimeZone must be a valid IANA or Windows time zone id.")
             .ValidateOnStart();
 
         services.AddDbContext<ReceiptDbContext>((sp, builder) =>
@@ -120,6 +136,32 @@ public static class DependencyInjectionExtensions
         // D3: resolver и loader владельца — singleton (кэш ConcurrentDictionary переживает циклы синхронизации).
         services.AddSingleton<IMongoReceiptRequestLoader, MongoReceiptRequestLoader>();
         services.AddSingleton<IReceiptOwnerResolver, ReceiptOwnerResolver>();
+    }
+
+    /// <summary>
+    /// Пустой id допустим (локальное время сервера); непустой должен разрешаться
+    /// <see cref="TimeZoneInfo"/> — иначе ошибка старта (ADR-030).
+    /// </summary>
+    private static bool IsValidTimeZoneId(string? timeZoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timeZoneId))
+        {
+            return true;
+        }
+
+        try
+        {
+            _ = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return false;
+        }
     }
 }
 

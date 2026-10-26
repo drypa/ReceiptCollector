@@ -128,6 +128,11 @@ services:
       - Precategorization__BatchLimit=${Precategorization__BatchLimit:-5}
       - Precategorization__IntervalBetweenCalls=${Precategorization__IntervalBetweenCalls:-00:00:02}
       - Precategorization__IdleCheckInterval=${Precategorization__IdleCheckInterval:-00:00:30}
+      # Рабочее окно фона (ADR 030): вне окна простой не проверяется и сессии не запускаются.
+      # Обе границы — в часовом поясе WorkWindowTimeZone (пусто = локальное время контейнера, UTC).
+      - Precategorization__WorkWindowStart=${Precategorization__WorkWindowStart:-02:00:00}
+      - Precategorization__WorkWindowEnd=${Precategorization__WorkWindowEnd:-06:00:00}
+      - Precategorization__WorkWindowTimeZone=${Precategorization__WorkWindowTimeZone:-Europe/Moscow}
       # Бюджет одного suggest-запроса страницы «Товары» (ADR 028). По истечении — частичный
       # результат, остальное «не определена». Должен быть существенно меньше 120 c (nginx).
       - CommodityBatchCategorization__SuggestTimeout=${CommodityBatchCategorization__SuggestTimeout:-00:00:25}

@@ -33,6 +33,7 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
     private readonly IOptions<AiOptions> _aiOptions;
     private readonly IApiActivityMonitor _monitor;
     private readonly TimeProvider _timeProvider;
+    private readonly TimeZoneInfo? _workWindowTimeZone;
     private readonly ILogger<PrecategorizationBackgroundService> _logger;
 
     /// <summary>
@@ -55,6 +56,7 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         _monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _workWindowTimeZone = ResolveWorkWindowTimeZone(_options.Value);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -67,14 +69,28 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         }
 
         _logger.LogInformation(
-            "Precategorization background service started. IdleTimeout: {IdleTimeout}, IdleCheckInterval: {IdleCheckInterval}, BatchLimit: {BatchLimit}.",
+            "Precategorization background service started. IdleTimeout: {IdleTimeout}, IdleCheckInterval: {IdleCheckInterval}, BatchLimit: {BatchLimit}, WorkWindow: {WorkWindow}.",
             _options.Value.IdleTimeout,
             _options.Value.IdleCheckInterval,
-            _options.Value.BatchLimit);
+            _options.Value.BatchLimit,
+            PrecategorizationWorkWindow.Describe(_options.Value));
+
+        if (PrecategorizationWorkWindow.IsConfigured(_options.Value) &&
+            string.IsNullOrWhiteSpace(_options.Value.WorkWindowTimeZone))
+        {
+            // Частая ошибка: окно задано, пояс пуст, а контейнер работает в UTC.
+            _logger.LogWarning(
+                "Precategorization work window uses server local time because Precategorization:WorkWindowTimeZone is empty; the Analytics container usually runs in UTC.");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (_monitor.IsIdle(_options.Value.IdleTimeout))
+            if (!IsWorkWindowOpen())
+            {
+                // ADR-030: вне рабочего окна простой не проверяется и сессии не запускаются.
+                _logger.LogDebug("Precategorization is outside the work window; idle check skipped.");
+            }
+            else if (_monitor.IsIdle(_options.Value.IdleTimeout))
             {
                 try
                 {
@@ -102,6 +118,39 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         }
 
         _logger.LogInformation("Precategorization background service stopped.");
+    }
+
+    /// <summary>Открыто ли рабочее окно в текущий момент (ADR-030).</summary>
+    private bool IsWorkWindowOpen()
+        => PrecategorizationWorkWindow.IsOpen(_options.Value, GetWorkWindowNow());
+
+    /// <summary>
+    /// Текущее время в часовом поясе окна. Пояс не задан — локальное время сервера через
+    /// <see cref="TimeProvider"/> (в контейнере Analytics это, как правило, UTC).
+    /// </summary>
+    private DateTimeOffset GetWorkWindowNow()
+        => _workWindowTimeZone is null
+            ? _timeProvider.GetLocalNow()
+            : TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), _workWindowTimeZone);
+
+    /// <summary>Разрешает часовой пояс окна один раз при старте; невалидный id — ошибка старта.</summary>
+    private static TimeZoneInfo? ResolveWorkWindowTimeZone(PrecategorizationOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.WorkWindowTimeZone))
+        {
+            return null;
+        }
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(options.WorkWindowTimeZone);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            throw new InvalidOperationException(
+                $"Precategorization:WorkWindowTimeZone '{options.WorkWindowTimeZone}' is not a valid time zone.",
+                ex);
+        }
     }
 
     /// <summary>Одна сессия предкатегоризации: последовательная обработка до лимита/активности/конца кандидатов.</summary>
@@ -159,6 +208,14 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
                     break;
                 }
 
+                if (!IsWorkWindowOpen())
+                {
+                    // ADR-030: окно закрылось, пока сервис ждал (например, во время паузы) —
+                    // новые позиции не берём.
+                    stopReason = "window_closed";
+                    break;
+                }
+
                 var aiCallsBefore = state.AiCalls;
 
                 try
@@ -184,6 +241,14 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
                 // D14: курсор двигается всегда — включая Undefined/ошибки/пропуски.
                 _cursor = candidate;
                 processed++;
+
+                if (!IsWorkWindowOpen())
+                {
+                    // ADR-030: окно закрылось во время обработки позиции — сессия завершается
+                    // после текущей позиции, результат уже сохранён.
+                    stopReason = "window_closed";
+                    break;
+                }
 
                 if (!_monitor.IsIdle(_options.Value.IdleTimeout))
                 {

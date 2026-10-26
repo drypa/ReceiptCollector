@@ -262,6 +262,101 @@ public sealed class PrecategorizationBackgroundServiceTests
     }
 
     [Fact]
+    public async Task Work_window_gates_session_start()
+    {
+        // ADR-030: 12:00 UTC — вне окна 02:00–06:00 (локальное время FakeTimeProvider — UTC).
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 5,
+            IntervalBetweenCalls = TimeSpan.Zero,
+            WorkWindowStart = TimeSpan.FromHours(2),
+            WorkWindowEnd = TimeSpan.FromHours(6)
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(1);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await Task.Delay(50);
+        harness.Time.Advance(CheckInterval);
+        await Task.Delay(50);
+
+        // Вне окна простой не проверяется и сессия не стартует, хотя API простаивает.
+        Assert.Equal(0, harness.Repository.CandidatesCalls);
+        Assert.Equal(0, harness.Monitor.IsIdleCalls);
+
+        // 12:00 → 02:00 следующего дня: окно открылось, сессия запускается.
+        harness.Time.Advance(TimeSpan.FromHours(14));
+        await WaitUntilAsync(() => harness.Repository.CandidatesCalls == 1);
+        Assert.True(harness.Monitor.IsIdleCalls >= 1);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Session_stops_when_work_window_closes()
+    {
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero,
+            // 12:00 входит в окно 11:00–12:05.
+            WorkWindowStart = TimeSpan.FromHours(11),
+            WorkWindowEnd = TimeSpan.FromHours(12).Add(TimeSpan.FromMinutes(5))
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(3);
+        harness.Ai.Behavior = _ =>
+        {
+            // Окно закрылось во время обработки позиции: текущая сохраняется, следующая не берётся.
+            harness.Time.Advance(TimeSpan.FromMinutes(10));
+            return new AiSuggestionResult(CommodityCategory.Dairy);
+        };
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 1);
+        await Task.Delay(50);
+
+        Assert.Single(harness.Repository.Added);
+        Assert.Single(harness.Ai.Calls);
+        Assert.Equal(1, harness.Repository.CandidatesCalls);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Work_window_uses_configured_time_zone()
+    {
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById("Europe/Moscow", out _))
+        {
+            // В окружении без tzdata проверка часового пояса невозможна.
+            return;
+        }
+
+        // 12:00 UTC == 15:00 Europe/Moscow; окно 14:00–16:00 по Москве открыто.
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 5,
+            IntervalBetweenCalls = TimeSpan.Zero,
+            WorkWindowStart = TimeSpan.FromHours(14),
+            WorkWindowEnd = TimeSpan.FromHours(16),
+            WorkWindowTimeZone = "Europe/Moscow"
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(1);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.CandidatesCalls == 1);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Empty_ai_base_url_creates_existing_and_cache_rows_with_single_warning()
     {
         await using var harness = new Harness(
@@ -417,6 +512,8 @@ public sealed class PrecategorizationBackgroundServiceTests
 
         public bool Idle { get; set; }
 
+        public int IsIdleCalls { get; private set; }
+
         public DateTimeOffset LastActivityUtc => _lastActivity;
 
         public void Touch()
@@ -425,7 +522,11 @@ public sealed class PrecategorizationBackgroundServiceTests
             _lastActivity = DateTimeOffset.UtcNow;
         }
 
-        public bool IsIdle(TimeSpan threshold) => Idle;
+        public bool IsIdle(TimeSpan threshold)
+        {
+            IsIdleCalls++;
+            return Idle;
+        }
     }
 
     private sealed class FakeRepository : IPrecategorizedCommodityRepository
