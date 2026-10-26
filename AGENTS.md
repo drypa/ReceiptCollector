@@ -36,6 +36,17 @@ cd ../ReceiptCollector.Analytics.Migrations && dotnet run
 cd ../ReceiptCollector.Analytics.Api && dotnet run
 ```
 
+## Development Workflow (Agents)
+
+Конвейер задач (оркестратор — `project-manager`, артефакты: `docs/tasks/` →
+`docs/adr/` → `docs/plans/`): задача → архитектор → декомпозиция → затем
+**строго по одной задаче** из таблицы «Ход выполнения» файла декомпозиции:
+`senior-developer` реализует → `code-reviewer` ревьюит (до 3 раундов) →
+разработчик пишет сводку в `docs/reviews/<feature-slug>/` → **остановка**.
+Агенты не выполняют `git add/commit/push`; следующая задача берётся только
+после того, как человек проверил сводку, сам сделал коммит и сказал
+«продолжай». Полный протокол — skill `task-review-gate`.
+
 ## Services Flow
 
 - Backend: HTTP + gRPC endpoints on ports 8888, 15000 (gRPC), 15001 (reports gRPC)
