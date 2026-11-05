@@ -14,8 +14,8 @@
 | -- | ------ | ------ |
 | 01 | Миграция схемы: `merchants.default_commodity_category_id` + `commodities.category_source` | committed |
 | 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | committed |
-| 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | approved |
-| 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | pending |
+| 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | committed |
+| 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | approved |
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | pending |
 | 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | pending |
 | 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | pending |
@@ -228,31 +228,36 @@ cd Analytics && dotnet test
 - Тесты (новые): `CommodityRepositoryMerchantDefaultTests` (EF InMemory/NSubstitute по образцу persistence-тестов).
 
 ### Чек-лист
-- [ ] `ApplyMerchantDefaultForReceiptAsync(Guid receiptId, CommodityCategory category)` → `int`:
+- [x] `ApplyMerchantDefaultForReceiptAsync(Guid receiptId, CommodityCategory category)` → `int`:
       SELECT имён позиций чека с `CategoryId == null || CategoryId == 0` →
       `ExecuteUpdateAsync` по `commodities WHERE receipt_id = :receiptId AND (category_id IS NULL OR category_id = 0)`:
       `CategoryId = (int)category`, `CategoryName = CommodityCategoryHelper.GetDisplayName(category)`,
       `CategorySource = "merchant-default"` — одна транзакция БД.
-- [ ] `ApplyMerchantDefaultForMerchantAsync(Guid merchantId, CommodityCategory category)` → `int`:
+- [x] `ApplyMerchantDefaultForMerchantAsync(Guid merchantId, CommodityCategory category)` → `int`:
       тот же предикат по карточке `commodities JOIN receipts` с условием
       `receipts.merchant_id = :merchantId`; позиции **всех пользователей** —
       `IgnoreQueryFilters()` **явно с grep-able комментарием** «доступ вне owner-scoping намеренный:
       дожим по магазину обрабатывает позиции всех пользователей (ADR-032, E1)» (маркер в стиле ADR-027 D8/NFR-5).
-- [ ] Кэш пополняется (`TryAdd` по нормализованным именам обновлённых строк, F1) **после фиксации
+- [x] Кэш пополняется (`TryAdd` по нормализованным именам обновлённых строк, F1) **после фиксации
       записи** — по прецеденту `PrecategorizedCommodityRepository.ConfirmProposedAsync` (TryAdd после
       commit, first-wins/no-op при «заморозке» ADR-019); при `updatedCount = 0` — ни одного `TryAdd`.
-- [ ] Позиции с содержательной категорией (`≠ NULL, ≠ 0`) не трогаются (FR-M5) — это и тест.
-- [ ] Кэш **не** пополняется в resolver'е/T-03 (запись — только через эти операции).
-- [ ] Второй вызов (idемпотентность дожима): второй UPDATE даёт `0` и не меняет `CategorySource/CategoryName`.
-- [ ] Возвращает число обновлённых строк.
-- [ ] Существующие методы репозитория (`UpdateCategoryAsync`, `UpdateCategoriesAsync` batch и др.)
+- [x] Позиции с содержательной категорией (`≠ NULL, ≠ 0`) не трогаются (FR-M5) — это и тест.
+- [x] Кэш **не** пополняется в resolver'е/T-03 (запись — только через эти операции).
+- [x] Второй вызов (idемпотентность дожима): второй UPDATE даёт `0` и не меняет `CategorySource/CategoryName`.
+- [x] Возвращает число обновлённых строк.
+- [x] Существующие методы репозитория (`UpdateCategoryAsync`, `UpdateCategoriesAsync` batch и др.)
       **`CategorySource` не пишут** (остаются `NULL`) — B1.
 
 ### Тесты (обязательные, dotnet test)
-- [ ] Чек с позициями «без категории / с ручной / с AI-категорией»: обновлена только без категории; source = `merchant-default`.
-- [ ] `merchantId`-вариант обновляет позиции разных владельцев (E1; fixture с двумя пользователями).
-- [ ] Идемпотентность: повторный вызов — 0 строк.
-- [ ] Кэш получил `TryAdd` по нормализованным именам (замоканный `ICommodityCategoryCache`), только после успешной фиксации.
+- [x] Чек с позициями «без категории / с ручной / с AI-категорией»: обновлена только без категории; source = `merchant-default`.
+- [x] `merchantId`-вариант обновляет позиции разных владельцев (E1; fixture с двумя пользователями).
+- [x] Идемпотентность: повторный вызов — 0 строк.
+- [x] Кэш получил `TryAdd` по нормализованным именам (замоканный `ICommodityCategoryCache`), только после успешной фиксации.
+
+> **Сноска (реализация T-04, согласовано с ревьюером):** тесты выполняются на **Testcontainers
+> Postgres**, а не на EF InMemory, как предполагалось формулировкой: обе операции используют
+> `ExecuteUpdateAsync` — релационный API, который EF InMemory не поддерживает. Прецедент —
+> `PrecategorizedCommodityRepositoryTests` (тот же эталонный `ConfirmAsync` с транзакцией).
 
 ### Критерий готовности
 Обе операции соответствуют пп. 3–4 ADR-032; единственная точка записи `'merchant-default'`.
