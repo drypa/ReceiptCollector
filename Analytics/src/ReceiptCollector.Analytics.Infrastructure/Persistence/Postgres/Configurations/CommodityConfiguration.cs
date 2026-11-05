@@ -25,5 +25,10 @@ internal sealed class CommodityConfiguration : IEntityTypeConfiguration<Commodit
 
         builder.Property(c => c.CategoryName)
             .HasMaxLength(128);
+
+        // Persisted-источник категории ('merchant-default' / NULL), колонка category_source
+        // из миграции 20261105130000_add_merchant_default_commodity_category (ADR-032, B1).
+        builder.Property(c => c.CategorySource)
+            .HasMaxLength(32);
     }
 }

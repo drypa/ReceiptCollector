@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 
 namespace ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -43,6 +44,10 @@ internal sealed class MerchantRepository : IMerchantRepository
             entity.Category = merchant.Category;
             entity.Address = merchant.Address;
             entity.Inn = merchant.Inn;
+            // Дефолтная товарная категория сохраняется тем же «репозиторным путём редактирования»
+            // (AddAsync — путь UpdateMerchantName/ADR 011, его же использует эндпоинт дефолта, ADR-032 п. 6).
+            // Вызовы AddAsync передают либо новый магазин (null), либо загруженный из БД — значение round-trip-ится.
+            entity.DefaultCommodityCategoryId = merchant.DefaultCommodityCategory is CommodityCategory value ? (int)value : null;
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -97,5 +102,45 @@ internal sealed class MerchantRepository : IMerchantRepository
         entity.Category = category;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, CommodityCategory?>> GetDefaultCommodityCategoriesAsync(
+        IReadOnlyCollection<Guid> merchantIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(merchantIds);
+
+        var result = new Dictionary<Guid, CommodityCategory?>();
+        if (merchantIds.Count == 0)
+        {
+            return result;
+        }
+
+        var idList = merchantIds.Distinct().ToList();
+
+        // Batch для resolver'а (ADR-032, D1): один запрос на порцию, без JOIN с receipts —
+        // вызывающий слой сам сопоставляет позиции с merchantId.
+        var rows = await _dbContext.Merchants
+            .AsNoTracking()
+            .Where(m => idList.Contains(m.Id) && m.DefaultCommodityCategoryId != null)
+            .Select(m => new { m.Id, m.DefaultCommodityCategoryId })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            // Только валидные ненулевые коды справочника (то же безопасное чтение, что в
+            // MerchantEntity.MapToDomain): магазины с NULL/0/устаревшим кодом в словарь не попадают.
+            if (row.DefaultCommodityCategoryId is not int code
+                || code == 0
+                || !Enum.IsDefined(typeof(CommodityCategory), code))
+            {
+                continue;
+            }
+
+            result[row.Id] = (CommodityCategory)code;
+        }
+
+        return result;
     }
 }

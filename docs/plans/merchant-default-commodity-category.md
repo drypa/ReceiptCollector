@@ -12,8 +12,8 @@
 
 | NN | Задача | Статус |
 | -- | ------ | ------ |
-| 01 | Миграция схемы: `merchants.default_commodity_category_id` + `commodities.category_source` | approved |
-| 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | pending |
+| 01 | Миграция схемы: `merchants.default_commodity_category_id` + `commodities.category_source` | committed |
+| 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | approved |
 | 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | pending |
 | 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | pending |
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | pending |
@@ -133,18 +133,18 @@ cd Analytics && dotnet test
 - Тесты (новые): `MerchantEntityMappingTests` / `MerchantRepositoryDefaultsTests` — по образцу существующих persistence-тестов проекта.
 
 ### Чек-лист
-- [ ] Домен: `UpdateDefaultCommodityCategory(null)` = сброс; **инварианта на enum в домене нет**
+- [x] Домен: `UpdateDefaultCommodityCategory(null)` = сброс; **инварианта на enum в домене нет**
       (валидация `Enum.IsDefined`/`!= Undefined` — в эндпоинте, T-07; прецедент `PrecategorizedCommodity`, ADR-027 D11).
-- [ ] Entity-маппинг domain→entity: `DefaultCommodityCategory?.Id` (NULL, когда не задана).
-- [ ] **Безопасное чтение** (edge case «категория удалена из справочника»): в `MapToDomain` код
+- [x] Entity-маппинг domain→entity: `DefaultCommodityCategory?.Id` (NULL, когда не задана).
+- [x] **Безопасное чтение** (edge case «категория удалена из справочника»): в `MapToDomain` код
       читается как `CommodityCategory` только при `Enum.IsDefined(typeof(CommodityCategory), id) && id != 0`,
       иначе `null` (`DefaultCommodityCategory = null` в домен).
-- [ ] `GetDefaultCommodityCategoriesAsync`: только merchants с **валидным ненулевым кодом**; merchants
+- [x] `GetDefaultCommodityCategoriesAsync`: только merchants с **валидным ненулевым кодом**; merchants
       без дефолта отсутствуют в словаре; `AsNoTracking()`.
-- [ ] `CommodityEntity`: `CategorySource` записывается только новыми операциями (T-04); маппинг
+- [x] `CommodityEntity`: `CategorySource` записывается только новыми операциями (T-04); маппинг
       в существующий доменный `Commodity` **не добавлять** (ADR-032 п. 2: домен `Commodity` без изменений).
-- [ ] Существующие методы (`UpdateCategoryAsync` магазина, `Create`/`Update` commodities) по поведению не изменены.
-- [ ] Тесты: безопасное чтение (валидный код / невалидный код / 0 / NULL → домен), round-trip записи,
+- [x] Существующие методы (`UpdateCategoryAsync` магазина, `Create`/`Update` commodities) по поведению не изменены.
+- [x] Тесты: безопасное чтение (валидный код / невалидный код / 0 / NULL → домен), round-trip записи,
       batch-метод возвращает только валидные дефолты.
 
 ### Критерий готовности

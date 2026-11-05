@@ -24,6 +24,8 @@ internal sealed class ReceiptEntity
             ExternalId = receipt.ExternalId,
             TotalAmount = receipt.TotalAmount,
             PurchasedAt = NormalizeUtc(receipt.PurchasedAt),
+            // CommodityEntity.Create намеренно не заполняет CategorySource: источник есть только
+            // у операций применения дефолта (ADR-032, B1); новая позиция — NULL (manual/legacy).
             Items = receipt.Items.Select(CommodityEntity.Create).ToList()
         };
     }
@@ -36,6 +38,8 @@ internal sealed class ReceiptEntity
                 ? new Category(item.CategoryId.Value, item.CategoryName)
                 : null;
 
+            // CategorySource в домен не проектируется: у доменной категории источника нет,
+            // маркировка — persistence-деталь (ADR-032, B1; п. 2 «Commodity без изменений»).
             return new Commodity(
                 item.Id,
                 Id,
@@ -81,6 +85,15 @@ internal sealed class CommodityEntity
     public decimal NdsSum { get; set; }
     public int? CategoryId { get; set; }
     public string? CategoryName { get; set; }
+
+    /// <summary>
+    /// Persisted-источник категории (ADR-032, B1): <c>'merchant-default'</c> — проставлено
+    /// дефолтом магазина (автоимпорт/дожим, операции T-04); <c>NULL</c> = manual/legacy/неизвестно.
+    /// На доменный <see cref="Commodity"/> не маппится (п. 2 ADR-032); существующие пути записи
+    /// категории колонку не пишут.
+    /// </summary>
+    public string? CategorySource { get; set; }
+
     public ReceiptEntity Receipt { get; set; } = null!;
     
     internal static CommodityEntity Create(Commodity commodity)
@@ -96,6 +109,7 @@ internal sealed class CommodityEntity
             NdsSum = commodity.NdsSum,
             CategoryId = commodity.Category?.Id,
             CategoryName = commodity.Category?.Name ?? null
+            // CategorySource не заполняется: домен источника не знает, новая строка — NULL (ADR-032, B1).
         };
     }
 }
