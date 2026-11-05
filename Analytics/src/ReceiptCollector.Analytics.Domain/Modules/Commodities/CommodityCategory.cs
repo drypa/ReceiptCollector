@@ -59,7 +59,7 @@ public enum CommodityCategory
     Sweets = 46,        // Конфеты: конфеты, шоколад, мармелад, зефир
     CannedFood = 47,    // Консервы: рыбные, мясные, овощные, паштеты, джемы и варенья (в банках)
 
-    // Новые розничные категории — коды 48–50 (плоский список, без группы UI)
+    // Новые розничные категории — коды 48–50 (Furniture и HomeAppliances с ADR 031 в группе «Для дома»)
     CraftSupplies = 48,     // Товары для рукоделия: пряжа, ткань, бисер, фурнитура, наборы для творчества
     Furniture = 49,         // Мебель: стулья, столы, шкафы, диваны, кровати
     HomeAppliances = 50,    // Бытовая техника: холодильники, стиральные машины, чайники, микроволновки
@@ -67,6 +67,13 @@ public enum CommodityCategory
     // Снеки и фитнес-услуги — коды 51–52
     Snacks = 51,            // Снеки: чипсы, сухарики, орешки, попкорн, снековые смеси
     FitnessAndSports = 52,  // Фитнес и спорт: абонементы в фитнес-клубы, бассейн, спортивные секции
+
+    // Бытовая химия — код 53 (см. ADR 031)
+    HouseholdChemicals = 53, // Бытовая химия: чистящие средства, стиральные порошки,
+                             // средства для мытья посуды и посудомоечных машин,
+                             // освежители воздуха, губки/перчатки для уборки,
+                             // бумажные полотенца и салфетки, мусорные пакеты,
+                             // средства от насекомых
 
     Other = 255
 }
@@ -128,6 +135,7 @@ public static class CommodityCategoryHelper
         { CommodityCategory.HomeAppliances, "Бытовая техника" },
         { CommodityCategory.Snacks, "Снеки" },
         { CommodityCategory.FitnessAndSports, "Фитнес и спорт" },
+        { CommodityCategory.HouseholdChemicals, "Бытовая химия" },
         { CommodityCategory.Other, "Прочее" },
     };
 
@@ -140,6 +148,7 @@ public static class CommodityCategoryHelper
     private const string ProductsGroup = "Продукты";
     private const string TransportGroup = "Транспорт";
     private const string OtherGroup = "Прочее";
+    private const string HomeGroup = "Для дома";
 
     /// <summary>
     /// Явный маппинг «категория → группа» (ADR 022, решение B1).
@@ -182,6 +191,11 @@ public static class CommodityCategoryHelper
         { CommodityCategory.Utilities, OtherGroup },
         { CommodityCategory.Entertainment, OtherGroup },
         { CommodityCategory.FitnessAndSports, OtherGroup },   // NEW 52
+        // Для дома (4 категории)
+        { CommodityCategory.HomeGoods, HomeGroup },
+        { CommodityCategory.Furniture, HomeGroup },
+        { CommodityCategory.HomeAppliances, HomeGroup },
+        { CommodityCategory.HouseholdChemicals, HomeGroup },  // NEW 53
     };
 
     /// <summary>
@@ -191,7 +205,8 @@ public static class CommodityCategoryHelper
     /// <remarks>
     /// Группа определяется словарём <see cref="CategoryGroups"/>, а не диапазонами кодов,
     /// поэтому новые категории с кодами вне исторических диапазонов корректно попадают в группу.
-    /// Категории, отсутствующие в словаре (legacy 0–17 и Other = 255), возвращают пустую строку "" —
+    /// Категории, отсутствующие в словаре (legacy 0–17, кроме HomeGoods — ADR 031,
+    /// и Other = 255), возвращают пустую строку "" —
     /// они не относятся ни к одной группе и отображаются плоским списком.
     /// </remarks>
     public static string GetGroup(CommodityCategory category)

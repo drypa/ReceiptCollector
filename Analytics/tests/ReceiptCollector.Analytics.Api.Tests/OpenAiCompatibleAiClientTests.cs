@@ -309,6 +309,11 @@ public class OpenAiCompatibleAiClientTests
         Assert.Contains("FitnessAndSports", requestBody);
         Assert.Contains("не SportingGoods", requestBody);
         Assert.Contains("не Entertainment", requestBody);
+        // Бытовая химия (код 53, ADR 031): реестр + строка разграничений
+        Assert.Contains("Бытовая химия", requestBody);
+        Assert.Contains("HouseholdChemicals", requestBody);
+        Assert.Contains("средства от насекомых", requestBody);
+        Assert.Contains("не CosmeticsAndHygiene", requestBody);
     }
 
     [Fact]
