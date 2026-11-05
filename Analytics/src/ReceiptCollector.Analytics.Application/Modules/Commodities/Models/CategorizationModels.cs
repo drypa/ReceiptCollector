@@ -4,11 +4,19 @@ namespace ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 
 /// <summary>
 /// Источник предложенной категории для товара
-/// (известна из товара / из кэша / из очереди предкатегорий / от ИИ / не определена).
+/// (известна из товара / дефолт магазина / из кэша / из очереди предкатегорий / от ИИ / не определена).
+/// Порядок значений повторяет шаги конвейера (ADR-032, D1).
 /// </summary>
 public enum CategorizationSource
 {
     Existing,
+
+    /// <summary>
+    /// Товарная категория по умолчанию магазина чека (ADR-032, D1): шаг между
+    /// <see cref="Existing"/> и <see cref="Cache"/> (FR-M4).
+    /// </summary>
+    MerchantDefault,
+
     Cache,
     Precategorized,
     Ai,
@@ -19,6 +27,10 @@ public enum CategorizationSource
 public static class CategorizationSourceNames
 {
     public const string Existing = "existing";
+
+    /// <summary>Wire-имя источника «дефолт магазина» (ADR-032, п. 2); аддитивное — существующие имена не изменены.</summary>
+    public const string MerchantDefault = "merchant-default";
+
     public const string Cache = "cache";
     public const string Precategorized = "precategorized";
     public const string Ai = "ai";
@@ -27,6 +39,7 @@ public static class CategorizationSourceNames
     public static string ToWireName(CategorizationSource source) => source switch
     {
         CategorizationSource.Existing => Existing,
+        CategorizationSource.MerchantDefault => MerchantDefault,
         CategorizationSource.Cache => Cache,
         CategorizationSource.Precategorized => Precategorized,
         CategorizationSource.Ai => Ai,

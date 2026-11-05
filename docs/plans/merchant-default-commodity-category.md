@@ -13,8 +13,8 @@
 | NN | Задача | Статус |
 | -- | ------ | ------ |
 | 01 | Миграция схемы: `merchants.default_commodity_category_id` + `commodities.category_source` | committed |
-| 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | approved |
-| 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | pending |
+| 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | committed |
+| 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | approved |
 | 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | pending |
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | pending |
 | 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | pending |
@@ -179,29 +179,29 @@ cd Analytics && dotnet test
 - `Analytics/tests/.../CommodityCategoryResolverTests.cs` — новый тестовый класс (по образцу существующих тестов resolver'а).
 
 ### Чек-лист
-- [ ] Порядок шагов: `existing` → **`merchant-default`** → `cache` → `precategorized` → `ai`;
+- [x] Порядок шагов: `existing` → **`merchant-default`** → `cache` → `precategorized` → `ai`;
       дефолт стоит **ниже** `existing` (D3 отклонено — FR-M5).
-- [ ] Перед шагом 2 собираются `receiptIds` позиций, оставшихся без категории после шага 1; ровно
+- [x] Перед шагом 2 собираются `receiptIds` позиций, оставшихся без категории после шага 1; ровно
       **один batch-запрос** дефолтов по этой порции (N+1 запрещён — стиль FR-9.3 ADR-027);
       одна порция со страницы «Товары» может содержать несколько магазинов — обрабатываются все.
-- [ ] Провайдер: запрос `receipts JOIN merchants` (`AsNoTracking`) `WHERE receipts.id IN (...)` →
+- [x] Провайдер: запрос `receipts JOIN merchants` (`AsNoTracking`) `WHERE receipts.id IN (...)` →
       словарь `receiptId → CommodityCategory?`; безопасное чтение дефолта уже сделано в `MapToDomain` (T-02).
-- [ ] Позиции с дефолтом: результат `source = "merchant-default"` (wire), ИИ/кэш/очередь для них не вызываются.
-- [ ] Позиции без дефолта: идут дальше по шагам 2–4 **без изменений** (FR-M8).
-- [ ] Ошибка чтения дефолтов → Warning + «пустой» словарь (все идут дальше) — стиль
+- [x] Позиции с дефолтом: результат `source = "merchant-default"` (wire), ИИ/кэш/очередь для них не вызываются.
+- [x] Позиции без дефолта: идут дальше по шагам 2–4 **без изменений** (FR-M8).
+- [x] Ошибка чтения дефолтов → Warning + «пустой» словарь (все идут дальше) — стиль
       `GetQueueCategoriesAsync`; `OperationCanceledException` пробрасывается.
-- [ ] `ToWireName(MerchantDefault) == "merchant-default"`; существующие wire-имена не изменены.
-- [ ] Suggest остаётся read-only: resolver ничего не пишет (ни в БД, ни в кэш — ADR-032 п. 5, решение F).
-- [ ] Existing-тесты конвейера (категоризация чека, страница «Товары») зелёные **без правок** —
+- [x] `ToWireName(MerchantDefault) == "merchant-default"`; существующие wire-имена не изменены.
+- [x] Suggest остаётся read-only: resolver ничего не пишет (ни в БД, ни в кэш — ADR-032 п. 5, решение F).
+- [x] Existing-тесты конвейера (категоризация чека, страница «Товары») зелёные **без правок** —
       у магазинов без дефолта поведение прежнее.
 
 ### Тесты (обязательные, dotnet test)
-- [ ] Порядок приоритетов: товар с категорией (`existing`) → дефолт не показывается; товар без
+- [x] Порядок приоритетов: товар с категорией (`existing`) → дефолт не показывается; товар без
       категории от магазина с дефолтом → `merchant-default`, кэш/precategorized/AI не вызваны.
-- [ ] Магазин без дефолта → шаг промахивается, кэш вызывается (FR-M8).
-- [ ] Порция из двух магазинов (с дефолтом и без) — смешанный результат.
-- [ ] Ошибка batch-запроса → Warning, деградация к кэшу, ответ не 500.
-- [ ] Провайдер замокан (NSubstitute); для EF-части — отдельный тест провайдера (InMemory).
+- [x] Магазин без дефолта → шаг промахивается, кэш вызывается (FR-M8).
+- [x] Порция из двух магазинов (с дефолтом и без) — смешанный результат.
+- [x] Ошибка batch-запроса → Warning, деградация к кэшу, ответ не 500.
+- [x] Провайдер замокан (NSubstitute); для EF-части — отдельный тест провайдера (InMemory).
 
 ### Критерий готовности
 Шаг D1 реализован, порядок FR-M4 выполняется, деградация отказоустойчива, suggest read-only.

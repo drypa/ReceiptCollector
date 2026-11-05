@@ -14,7 +14,8 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 /// <para>
 /// Сервис stateless: порционность (≤ 5 уникальных названий) обеспечивает клиент, сервер принимает
 /// любое подмножество товаров текущего пользователя (ADR-028 п. 1.3). Общий конвейер
-/// <c>existing → cache → precategorized → ai</c> живёт в <see cref="ICommodityCategoryResolver"/>.
+/// <c>existing → merchant-default → cache → precategorized → ai</c> живёт в <see cref="ICommodityCategoryResolver"/>
+/// (шаг <c>merchant-default</c> — ADR-032, D1).
 /// </para>
 /// </summary>
 internal sealed class CommodityBatchCategorizationService : ICommodityBatchCategorizationService

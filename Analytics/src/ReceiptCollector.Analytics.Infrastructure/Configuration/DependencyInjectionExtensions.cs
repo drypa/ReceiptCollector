@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.Merchants.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Users.Options;
@@ -49,6 +50,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IReceiptReadService, ReceiptReadService>();
         services.AddScoped<IReceiptRepository, ReceiptRepository>();
         services.AddScoped<IMerchantRepository, MerchantRepository>();
+        // ADR-032, D1: узкий batch-провайдер дефолтов магазинов для шага merchant-default конвейера.
+        services.AddScoped<IMerchantDefaultCategoryProvider, MerchantDefaultCategoryProvider>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthLinkRepository, UserAuthLinkRepository>();
         services.AddScoped<IUserAuthLinkService, UserAuthLinkService>();

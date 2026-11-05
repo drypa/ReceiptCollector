@@ -4,10 +4,12 @@ using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 namespace ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 
 /// <summary>
-/// Общий конвейер категоризации товаров (ADR-028 п. 9): <c>existing → cache → precategorized → ai</c>.
+/// Общий конвейер категоризации товаров (ADR-028 п. 9):
+/// <c>existing → merchant-default → cache → precategorized → ai</c>
+/// (шаг <c>merchant-default</c> — ADR-032, D1).
 /// Один конвейер на два сценария — suggest чека (ADR-009) и порционный suggest страницы «Товары»
 /// (ADR-028). Шаги, приоритеты, дедупликация по нормализованному имени и тексты ошибок
-/// зафиксированы ADR-009/ADR-019/ADR-027/ADR-028.
+/// зафиксированы ADR-009/ADR-019/ADR-027/ADR-028/ADR-032.
 /// </summary>
 public interface ICommodityCategoryResolver
 {

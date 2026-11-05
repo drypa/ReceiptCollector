@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
+using ReceiptCollector.Analytics.Application.Modules.Merchants.Contracts;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 
@@ -9,21 +10,30 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 
 /// <summary>
 /// Общий конвейер категоризации (ADR-028 п. 9): перенос шагов 1–4 из
-/// <see cref="CommodityCategorizationService"/> **без изменения порядка и семантики**.
+/// <see cref="CommodityCategorizationService"/> **без изменения порядка и семантики**
+/// + шаг <c>merchant-default</c> между <c>existing</c> и <c>cache</c> (ADR-032, D1; FR-M4).
 /// <list type="number">
 ///   <item>категория уже присвоена товару (<c>existing</c>);</item>
+///   <item>товарная категория по умолчанию магазина чека (<c>merchant-default</c>, ADR-032);</item>
 ///   <item>in-memory кэш (<c>cache</c>, ADR-019);</item>
 ///   <item>очередь предкатегорий одним batch-запросом (<c>precategorized</c>, ADR-027);</item>
 ///   <item>ИИ с дедупликацией по нормализованному имени (<c>ai</c> / <c>undefined</c>).</item>
 /// </list>
 /// Регистрация — Scoped: <see cref="SemaphoreSlim"/> создаётся на экземпляр, как раньше на
 /// scoped-сервисе (публичное поведение не меняется, ADR-028 п. 12).
+/// Suggest остаётся read-only: дефолт магазина только предлагается (<c>source = "merchant-default"</c>),
+/// ничего не сохраняется и не кладётся в кэш (ADR-032 п. 5, решение F — запись только в операциях
+/// импорта/дожима).
 /// </summary>
 internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
 {
     /// <summary>Пустой результат поиска по очереди (деградация/нет наименований).</summary>
     private static readonly IReadOnlyDictionary<string, CommodityCategory> EmptyQueueCategories =
         new Dictionary<string, CommodityCategory>(StringComparer.Ordinal);
+
+    /// <summary>Пустой результат batch-чтения дефолтов магазинов (деградация/нет позиций).</summary>
+    private static readonly IReadOnlyDictionary<Guid, CommodityCategory?> EmptyMerchantDefaults =
+        new Dictionary<Guid, CommodityCategory?>();
 
     /// <summary>Реестр категорий для AI (имена enum без Undefined) — строится из кода, не хардкодится.</summary>
     private static readonly IReadOnlyCollection<string> CategoryNames = CommodityCategoryHelper.GetAll()
@@ -41,17 +51,27 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
     private readonly ILogger<CommodityCategoryResolver> _logger;
     private readonly SemaphoreSlim _aiSemaphore;
 
+    /// <summary>
+    /// Batch-провайдер дефолтов магазинов (ADR-032, D1). Параметр со значением по умолчанию
+    /// (<c>null</c> — шаг пропускается) сохранён для совместимости существующих вызовов
+    /// (тестовые фабрики конвейера правок не требуют); в production регистрируется всегда
+    /// (<c>DependencyInjectionExtensions</c>), поведение без провайдера совпадает с прежним.
+    /// </summary>
+    private readonly IMerchantDefaultCategoryProvider? _merchantDefaultProvider;
+
     public CommodityCategoryResolver(
         ICommodityCategoryCache cache,
         IPrecategorizedCommodityRepository precategorizedRepository,
         IAiClient aiClient,
         IOptions<AiOptions> aiOptions,
-        ILogger<CommodityCategoryResolver> logger)
+        ILogger<CommodityCategoryResolver> logger,
+        IMerchantDefaultCategoryProvider? merchantDefaultProvider = null)
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _precategorizedRepository = precategorizedRepository ?? throw new ArgumentNullException(nameof(precategorizedRepository));
         _aiClient = aiClient ?? throw new ArgumentNullException(nameof(aiClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _merchantDefaultProvider = merchantDefaultProvider;
 
         var options = aiOptions?.Value ?? throw new ArgumentNullException(nameof(aiOptions));
         var concurrency = options.Concurrency > 0 ? options.Concurrency : 1;
@@ -83,9 +103,47 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
             }
         }
 
-        // Шаг 2: in-memory кэш ранее присвоенных категорий (сквозной, без userId; FR-2.4).
+        // Шаг 2 (ADR-032, D1; FR-M4): товарная категория по умолчанию магазина чека —
+        // между existing и cache (ручная/сохранённая категория приоритетнее дефолта, D3 отклонено).
+        // receiptIds собираются по позициям, оставшимся без категории после шага 1; порция
+        // может относиться к разным магазинам — обрабатываются все, ровно один batch-запрос.
+        var pendingAfterMerchantDefault = new List<Commodity>();
+        if (pending.Count > 0 && _merchantDefaultProvider is not null)
+        {
+            var merchantDefaults = await GetMerchantDefaultCategoriesAsync(pending, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var item in pending)
+            {
+                if (merchantDefaults.TryGetValue(item.ReceiptId, out var merchantDefault)
+                    && merchantDefault is { } defaultCategory
+                    && defaultCategory != CommodityCategory.Undefined
+                    && Enum.IsDefined(typeof(CommodityCategory), defaultCategory))
+                {
+                    // Позиции с дефолтом: кэш/очередь/ИИ для них не вызываются (FR-M4);
+                    // результат только предложение — resolver ничего не пишет (ADR-032 п. 5, F).
+                    results.Add(CreateResult(
+                        item,
+                        (int)defaultCategory,
+                        CommodityCategoryHelper.GetDisplayName(defaultCategory),
+                        CategorizationSource.MerchantDefault,
+                        null));
+                }
+                else
+                {
+                    // FR-M8: магазин без дефолта (null/нет ключа) — прежний поток без изменений.
+                    pendingAfterMerchantDefault.Add(item);
+                }
+            }
+        }
+        else
+        {
+            pendingAfterMerchantDefault.AddRange(pending);
+        }
+
+        // Шаг 3: in-memory кэш ранее присвоенных категорий (сквозной, без userId; FR-2.4).
         var pendingAfterCache = new List<Commodity>();
-        foreach (var item in pending)
+        foreach (var item in pendingAfterMerchantDefault)
         {
             var normalized = CommodityNameNormalizer.NormalizeName(item.Name);
             if (_cache.TryGet(normalized, out var category))
@@ -100,8 +158,8 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
             }
         }
 
-        // Шаг 3: очередь предкатегорий (ADR-027, D13/FR-9): один batch-запрос на порцию,
-        // только для наименований, которым не нашлось категории на existing/cache (FR-9.3).
+        // Шаг 4: очередь предкатегорий (ADR-027, D13/FR-9): один batch-запрос на порцию,
+        // только для наименований, которым не нашлось категории на existing/merchant-default/cache (FR-9.3).
         var aiCandidates = new List<Commodity>();
         if (pendingAfterCache.Count > 0)
         {
@@ -129,7 +187,7 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
             }
         }
 
-        // Шаг 4: AI. Одинаковые нормализованные названия категоризируем один раз.
+        // Шаг 5: AI. Одинаковые нормализованные названия категоризируем один раз.
         if (aiCandidates.Count > 0)
         {
             if (!aiEnabled)
@@ -202,6 +260,48 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
                 ex,
                 "Failed to read precategorized commodities; falling back to AI categorization.");
             return EmptyQueueCategories;
+        }
+    }
+
+    /// <summary>
+    /// Batch-чтение товарных категорий по умолчанию магазинов по receiptId позиций без категории
+    /// (ADR-032, D1): ровно один запрос провайдера на порцию (N+1 запрещён — стиль FR-9.3 ADR-027).
+    /// Ошибка чтения не ломает категоризацию: Warning + «пустой» словарь — все позиции идут дальше
+    /// по потоку (cache → precategorized → ai), стиль <see cref="GetQueueCategoriesAsync"/> (FR-9.6);
+    /// <see cref="OperationCanceledException"/> пробрасывается.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, CommodityCategory?>> GetMerchantDefaultCategoriesAsync(
+        IReadOnlyCollection<Commodity> items,
+        CancellationToken cancellationToken)
+    {
+        var receiptIds = items
+            .Select(item => item.ReceiptId)
+            .Distinct()
+            .ToList();
+
+        if (receiptIds.Count == 0 || _merchantDefaultProvider is null)
+        {
+            return EmptyMerchantDefaults;
+        }
+
+        try
+        {
+            var defaults = await _merchantDefaultProvider
+                .GetDefaultsByReceiptIdsAsync(receiptIds, cancellationToken)
+                .ConfigureAwait(false);
+
+            return defaults ?? EmptyMerchantDefaults;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to read merchant default commodity categories; falling back to cache/queue/AI categorization.");
+            return EmptyMerchantDefaults;
         }
     }
 
