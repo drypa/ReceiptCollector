@@ -1,8 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using NSubstitute;
+using ReceiptCollector.Analytics.Domain.Modules.Commodities;
+using ReceiptCollector.Analytics.Domain.Modules.Merchants;
+using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
@@ -264,6 +269,173 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         Assert.Single(stored);
     }
 
+    // T-05 (ADR-032, C1/FR-M2): автоприменение дефолтной товарной категории магазина
+    // при импорте чека — ровно после успешного AddAsync, сбой не валяет цикл.
+
+    [Fact]
+    public async Task SynchronizeAsync_applies_merchant_default_category_to_imported_receipt()
+    {
+        var owner = ObjectId.GenerateNewId().ToString();
+
+        var userLoader = new TestMongoUserLoader(new[]
+        {
+            new MongoUserDocumentDto { Id = ObjectId.Parse(owner), Name = "Owner", TelegramId = 1 }
+        });
+
+        // Магазин с INN из сидируемого тикета и настроенным дефолтом (ADR-032, A1).
+        await SeedMerchantAsync(defaultCommodityCategoryId: (int)CommodityCategory.ReadyMeals);
+
+        await SeedRawTicketAsync(ticketId: "default-doc", ownerHex: owner);
+
+        var commodityRepository = Substitute.For<ICommodityRepository>();
+        commodityRepository
+            .ApplyMerchantDefaultForReceiptAsync(
+                Arg.Any<Guid>(), Arg.Any<CommodityCategory>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, userLoader, commodityRepository);
+            await service.SynchronizeAsync(CancellationToken.None);
+        }
+
+        await using (var verifyContext = CreateContext())
+        {
+            var receipt = Assert.Single(await verifyContext.Receipts.IgnoreQueryFilters().ToListAsync());
+
+            // Вызов ровно один и с правильной парой: id импортированного чека + дефолт магазина.
+            await commodityRepository.Received(1).ApplyMerchantDefaultForReceiptAsync(
+                receipt.Id, CommodityCategory.ReadyMeals, Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_does_not_apply_merchant_default_when_not_configured()
+    {
+        var owner = ObjectId.GenerateNewId().ToString();
+
+        var userLoader = new TestMongoUserLoader(new[]
+        {
+            new MongoUserDocumentDto { Id = ObjectId.Parse(owner), Name = "Owner", TelegramId = 1 }
+        });
+
+        // Магазин без дефолта (NULL) — импорт идет прежним потоком без обращений к применению (FR-M8).
+        await SeedMerchantAsync(defaultCommodityCategoryId: null);
+
+        await SeedRawTicketAsync(ticketId: "no-default-doc", ownerHex: owner);
+
+        var commodityRepository = Substitute.For<ICommodityRepository>();
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, userLoader, commodityRepository);
+            await service.SynchronizeAsync(CancellationToken.None);
+        }
+
+        await using (var verifyContext = CreateContext())
+        {
+            // Чек импортирован как раньше…
+            Assert.Single(await verifyContext.Receipts.IgnoreQueryFilters().ToListAsync());
+        }
+
+        // …но операция применения дефолта не вызывалась ни разу.
+        await commodityRepository.DidNotReceiveWithAnyArgs()
+            .ApplyMerchantDefaultForReceiptAsync(default!, default, default);
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_when_apply_merchant_default_fails_import_continues_and_error_is_logged()
+    {
+        var owner = ObjectId.GenerateNewId().ToString();
+
+        var userLoader = new TestMongoUserLoader(new[]
+        {
+            new MongoUserDocumentDto { Id = ObjectId.Parse(owner), Name = "Owner", TelegramId = 1 }
+        });
+
+        await SeedMerchantAsync(defaultCommodityCategoryId: (int)CommodityCategory.ReadyMeals);
+
+        // Два разных физических чека одного магазина (разные даты покупки — разные natural key).
+        await SeedRawTicketAsync(ticketId: "apply-fail-doc-1", ownerHex: owner, qrTime: "t=20191005T1548");
+        await SeedRawTicketAsync(ticketId: "apply-fail-doc-2", ownerHex: owner, qrTime: "t=20260923T1100");
+
+        var commodityRepository = Substitute.For<ICommodityRepository>();
+        commodityRepository
+            .ApplyMerchantDefaultForReceiptAsync(
+                Arg.Any<Guid>(), Arg.Any<CommodityCategory>(), Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(Task.FromException<int>(
+                new InvalidOperationException("simulated apply failure")));
+
+        var logger = new RecordingLogger<ReceiptSynchronizationService>();
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, userLoader, commodityRepository, logger: logger);
+            // Сбой применения не должен валить ни чек, ни цикл синхронизации (ADR-032 п. 3).
+            await service.SynchronizeAsync(CancellationToken.None);
+        }
+
+        await using (var verifyContext = CreateContext())
+        {
+            var stored = await verifyContext.Receipts.IgnoreQueryFilters().ToListAsync();
+
+            // Оба чека закоммичены: сбой по чеку не откатил импорт и не остановил обработку следующего.
+            Assert.Equal(2, stored.Count);
+            Assert.Contains("apply-fail-doc-1", stored.Select(r => r.ExternalId));
+            Assert.Contains("apply-fail-doc-2", stored.Select(r => r.ExternalId));
+        }
+
+        // Применение attempted для обоих чеков (после сбоя первого импорт продолжился).
+        await commodityRepository.Received(2).ApplyMerchantDefaultForReceiptAsync(
+            Arg.Any<Guid>(), CommodityCategory.ReadyMeals, Arg.Any<CancellationToken>());
+
+        // Сбой залогирован на уровне Error с исключением — по одному на чек.
+        Assert.Equal(
+            2,
+            logger.Entries.Count(entry =>
+                entry.Level == LogLevel.Error
+                && entry.Message.Contains("Failed to apply merchant default", StringComparison.Ordinal)
+                && entry.Exception is not null));
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_when_add_fails_does_not_apply_merchant_default()
+    {
+        var owner = ObjectId.GenerateNewId().ToString();
+
+        var userLoader = new TestMongoUserLoader(new[]
+        {
+            new MongoUserDocumentDto { Id = ObjectId.Parse(owner), Name = "Owner", TelegramId = 1 }
+        });
+
+        // Магазин с дефолтом — применение возможно по данным, но чек не сохранён:
+        // блок ADR-032 стоит строго после успешного AddAsync и вызван быть не может.
+        await SeedMerchantAsync(defaultCommodityCategoryId: (int)CommodityCategory.ReadyMeals);
+        await SeedRawTicketAsync(ticketId: "add-fail-doc", ownerHex: owner);
+
+        var receiptRepository = Substitute.For<IReceiptRepository>();
+        receiptRepository
+            .When(x => x.AddAsync(Arg.Any<Receipt>(), Arg.Any<CancellationToken>()))
+            .Do(_ => throw new InvalidOperationException("simulated save failure"));
+
+        var commodityRepository = Substitute.For<ICommodityRepository>();
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, userLoader, commodityRepository, receiptRepository);
+            // Existing per-receipt catch: цикл синхронизации переживает сбой сохранения.
+            await service.SynchronizeAsync(CancellationToken.None);
+        }
+
+        await using (var verifyContext = CreateContext())
+        {
+            Assert.Empty(await verifyContext.Receipts.IgnoreQueryFilters().ToListAsync());
+        }
+
+        await commodityRepository.DidNotReceiveWithAnyArgs()
+            .ApplyMerchantDefaultForReceiptAsync(default!, default, default);
+    }
+
     public async Task InitializeAsync()
     {
         await _mongoContainer.StartAsync();
@@ -306,9 +478,14 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
         return new ReceiptOwnerResolver(requestLoader);
     }
 
-    private ReceiptSynchronizationService CreateService(ReceiptDbContext context, IMongoUserLoader userLoader)
+    private ReceiptSynchronizationService CreateService(
+        ReceiptDbContext context,
+        IMongoUserLoader userLoader,
+        ICommodityRepository? commodityRepository = null,
+        IReceiptRepository? receiptRepository = null,
+        ILogger<ReceiptSynchronizationService>? logger = null)
     {
-        var repository = new ReceiptRepository(context);
+        var repository = receiptRepository ?? new ReceiptRepository(context);
         var merchantRepository = new MerchantRepository(context);
         var userRepository = new UserRepository(context);
         var receiptLoader = CreateReceiptLoader();
@@ -321,11 +498,12 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
             receiptLoader,
             repository,
             merchantRepository,
+            commodityRepository ?? new CommodityRepository(context),
             userRepository,
             userLoader,
             CreateOwnerResolver(),
             syncOptions,
-            NullLogger<ReceiptSynchronizationService>.Instance);
+            logger ?? NullLogger<ReceiptSynchronizationService>.Instance);
     }
 
     private ReceiptDbContext CreateContext()
@@ -372,6 +550,26 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
             ["owner"] = owner,
             ["deleted"] = deleted
         });
+    }
+
+    /// <summary>
+    /// Магазин с INN из <see cref="CreateRawTicket"/> («5003042456») до запуска синхронизации:
+    /// <c>ResolveMerchantAsync</c> резолвит его по INN и приносит домен с дефолтом
+    /// (безопасное чтение — T-02). null = дефолт не задан.
+    /// </summary>
+    private async Task SeedMerchantAsync(int? defaultCommodityCategoryId)
+    {
+        await using var context = CreateContext();
+        context.Merchants.Add(new MerchantEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "ООО \"СДЕЛАЙ СВОИМИ РУКАМИ\"",
+            Category = MerchantCategory.Undefined,
+            Address = "117556 г. Москва, Варшавское шоссе, 97",
+            Inn = "5003042456",
+            DefaultCommodityCategoryId = defaultCommodityCategoryId
+        });
+        await context.SaveChangesAsync();
     }
 
     private static BsonDocument CreateRawTicket(string ticketId, bool withPayload = true, string? qrTime = "t=20191005T1548")
@@ -445,6 +643,52 @@ public sealed class ReceiptSynchronizationServiceTests : IAsyncLifetime
                 Name = source.Name,
                 TelegramId = source.TelegramId
             };
+        }
+    }
+
+    /// <summary>
+    /// Логгер, сохраняющий записи (стиль <c>TestLogger</c> из
+    /// <see cref="MongoReceiptBatchLoaderTests"/>) — для проверки «сбой залогирован».
+    /// </summary>
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        private readonly List<(LogLevel Level, string Message, Exception? Exception)> _entries = new();
+
+        public IReadOnlyList<(LogLevel Level, string Message, Exception? Exception)> Entries
+        {
+            get
+            {
+                lock (_entries)
+                {
+                    return _entries.ToList();
+                }
+            }
+        }
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            lock (_entries)
+            {
+                _entries.Add((logLevel, formatter(state, exception), exception));
+            }
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static readonly NullScope Instance = new();
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
 using ReceiptCollector.Analytics.Domain.Modules.Users;
@@ -15,6 +16,7 @@ internal sealed class ReceiptSynchronizationService
     private readonly IMongoReceiptBatchLoader _batchLoader;
     private readonly IReceiptRepository _receiptRepository;
     private readonly IMerchantRepository _merchantRepository;
+    private readonly ICommodityRepository _commodityRepository;
     private readonly IUserRepository _userRepository;
     private readonly IMongoUserLoader _userLoader;
     private readonly IReceiptOwnerResolver _ownerResolver;
@@ -25,6 +27,7 @@ internal sealed class ReceiptSynchronizationService
         IMongoReceiptBatchLoader batchLoader,
         IReceiptRepository receiptRepository,
         IMerchantRepository merchantRepository,
+        ICommodityRepository commodityRepository,
         IUserRepository userRepository,
         IMongoUserLoader userLoader,
         IReceiptOwnerResolver ownerResolver,
@@ -34,6 +37,7 @@ internal sealed class ReceiptSynchronizationService
         _batchLoader = batchLoader ?? throw new ArgumentNullException(nameof(batchLoader));
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
         _merchantRepository = merchantRepository ?? throw new ArgumentNullException(nameof(merchantRepository));
+        _commodityRepository = commodityRepository ?? throw new ArgumentNullException(nameof(commodityRepository));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _userLoader = userLoader ?? throw new ArgumentNullException(nameof(userLoader));
         _ownerResolver = ownerResolver ?? throw new ArgumentNullException(nameof(ownerResolver));
@@ -134,6 +138,12 @@ internal sealed class ReceiptSynchronizationService
 
                     await _receiptRepository.AddAsync(receipt, cancellationToken).ConfigureAwait(false);
                     imported++;
+
+                    // ADR-032 (C1, FR-M2): автоприменение дефолтной товарной категории магазина
+                    // при поступлении чека. merchant уже резолвлен выше (ResolveMerchantAsync) —
+                    // нового чтения нет; сбой операции не валяет импорт чека (см. метод).
+                    await ApplyMerchantDefaultCategoryAsync(merchant, receipt, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (ReceiptAlreadyExistsException)
                 {
@@ -187,6 +197,57 @@ internal sealed class ReceiptSynchronizationService
         }
 
         _logger.LogInformation("User synchronization completed. Processed {UserCount} users.", userDocuments.Count);
+    }
+
+    /// <summary>
+    /// Автоприменение дефолтной товарной категории магазина к позициям без категории
+    /// только что импортированного чека (ADR-032, C1/FR-M2; точка — сразу после фиксации
+    /// <c>AddAsync</c>). Дефолт не задан (включая <c>null</c> безопасного чтения невалидного
+    /// кода) — no-op с нулевым overhead (FR-M8), существующий поток импорта не меняется.
+    /// </summary>
+    /// <remarks>
+    /// Сбой операции логируется Error и НЕ валяет цикл синхронизации (ADR-032 п. 3):
+    /// чек уже закоммичен до этого вызова, его позиции без категории останутся без неё —
+    /// досыпание кнопкой «категоризировать существующие» (partial failure, FR-M3).
+    /// Гонки внутри сессии импорта нет: в один чек пишем только мы (dedup), операции
+    /// репозитория (транзакция, <c>TryAdd</c> в кэш после commit) — из T-04.
+    /// </remarks>
+    private async Task ApplyMerchantDefaultCategoryAsync(
+        Merchant merchant,
+        Receipt receipt,
+        CancellationToken cancellationToken)
+    {
+        if (merchant.DefaultCommodityCategory is not { } defaultCategory)
+        {
+            return;
+        }
+
+        try
+        {
+            var updated = await _commodityRepository
+                .ApplyMerchantDefaultForReceiptAsync(receipt.Id, defaultCategory, cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Applied merchant default commodity category {Category} to receipt {ReceiptId}: {UpdatedCount} items updated.",
+                defaultCategory,
+                receipt.Id,
+                updated);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Graceful shutdown — не ложный Error: отмена не сбой применения (цикл завершится
+            // проверкой ThrowIfCancellationRequested на следующей итерации).
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to apply merchant default commodity category to receipt {ReceiptId} (merchant {MerchantId}).",
+                receipt.Id,
+                merchant.Id);
+        }
     }
 
     private async Task<string?> ResolveOwnerHexAsync(RawTicketDocument document, CancellationToken cancellationToken)

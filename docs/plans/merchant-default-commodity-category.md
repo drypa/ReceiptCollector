@@ -15,8 +15,8 @@
 | 01 | Миграция схемы: `merchants.default_commodity_category_id` + `commodities.category_source` | committed |
 | 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | committed |
 | 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | committed |
-| 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | approved |
-| 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | pending |
+| 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | committed |
+| 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | approved |
 | 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | pending |
 | 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | pending |
 | 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | pending |
@@ -284,14 +284,14 @@ cd Analytics && dotnet test
 - Тесты: расширение существующего класса тестов синхронизации (`ReceiptSynchronizationServiceTests`).
 
 ### Чек-лист
-- [ ] После успешного `_receiptRepository.AddAsync(receipt)`: если `merchant.DefaultCommodityCategory == null` →
+- [x] После успешного `_receiptRepository.AddAsync(receipt)`: если `merchant.DefaultCommodityCategory == null` →
       ничего не происходит (нулевой overhead, FR-M8); существующий поток импорта никак не изменён.
-- [ ] Иначе — `ApplyMerchantDefaultForReceiptAsync(receipt.Id, category)`; число обновлённых строк логируется.
-- [ ] Исключение операции → `catch` + `LogError` и **продолжение импорта** (правило «сбой по чеку не валит цикл»
+- [x] Иначе — `ApplyMerchantDefaultForReceiptAsync(receipt.Id, category)`; число обновлённых строк логируется.
+- [x] Исключение операции → `catch` + `LogError` и **продолжение импорта** (правило «сбой по чеку не валит цикл»
       сохраняется; partial failure — дожим кнопкой, edge case задачи).
-- [ ] `merchant` — уже резолвленный `ResolveMerchantAsync` (нового чтения merchant **нет**).
-- [ ] Чек без привязки к merchant: не меняется существующее правило импорта (пропуск чека) — не задача этой подзадачи.
-- [ ] Тесты: чек от магазина с дефолтом → операция применения вызвана с правильной парой (receiptId, категория);
+- [x] `merchant` — уже резолвленный `ResolveMerchantAsync` (нового чтения merchant **нет**).
+- [x] Чек без привязки к merchant: не меняется существующее правило импорта (пропуск чека) — не задача этой подзадачи.
+- [x] Тесты: чек от магазина с дефолтом → операция применения вызвана с правильной парой (receiptId, категория);
       без дефолта → не вызвана; сбой операции → импорт завершён, Error залогирован, последующие чеки обработаны.
 
 ### Критерий готовности
