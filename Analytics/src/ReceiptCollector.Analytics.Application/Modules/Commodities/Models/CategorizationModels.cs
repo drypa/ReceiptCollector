@@ -45,7 +45,10 @@ public enum CommodityCategoryFilter
     /// <summary>Только товары без присвоенной категории (category_id IS NULL).</summary>
     Uncategorized = 1,
 
-    /// <summary>Только товары с категорией «Не указана» (category_id = 0, Undefined).</summary>
+    /// <summary>
+    /// Только товары без содержательной категории: «Не указана» — category_id IS NULL
+    /// (миграция и сбросы пишут NULL) либо category_id = 0 (легаси Undefined).
+    /// </summary>
     Undefined = 2
 }
 

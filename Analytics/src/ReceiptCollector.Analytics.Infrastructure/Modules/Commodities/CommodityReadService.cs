@@ -64,7 +64,11 @@ internal sealed class CommodityReadService : ICommodityReadService
         return categoryFilter switch
         {
             CommodityCategoryFilter.Uncategorized => query.Where(c => c.CategoryId == null),
-            CommodityCategoryFilter.Undefined => query.Where(c => c.CategoryId == 0),
+            // «Не указана» = строки без содержательной категории: NULL (миграция и сбросы
+            // пишут NULL, не 0 — ADR-009 п. 8) или легаси-0. Совпадает с определением
+            // кандидата в остальном коде (кэш-инициализация, разрешительные проверки,
+            // счётчик кнопки на странице «Товары»).
+            CommodityCategoryFilter.Undefined => query.Where(c => c.CategoryId == null || c.CategoryId == 0),
             _ => query
         };
     }

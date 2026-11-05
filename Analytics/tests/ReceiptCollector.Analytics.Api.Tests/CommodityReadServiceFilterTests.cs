@@ -81,7 +81,7 @@ public class CommodityReadServiceFilterTests
     }
 
     [Fact]
-    public async Task GetAsync_undefined_returns_only_categorized_as_undefined()
+    public async Task GetAsync_undefined_returns_commodities_without_meaningful_category()
     {
         await using var context = CreateContext(Guid.NewGuid().ToString());
         var userId = await SeedAsync(context);
@@ -89,9 +89,10 @@ public class CommodityReadServiceFilterTests
 
         var items = await service.GetAsync(userId, 10, 0, CommodityCategoryFilter.Undefined, CancellationToken.None);
 
-        var item = Assert.Single(items);
-        Assert.Equal("Не указана", item.Name);
-        Assert.Equal(0, item.CategoryId);
+        // «Не указана» = NULL (никогда не назначалась / сброс) или легаси-0; «Молоко» с категорией excluded.
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, i => i.Name == "Без категории" && i.CategoryId == null);
+        Assert.Contains(items, i => i.Name == "Не указана" && i.CategoryId == 0);
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public class CommodityReadServiceFilterTests
         var undefinedCount = await service.GetTotalCountAsync(userId, CommodityCategoryFilter.Undefined, CancellationToken.None);
 
         Assert.Equal(1, uncategorizedCount);
-        Assert.Equal(1, undefinedCount);
+        Assert.Equal(2, undefinedCount);
     }
 
     [Fact]

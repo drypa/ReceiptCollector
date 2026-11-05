@@ -85,22 +85,29 @@ public static class CommodityEndpoints
             return Results.NotFound("Commodity not found.");
         }
 
-        if (!Enum.IsDefined(typeof(CommodityCategory), request.CategoryId))
+        if (request.CategoryId is { } rawCategory && !Enum.IsDefined(typeof(CommodityCategory), rawCategory))
         {
             return Results.BadRequest("Invalid category.");
         }
 
-        var category = (CommodityCategory)request.CategoryId;
+        // null — сброс категории (фронт отправляет {"categoryId": null}): пишем category_id = NULL (ADR-009 п. 8).
+        var category = request.CategoryId is { } definedCategory
+            ? (CommodityCategory)definedCategory
+            : (CommodityCategory?)null;
         await commodityRepository.UpdateCategoryAsync(id, category, cancellationToken);
 
         // Ручное назначение категории обновляет сквозной кэш (FR-1.3, ADR 019 п.6 — причина 1).
-        // Сброс в Undefined в кэш не пишется (инвариант 8); TryAdd синхронный, await не нужен.
-        if (category != CommodityCategory.Undefined)
+        // Сброс (null) и Undefined в кэш не пишутся (инвариант 8); TryAdd синхронный, await не нужен.
+        if (category is not null && category != CommodityCategory.Undefined)
         {
-            cache.TryAdd(CommodityNameNormalizer.NormalizeName(commodity.Name), category);
+            cache.TryAdd(CommodityNameNormalizer.NormalizeName(commodity.Name), category.Value);
         }
 
-        return Results.Ok(new { categoryId = request.CategoryId, categoryName = CommodityCategoryHelper.GetDisplayName(category) });
+        return Results.Ok(new
+        {
+            categoryId = request.CategoryId,
+            categoryName = category is null ? null : CommodityCategoryHelper.GetDisplayName(category.Value),
+        });
     }
 
     public static IResult ListCategories()
@@ -125,4 +132,7 @@ public static class CommodityEndpoints
     }
 }
 
-public sealed record UpdateCategoryRequest(int CategoryId);
+/// <summary>
+/// <c>CategoryId = null</c> — сброс категории (category_id = NULL); Undefined (0) — легаси-сброс в «Не указана».
+/// </summary>
+public sealed record UpdateCategoryRequest(int? CategoryId);

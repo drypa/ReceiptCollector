@@ -180,6 +180,33 @@ public class CommodityEndpointsTests
     }
 
     [Fact]
+    public async Task UpdateCategory_with_null_category_resets_to_null_without_cache_write()
+    {
+        var userId = Guid.NewGuid();
+        var commodityId = Guid.NewGuid();
+        var receiptId = Guid.NewGuid();
+        using var _ = UserContext.SetUserId(userId);
+
+        _userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new User(userId, "admin", "ext", isAdmin: true));
+        _commodityRepository.GetByIdAsync(commodityId, Arg.Any<CancellationToken>())
+            .Returns(new Commodity(commodityId, receiptId, "АИ-95-К5", 1m, 100m, 0, 0m));
+
+        var result = await CommodityEndpoints.UpdateCategory(
+            commodityId,
+            new UpdateCategoryRequest(null),
+            _commodityRepository,
+            _userRepository,
+            _cache,
+            CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status200OK, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        // null — сброс в category_id = NULL; в кэш не пишется.
+        await _commodityRepository.Received(1).UpdateCategoryAsync(commodityId, null, Arg.Any<CancellationToken>());
+        _cache.DidNotReceiveWithAnyArgs().TryAdd(default!, default);
+    }
+
+    [Fact]
     public async Task UpdateCategory_returns_forbidden_for_non_admin()
     {
         var userId = Guid.NewGuid();
