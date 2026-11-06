@@ -21,8 +21,8 @@
 | 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | committed |
 | 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | committed |
 | 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | committed |
-| 10 | Frontend: селект дефолта + кнопка «Категоризировать существующие» в `ReceiptDetails.tsx` | approved |
-| 11 | Финальная проверка и ручная приёмка | pending |
+| 10 | Frontend: селект дефолта + кнопка «Категоризировать существующие» в `ReceiptDetails.tsx` | committed |
+| 11 | Финальная проверка и ручная приёмка | approved |
 
 ## Обозначения
 
@@ -520,7 +520,8 @@ cd Analytics/frontend && npm run build && npm run lint
 Сквозная проверка требований задачи и приёмка по критериям из раздела «Критерии приёмки» задачи.
 
 ### Чек-лист
-- [ ] `cd Analytics && dotnet test` — все зелёные; `cd Analytics/frontend && npm run lint && npm run build` — чисто.
+- [x] `cd Analytics && dotnet test` — все зелёные (442/442, включая Testcontainers-тесты T-04);
+      `cd Analytics/frontend && npm run lint && npm run build` — чисто (детали — сводка приёмки).
 - [ ] Миграция применена на dev (`dotnet run` в Migrations), `migration_scripts_history` содержит скрипт.
 - [ ] Ручной сквозной сценарий (соответствует «Сценарий использования» задачи):
   1. `/merchants` → задать дефолт (например, столовая → «Готовая еда») → значение сохранилось; категория магазина не изменилась.
@@ -534,7 +535,9 @@ cd Analytics/frontend && npm run build && npm run lint
      `'merchant-default'`/`NULL`).
 - [ ] Edge cases со стенда: магазин без дефолта → обычный поток; ручная категория не перезаписывается;
      чек без merchant-привязки не ломает поток.
-- [ ] Сводка приёмки — в `docs/reviews/merchant-default-commodity-category/` (протокол task-review-gate).
+- [x] Сводка приёмки — в `docs/reviews/merchant-default-commodity-category/` (протокол
+      task-review-gate): `11-final-check.md` создана (сценарий ручной приёмки + SQL); вердикт
+      code-review дописывается в шапку сводки после ревью.
 
 ### Проверка
 ```bash
