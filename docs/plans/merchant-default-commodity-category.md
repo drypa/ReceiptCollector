@@ -17,8 +17,8 @@
 | 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | committed |
 | 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | committed |
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | committed |
-| 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | approved |
-| 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | pending |
+| 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | committed |
+| 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | approved |
 | 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | pending |
 | 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | pending |
 | 10 | Frontend: селект дефолта + кнопка «Категоризировать существующие» в `ReceiptDetails.tsx` | pending |
@@ -366,29 +366,29 @@ HTTP-контракт по п. 6 ADR-032 + аддитивное расширен
   `UserContext.SetUserId`, исполнение `IResult` на `DefaultHttpContext`).
 
 ### Чек-лист `PUT /api/merchants/{merchantId:guid}/default-commodity-category`
-- [ ] Тело `{ "categoryId": int | null }`; `null` = сброс (вызов `UpdateDefaultCommodityCategory(null)`,
+- [x] Тело `{ "categoryId": int | null }`; `null` = сброс (вызов `UpdateDefaultCommodityCategory(null)`,
       сохранение admin через существующий repo-путь редактирования merchant — ADR 011).
-- [ ] Порядок проверок: `401` (нет пользователся) → `403` не-админ (явный `Results.StatusCode(403)` — по уточнению
+- [x] Порядок проверок: `401` (нет пользователся) → `403` не-админ (явный `Results.StatusCode(403)` — по уточнению
       ADR-027, дефект `Results.Forbid()` не воспроизводить в новых хендлах) → `404` merchant не найден → валидация → сохранение.
-- [ ] Валидация категории: `categoryId != null` и (`!Enum.IsDefined` **или** `== 0`(Undefined)) → `400` текстом.
-- [ ] `200 { categoryId, categoryName }`; сброс → `{ categoryId: null, categoryName: null }` (FR-M1).
-- [ ] Существующие маршруты `MerchantEndpoints` не изменены (DTO — только аддитивные поля).
+- [x] Валидация категории: `categoryId != null` и (`!Enum.IsDefined` **или** `== 0`(Undefined)) → `400` текстом.
+- [x] `200 { categoryId, categoryName }`; сброс → `{ categoryId: null, categoryName: null }` (FR-M1).
+- [x] Существующие маршруты `MerchantEndpoints` не изменены (DTO — только аддитивные поля).
 
 ### Чек-лист `POST /api/merchants/{merchantId:guid}/default-commodity-category/apply`
-- [ ] `200 { updated: int }` (в т.ч. `updated: 0`).
-- [ ] `DefaultNotConfigured` → `400` текстом («Default commodity category is not set for this merchant.»);
+- [x] `200 { updated: int }` (в т.ч. `updated: 0`).
+- [x] `DefaultNotConfigured` → `400` текстом («Default commodity category is not set for this merchant.»);
       `NotFound` → `404`; порядок прав как у PUT.
-- [ ] Оба хендлера — `public static async Task<IResult>` (тестируемость уровня хендлера); регистрация
+- [x] Оба хендлера — `public static async Task<IResult>` (тестируемость уровня хендлера); регистрация
       в группе merchants (`Program.cs` вызов уже есть, не дублировать).
 
 ### Список merchants
-- [ ] `GET /api/merchants` (список, используется `/merchants`) отдаёт новые поля `DefaultCommodityCategoryId/Name`
+- [x] `GET /api/merchants` (список, используется `/merchants`) отдаёт новые поля `DefaultCommodityCategoryId/Name`
       (аддитивно — wire-контракт совместим).
 
 ### Тесты (обязательные, dotnet test)
-- [ ] PUT: 401 / 403 (исполнением IResult — это 403, не 500) / 404 / 400 (неизвестный код, 0) / 200 set / 200 reset.
-- [ ] Apply: 401 / 403 / 404 / 400 DefaultNotConfigured / 200 updated 0 и updated N.
-- [ ] `MerchantDto`-сериализация новых полей; `ProjectDependencyTests` зелёные.
+- [x] PUT: 401 / 403 (исполнением IResult — это 403, не 500) / 404 / 400 (неизвестный код, 0) / 200 set / 200 reset.
+- [x] Apply: 401 / 403 / 404 / 400 DefaultNotConfigured / 200 updated 0 и updated N.
+- [x] `MerchantDto`-сериализация новых полей; `ProjectDependencyTests` зелёные.
 
 ### Критерий готовности
 Коды/тела соответствуют п. 6 ADR-032 дословно; не-админ получает 403 и при прямом вызове.
@@ -479,6 +479,12 @@ cd Analytics/frontend && npm run build && npm run lint
 
 ### Затрагиваемые файлы
 - `Analytics/frontend/src/components/ReceiptDetails.tsx`.
+- `Analytics/src/ReceiptCollector.Analytics.Infrastructure/.../ReceiptReadService.cs` (фактический путь найти grep) —
+  **эскалация с ревью T-07:** `MerchantDto` строится 5 аргументами (строки ~38, 91, 123), поэтому в
+  `GET /api/receipts/{id}` новые поля `defaultCommodityCategoryId/Name` будут `null`, а чек-лист T-10
+  читает `receipt.merchant.defaultCommodityCategoryName`. Расширить заполнение (минимум `GetByIdAsync`);
+  имя категории — из C#-словаря `CommodityCategoryHelper.GetDisplayName`, в SQL-проекцию не кладётся.
+  Покрыть тестом: детали чека магазина с дефолтом → поля заполнены.
 
 ### Чек-лист
 - [ ] В блоке магазина рядом с «ред.» имени — селект «категория товаров по умолчанию» (админ):
