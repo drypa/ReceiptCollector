@@ -16,8 +16,8 @@
 | 02 | Домен и entity: дефолтная категория, безопасное чтение, batch-чтение дефолтов | committed |
 | 03 | Конвейер: `CategorizationSource.MerchantDefault` + шаг `merchant-default` в `ICommodityCategoryResolver` | committed |
 | 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | committed |
-| 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | approved |
-| 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | pending |
+| 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | committed |
+| 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | approved |
 | 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | pending |
 | 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | pending |
 | 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | pending |
@@ -321,22 +321,22 @@ cd Analytics && dotnet test
 - Тесты (новые): `MerchantDefaultCategoryServiceTests`.
 
 ### Чек-лист
-- [ ] Контракт: `Task<MerchantDefaultApplyResult> ApplyExistingAsync(Guid adminUserId, Guid merchantId, CancellationToken ct)`
+- [x] Контракт: `Task<MerchantDefaultApplyResult> ApplyExistingAsync(Guid adminUserId, Guid merchantId, CancellationToken ct)`
       (outcome по ADR п. 4: `NotFound` / `DefaultNotConfigured` / обновлено N — форма результата на усмотрение
       реализации, эндпоинтное маппирование в T-07).
-- [ ] Шаг 1: merchant через репозиторий (без `IgnoreQueryFilters` — merchants не фильтруются); `null` → `NotFound`.
-- [ ] Шаг 2: `DefaultCommodityCategory == null` (включая безопасно прочитанный из невалидного кода NULL) → `DefaultNotConfigured`.
-- [ ] Шаг 3: в одной транзакции — distinct-имена позиций магазина без категории →
+- [x] Шаг 1: merchant через репозиторий (без `IgnoreQueryFilters` — merchants не фильтруются); `null` → `NotFound`.
+- [x] Шаг 2: `DefaultCommodityCategory == null` (включая безопасно прочитанный из невалидного кода NULL) → `DefaultNotConfigured`.
+- [x] Шаг 3: в одной транзакции — distinct-имена позиций магазина без категории →
       `ApplyMerchantDefaultForMerchantAsync(merchantId, category)` (кэш и `CategorySource` внутри, T-04).
-- [ ] Ответ — `updatedCount`; **0 считается успехом** (идемпотентность, edge case «повторное нажатие»).
-- [ ] Ни один путь записи результата дожима не перезаписывает существующие категории (FR-M5/M7) — гарантировано предикатом T-04.
-- [ ] Сервис не пишет в `precategorized_commodities` (пересечение с фоновой сессией безопасно — п. 4 ADR-032).
-- [ ] DI-регистрация Scoped; `Architecture/ProjectDependencyTests` зелёные (Application ↔ Infrastructure).
+- [x] Ответ — `updatedCount`; **0 считается успехом** (идемпотентность, edge case «повторное нажатие»).
+- [x] Ни один путь записи результата дожима не перезаписывает существующие категории (FR-M5/M7) — гарантировано предикатом T-04.
+- [x] Сервис не пишет в `precategorized_commodities` (пересечение с фоновой сессией безопасно — п. 4 ADR-032).
+- [x] DI-регистрация Scoped; `Architecture/ProjectDependencyTests` зелёные (Application ↔ Infrastructure).
 
 ### Тесты (обязательные, dotnet test)
-- [ ] Магазин не найден → `NotFound`; дефолт не задан → `DefaultNotConfigured`; дефолт задан → вызов
+- [x] Магазин не найден → `NotFound`; дефолт не задан → `DefaultNotConfigured`; дефолт задан → вызов
       репозитория с верной категорией, счётчик пробрасывается наружу; 0 — успех.
-- [ ] Репозиторий замокан (NSubstitute); ошибки репозитория пробрасываются.
+- [x] Репозиторий замокан (NSubstitute); ошибки репозитория пробрасываются.
 
 ### Критерий готовности
 Дожим по магазину работает идемпотентно и только по позициям без категории, всех пользователей.

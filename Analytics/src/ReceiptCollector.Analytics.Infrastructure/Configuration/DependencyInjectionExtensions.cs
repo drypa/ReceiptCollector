@@ -52,6 +52,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IMerchantRepository, MerchantRepository>();
         // ADR-032, D1: узкий batch-провайдер дефолтов магазинов для шага merchant-default конвейера.
         services.AddScoped<IMerchantDefaultCategoryProvider, MerchantDefaultCategoryProvider>();
+        // ADR-032, п. 4 (E1/FR-M3): дожим исторических позиций магазина (кнопка «категоризировать существующие»).
+        services.AddScoped<IMerchantDefaultCategoryService, MerchantDefaultCategoryService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthLinkRepository, UserAuthLinkRepository>();
         services.AddScoped<IUserAuthLinkService, UserAuthLinkService>();
