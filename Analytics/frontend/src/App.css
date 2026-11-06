@@ -570,6 +570,23 @@ tbody td:last-child {
   margin: 0;
 }
 
+/* Товарная категория по умолчанию и кнопка дожима в «Деталях чека» (ADR-032, T-10). */
+.merchant-default-category {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.merchant-default-category-label {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+}
+
+.merchant-default-category-value {
+  font-weight: 600;
+}
+
 /* Merchant Edit Button Styles */
 .merchant-edit-controls {
   display: flex;

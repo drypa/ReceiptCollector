@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { ReceiptDetails, ReceiptItem } from '../types/receipt';
 import { useAdmin } from '../hooks/useAdmin';
-import { updateMerchantName } from '../api/merchants';
+import {
+  updateMerchantName,
+  updateMerchantDefaultCategory,
+  applyMerchantDefaultCategory,
+} from '../api/merchants';
 import { suggestReceiptCategories, saveReceiptCategories } from '../api/receipts';
 import type { ReceiptItemSuggestion } from '../api/receipts';
 import { fetchCategories } from '../api/commodities';
@@ -26,6 +30,11 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Т-10 (ADR-032, п. 7): настройка товарной категории по умолчанию (селект) и кнопка дожима
+  // в блоке магазина. Отдельные состояния — не пересекаются с редактированием имени (isEditing).
+  const [editingDefaultCategory, setEditingDefaultCategory] = useState(false);
+  const [defaultCategorySaving, setDefaultCategorySaving] = useState(false);
+  const [applyingExisting, setApplyingExisting] = useState(false);
   const [suggestions, setSuggestions] = useState<ReceiptItemSuggestion[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [savingCategories, setSavingCategories] = useState(false);
@@ -130,6 +139,76 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
     }
   };
 
+  /**
+   * Сохранение/сброс товарной категории по умолчанию магазина (ADR-032, п. 6–7; FR-M1) —
+   * пустое значение select'а («— не задана —») = null. После успеха — onReceiptRefresh:
+   * поля receipt.merchant.defaultCommodityCategory* и видимость кнопки дожима обновляются
+   * с сервера (прецеденты: MerchantTable T-09, onReceiptRefresh в saveSelectedCategories).
+   */
+  const saveDefaultCategory = async (selectValue: string) => {
+    if (!receipt.merchant.id) {
+      showDialog('Ошибка', 'ID магазина отсутствует');
+      return;
+    }
+
+    const categoryId = selectValue === '' ? null : Number(selectValue);
+    if (selectValue !== '' && !Number.isFinite(categoryId)) {
+      return;
+    }
+
+    setEditingDefaultCategory(false);
+    setDefaultCategorySaving(true);
+    try {
+      const result = await updateMerchantDefaultCategory(receipt.merchant.id, categoryId);
+      toast.success(
+        result.categoryName
+          ? `Категория по умолчанию обновлена: ${result.categoryName}`
+          : 'Категория по умолчанию снята',
+      );
+      onReceiptRefresh?.();
+    } catch (error) {
+      console.error('Ошибка обновления категории по умолчанию:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Не удалось обновить категорию по умолчанию',
+      );
+    } finally {
+      setDefaultCategorySaving(false);
+    }
+  };
+
+  /**
+   * Дожим категорией по умолчанию существующих позиций магазина без категории
+   * (ADR-032, п. 4; FR-M3) — позиции всех пользователей (E1), содержательные категории
+   * не перезаписываются. updated = 0 — успех (идемпотентность, повторное нажатие):
+   * информационный тост без перезагрузки чека (данные не изменились). Ошибки
+   * (401/403/404/400/сеть) — toast.error русским сообщением API-клиента
+   * (прецедент saveSelectedCategories).
+   */
+  const applyExistingCategories = async () => {
+    if (!receipt.merchant.id) {
+      showDialog('Ошибка', 'ID магазина отсутствует');
+      return;
+    }
+
+    setApplyingExisting(true);
+    try {
+      const { updated } = await applyMerchantDefaultCategory(receipt.merchant.id);
+      if (updated === 0) {
+        toast.success('Все позиции уже категоризированы');
+      } else {
+        toast.success(`Обновлено товаров: ${updated}`);
+        onReceiptRefresh?.();
+      }
+    } catch (error) {
+      console.error('Ошибка категоризации существующих товаров:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Не удалось категоризовать существующие товары',
+      );
+    } finally {
+      setApplyingExisting(false);
+    }
+  };
+
   /** Запуск автоматической категоризации: категории справочника + AI-предложения (ничего не сохраняет). */
   const runCategorization = async () => {
     setSuggesting(true);
@@ -189,6 +268,13 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
 
   /** Категории справочника, доступные для выбора: «Не указана» (Undefined) исключена — это не категория. */
   const selectableCategories = categories.filter((c) => c.key !== 'Undefined');
+
+  /**
+   * Дефолт магазина задан (ADR-032, п. 7): сервер отдаёт валидный код (не NULL и не Undefined —
+   * безопасное чтение A1). Кнопка «Категоризировать существующие» показывается только при
+   * админе и этом условии (иначе apply гарантированно ответил бы 400).
+   */
+  const hasDefaultCommodityCategory = Boolean(receipt.merchant.defaultCommodityCategoryId);
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
@@ -258,6 +344,55 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
                   </button>
                 )}
               </div>
+              {isAdmin && (
+                <div className="merchant-default-category">
+                  <span className="merchant-default-category-label">
+                    Категория товаров по умолчанию:
+                  </span>
+                  {defaultCategorySaving ? (
+                    <span className="merchant-default-category-value">Сохранение...</span>
+                  ) : editingDefaultCategory ? (
+                    <select
+                      defaultValue={
+                        receipt.merchant.defaultCommodityCategoryId === null
+                          ? ''
+                          : String(receipt.merchant.defaultCommodityCategoryId)
+                      }
+                      onChange={(e) => saveDefaultCategory(e.target.value)}
+                      onBlur={() => setEditingDefaultCategory(false)}
+                      autoFocus
+                      aria-label="Категория товаров по умолчанию"
+                    >
+                      <option value="">— не задана —</option>
+                      {renderCategorySelectOptions(selectableCategories)}
+                    </select>
+                  ) : (
+                    <span className="merchant-default-category-value">
+                      {receipt.merchant.defaultCommodityCategoryName ?? 'Не задана'}
+                    </span>
+                  )}
+                  {!editingDefaultCategory && !defaultCategorySaving && (
+                    <button
+                      type="button"
+                      className="edit-category-btn"
+                      onClick={() => setEditingDefaultCategory(true)}
+                      title="Редактировать категорию товаров по умолчанию"
+                    >
+                      ред.
+                    </button>
+                  )}
+                  {hasDefaultCommodityCategory && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={applyExistingCategories}
+                      disabled={applyingExisting || defaultCategorySaving}
+                    >
+                      {applyingExisting ? 'Категоризация...' : 'Категоризовать существующие'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
