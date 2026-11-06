@@ -30,10 +30,17 @@ export interface PaginatedCommodities {
 
 /**
  * Источник предложения категории (контракт POST /api/commodities/categories/suggest,
- * ADR-028 п. 1.1). Совпадает с источником suggest чека (ADR-009/027);
- * аддитивных значений сервер не добавляет.
+ * ADR-028 п. 1.1). Совпадает с источником suggest чека (ADR-009/027); аддитивное значение
+ * `'merchant-default'` — категория по умолчанию магазина (ADR-032, D1: шаг между
+ * `existing` и `cache`).
  */
-export type CategorizationSource = 'existing' | 'cache' | 'precategorized' | 'ai' | 'undefined';
+export type CategorizationSource =
+  | 'existing'
+  | 'merchant-default'
+  | 'cache'
+  | 'precategorized'
+  | 'ai'
+  | 'undefined';
 
 /**
  * Одна запись порционного suggest (ADR-028 п. 1.1): по одной на каждую найденную строку,

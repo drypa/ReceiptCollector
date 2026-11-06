@@ -71,8 +71,17 @@ export async function fetchReceiptDetails(id: string, signal?: AbortSignal): Pro
   return response.json() as Promise<ReceiptDetails>;
 }
 
-/** Источник предложенной категории (контракт POST /api/receipts/{id}/categories/suggest). */
-export type CategorizationSource = 'existing' | 'cache' | 'precategorized' | 'ai' | 'undefined';
+/**
+ * Источник предложенной категории (контракт POST /api/receipts/{id}/categories/suggest);
+ * `'merchant-default'` — категория по умолчанию магазина (ADR-032, п. 5; аддитивно).
+ */
+export type CategorizationSource =
+  | 'existing'
+  | 'merchant-default'
+  | 'cache'
+  | 'precategorized'
+  | 'ai'
+  | 'undefined';
 
 export interface ReceiptItemSuggestion {
   commodityId: string;

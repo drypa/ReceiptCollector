@@ -18,8 +18,8 @@
 | 04 | Репозиторий: `ApplyMerchantDefaultForReceiptAsync` / `ApplyMerchantDefaultForMerchantAsync` | committed |
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | committed |
 | 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | committed |
-| 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | approved |
-| 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | pending |
+| 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | committed |
+| 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | approved |
 | 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | pending |
 | 10 | Frontend: селект дефолта + кнопка «Категоризировать существующие» в `ReceiptDetails.tsx` | pending |
 | 11 | Финальная проверка и ручная приёмка | pending |
@@ -417,12 +417,12 @@ cd Analytics && dotnet test
 - `Analytics/frontend/src/utils/categorizationSource.ts` — подпись `'merchant-default'`.
 
 ### Чек-лист
-- [ ] Оба метода: `credentials: 'include'`, ожидание ошибок по `!response.ok` в стиле существующего API-клиента:
+- [x] Оба метода: `credentials: 'include'`, ожидание ошибок по `!response.ok` в стиле существующего API-клиента:
       401/403/400/404 различаемы сообщением пользователю на русском (формируется на клиенте).
-- [ ] `updateMerchantDefaultCategory`: тело `{ categoryId: number | null }`.
-- [ ] Подпись источника аддитивная: `'merchant-default'` → «по умолчанию магазина»; существующие
+- [x] `updateMerchantDefaultCategory`: тело `{ categoryId: number | null }`.
+- [x] Подпись источника аддитивная: `'merchant-default'` → «по умолчанию магазина»; существующие
       source-имена не изменены; fallback для неизвестного source прежний.
-- [ ] Старые методы `fetchMerchants`/`updateMerchant` не изменены по поведению.
+- [x] Старые методы `fetchMerchants`/`updateMerchant` не изменены по поведению.
 
 ### Критерий готовности
 Клиент и подписи готовы для T-09/T-10; сборка/линт чистые.
