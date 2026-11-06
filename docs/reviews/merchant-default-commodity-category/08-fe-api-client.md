@@ -66,6 +66,8 @@
 - НЕ включать `Analytics/src/ReceiptCollector.Analytics.Api/appsettings.json` и
   `appsettings.Development.json` — изменены не этой задачей (рекомендация ревьюера:
   `git restore` этих двух файлов перед коммитом).
-- НЕ включать `Analytics/src/ReceiptCollector.Analytics.Api/wwwroot/index.html` — артефакт
-  локальной сборки (`npm run build` меняет хэш бандла; содержимое `wwwroot` в `.gitignore`),
-  коммит `index.html` сошлётся на отсутствующий в репозитории бандл: `git restore` перед коммитом.
+- Уточнение (исправлено после T-09): `Analytics/src/ReceiptCollector.Analytics.Api/wwwroot/index.html`
+  включать в коммит — файл trackится и по конвенции проекта коммитится вместе с фронтенд-задачами
+  (коммиты 8964710, 0435a75, b5146c8); в `.gitignore` находится только содержимое `wwwroot/assets`
+  (бандлы собираются в Docker-образе), поэтому первоначальная рекомендация «`git restore`
+  index.html» была ошибочной.

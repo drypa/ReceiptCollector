@@ -19,8 +19,8 @@
 | 05 | Автоприменение дефолта при импорте чека (`ReceiptSynchronizationService`) | committed |
 | 06 | Дожим: контракт и сервис `IMerchantDefaultCategoryService.ApplyExistingAsync` | committed |
 | 07 | API: два эндпоинта /default-commodity-category + аддитивный `MerchantDto` | committed |
-| 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | approved |
-| 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | pending |
+| 08 | Frontend: API-клиент merchants + подпись источника `merchant-default` | committed |
+| 09 | Frontend: колонка и редактирование дефолта в `MerchantTable.tsx` | approved |
 | 10 | Frontend: селект дефолта + кнопка «Категоризировать существующие» в `ReceiptDetails.tsx` | pending |
 | 11 | Финальная проверка и ручная приёмка | pending |
 
@@ -446,16 +446,16 @@ cd Analytics/frontend && npm run build && npm run lint
 - `Analytics/frontend/src/App.css` — только если не хватает существующих классов.
 
 ### Чек-лист
-- [ ] Новая колонка «Категория товаров (по умолчанию)» — только при `isAdmin`; отображается
+- [x] Новая колонка «Категория товаров (по умолчанию)» — только при `isAdmin`; отображается
       `defaultCommodityCategoryName` из DTO или «Не задана».
-- [ ] Кнопка «ред.»: `<select>` из `fetchCategories()` (`api/commodities.ts`, товарный справочник)
+- [x] Кнопка «ред.»: `<select>` из `fetchCategories()` (`api/commodities.ts`, товарный справочник)
       **без** `Undefined`; первая опция «— не задана —» = сброс (`null`).
-- [ ] Сохранение через `updateMerchantDefaultCategory`; тост об успехе/ошибке (стиль существующей
+- [x] Сохранение через `updateMerchantDefaultCategory`; тост об успехе/ошибке (стиль существующей
       строки редактирования).
-- [ ] Отдельные состояния редактирования (`editingDefaultId`, `defaultSavingId`) — **не пересекаются**
+- [x] Отдельные состояния редактирования (`editingDefaultId`, `defaultSavingId`) — **не пересекаются**
       с редактированием имени/категории магазина (одновременно в строке редактируется одно поле).
-- [ ] Категория **самого** магазина (`MerchantCategory`) не изменена — колонки и select'ы независимы (FR-M1).
-- [ ] Не-админ: новая колонка скрыта, таблица работает как раньше.
+- [x] Категория **самого** магазина (`MerchantCategory`) не изменена — колонки и select'ы независимы (FR-M1).
+- [x] Не-админ: новая колонка скрыта, таблица работает как раньше.
 
 ### Критерий готовности
 Админ может задать/изменить/снять дефолт прямо в `/merchants`; ручные/существующие поля не задеты.

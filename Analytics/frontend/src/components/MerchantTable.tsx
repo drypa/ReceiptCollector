@@ -4,11 +4,15 @@ import { Link } from 'react-router-dom';
 import {
   fetchMerchantCategories,
   updateMerchantCategory,
+  updateMerchantDefaultCategory,
   updateMerchantName,
 } from '../api/merchants';
 import type { MerchantDto } from '../api/merchants';
+import { fetchCategories } from '../api/commodities';
 import { merchantReceiptsPath } from '../routes';
 import type { Category } from '../types/commodity';
+import { renderCategorySelectOptions } from '../utils/categoryOptions';
+import { useToast } from './Toasts';
 
 interface MerchantTableProps {
   merchants: MerchantDto[];
@@ -17,12 +21,20 @@ interface MerchantTableProps {
 }
 
 export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTableProps) {
+  const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
+  // Товарный справочник (CommodityCategory) для колонки дефолтной категории;
+  // отдельный от `categories` (MerchantCategory) — справочники независимы (FR-M1, ADR-032).
+  const [commodityCategories, setCommodityCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  // Отдельные состояния редактирования дефолтной категории (ADR-032, п. 7):
+  // не пересекаются с editingId/editingNameId — одновременно в строке редактируется одно поле.
+  const [editingDefaultId, setEditingDefaultId] = useState<string | null>(null);
+  const [defaultSavingId, setDefaultSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAdmin) {
@@ -32,8 +44,22 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
     }
   }, [isAdmin]);
 
+  // Товарный справочник нужен только колонке дефолта (админ); Undefined нельзя задать
+  // дефолтом (CHECK в схеме и валидация API), поэтому он исключается из select'а —
+  // прецедент PrecategorizedCommodityTable.
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
+    fetchCategories()
+      .then((all) => setCommodityCategories(all.filter((category) => category.key !== 'Undefined')))
+      .catch((err) => console.error('Ошибка загрузки категорий товаров:', err));
+  }, [isAdmin]);
+
   const handleEditStart = useCallback((merchantId: string) => {
     setEditingNameId(null);
+    setEditingDefaultId(null);
     setEditingId(merchantId);
   }, []);
 
@@ -42,6 +68,7 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
     setNameError(null);
     setEditingNameId(merchant.id);
     setEditingId(null);
+    setEditingDefaultId(null);
   }, []);
 
   const handleNameSave = useCallback(
@@ -104,6 +131,48 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
     }
   }, [onRefresh]);
 
+  const handleDefaultEditStart = useCallback((merchantId: string) => {
+    setEditingId(null);
+    setEditingNameId(null);
+    setEditingDefaultId(merchantId);
+  }, []);
+
+  /**
+   * Сохранение дефолтной товарной категории (ADR-032, п. 6–7; FR-M1): пустое значение
+   * select'а («— не задана —») = сброс в null; прочее — код из товарного справочника.
+   * Тост успеха/ошибки — стиль редактирования строки PrecategorizedCommodityTable;
+   * русские тексты 401/403/404/400 формирует API-клиент.
+   */
+  const handleDefaultCategoryChange = useCallback(
+    async (merchantId: string, selectValue: string) => {
+      const categoryId = selectValue === '' ? null : Number(selectValue);
+      if (selectValue !== '' && !Number.isFinite(categoryId)) {
+        return;
+      }
+
+      setEditingDefaultId(null);
+      setDefaultSavingId(merchantId);
+
+      try {
+        const result = await updateMerchantDefaultCategory(merchantId, categoryId);
+        toast.success(
+          result.categoryName
+            ? `Категория по умолчанию обновлена: ${result.categoryName}`
+            : 'Категория по умолчанию снята',
+        );
+        onRefresh();
+      } catch (err) {
+        console.error('Ошибка обновления категории по умолчанию:', err);
+        toast.error(
+          err instanceof Error ? err.message : 'Не удалось обновить категорию по умолчанию',
+        );
+      } finally {
+        setDefaultSavingId(null);
+      }
+    },
+    [onRefresh, toast],
+  );
+
   if (merchants.length === 0) {
     return (
       <div className="empty-state">
@@ -121,6 +190,7 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
             <th>Адрес</th>
             <th>ИНН</th>
             {isAdmin && <th>Категория</th>}
+            {isAdmin && <th>Категория товаров (по умолчанию)</th>}
           </tr>
         </thead>
         <tbody>
@@ -212,6 +282,40 @@ export function MerchantTable({ merchants, isAdmin, onRefresh }: MerchantTablePr
                           className="edit-category-btn"
                           onClick={() => handleEditStart(merchant.id)}
                           title="Редактировать категорию"
+                        >
+                          ред.
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                )}
+                {isAdmin && (
+                  <td>
+                    {defaultSavingId === merchant.id ? (
+                      <span>Сохранение...</span>
+                    ) : editingDefaultId === merchant.id ? (
+                      <select
+                        defaultValue={
+                          merchant.defaultCommodityCategoryId === null
+                            ? ''
+                            : String(merchant.defaultCommodityCategoryId)
+                        }
+                        onChange={(e) => handleDefaultCategoryChange(merchant.id, e.target.value)}
+                        onBlur={() => setEditingDefaultId(null)}
+                        autoFocus
+                        aria-label={`Категория товаров по умолчанию для «${merchant.name}»`}
+                      >
+                        <option value="">— не задана —</option>
+                        {renderCategorySelectOptions(commodityCategories)}
+                      </select>
+                    ) : (
+                      <div className="category-display">
+                        <span>{merchant.defaultCommodityCategoryName ?? 'Не задана'}</span>
+                        <button
+                          type="button"
+                          className="edit-category-btn"
+                          onClick={() => handleDefaultEditStart(merchant.id)}
+                          title="Редактировать категорию товаров по умолчанию"
                         >
                           ред.
                         </button>
