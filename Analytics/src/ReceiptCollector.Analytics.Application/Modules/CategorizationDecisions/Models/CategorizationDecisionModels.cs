@@ -42,7 +42,8 @@ public static class CategorizationDecisionSources
 /// <summary>
 /// Черновик события журнала, собранный save-путём (ADR-033 п. 6): снимок предложения от клиента
 /// плюс серверные итог, принявший и admin-флаг. Валидацию выполняет recorder — вызывающий
-/// (save-путь) черновики не фильтрует и исключений от <c>RecordAsync</c> не ждёт.
+/// (save-путь) черновики не фильтрует. Recorder по контракту не бросает; save-путь дополнительно
+/// страхует пользовательское сохранение от нарушения этого контракта (NFR-3).
 /// </summary>
 public sealed record CategorizationDecisionDraft(
     string CommodityName,

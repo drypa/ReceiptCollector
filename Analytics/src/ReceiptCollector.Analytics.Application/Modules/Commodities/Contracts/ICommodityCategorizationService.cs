@@ -27,16 +27,37 @@ public interface ICommodityCategorizationService
     /// Категория Undefined (0) запрещена к явному присвоению — ArgumentException.
     /// Категория сохраняется в сквозной in-memory кэш (ADR 019, без userId).
     /// Возвращает количество обработанных товаров.
+    /// <para>
+    /// По присвоениям с валидным клиентским снимком предложения (ADR-033 п. 3) после сохранения
+    /// пишется best-effort событие журнала «предложено → принято». Сбой журнала не влияет на
+    /// сохранение и возвращаемый результат (NFR-3).
+    /// </para>
     /// </summary>
-    /// <param name="userId">Владелец чека.</param>
+    /// <param name="userId">Владелец чека (он же принявший по журналу).</param>
     /// <param name="receiptId">Чек, товары которого подтверждаются.</param>
-    /// <param name="items">Список подтверждённых присвоений {commodityId, category}.</param>
+    /// <param name="items">Список подтверждённых присвоений {commodityId, category, снимок предложения}.</param>
+    /// <param name="acceptedByAdmin">
+    /// Снимок <c>users.is_admin</c> на момент решения; резолвит эндпоинт (ADR-033 п. 3.5).
+    /// </param>
     Task<int> ApplyConfirmedCategoriesAsync(
         Guid userId,
         Guid receiptId,
         IReadOnlyCollection<ConfirmedCategoryAssignment> items,
+        bool acceptedByAdmin,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Подтверждённое пользователем присвоение категории товару (category может быть null = сброс).</summary>
-public sealed record ConfirmedCategoryAssignment(Guid CommodityId, CommodityCategory? Category);
+/// <summary>
+/// Подтверждённое пользователем присвоение категории товару (category может быть null = сброс).
+/// <para>
+/// <see cref="SuggestedCategory"/>/<see cref="SuggestionSource"/> — аддитивный клиентский снимок
+/// предложения (ADR-033 п. 3, решение A1): заполнены только если клиент прислал валидную пару
+/// «категория + источник». Без снимка событие журнала не пишется (FR-5b). Снимок не влияет на
+/// применение категории (NFR-1).
+/// </para>
+/// </summary>
+public sealed record ConfirmedCategoryAssignment(
+    Guid CommodityId,
+    CommodityCategory? Category,
+    CommodityCategory? SuggestedCategory = null,
+    string? SuggestionSource = null);

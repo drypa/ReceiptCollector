@@ -1,4 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -23,19 +26,25 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
     private readonly ICommodityCategoryCache _cache;
     private readonly ICommodityCategoryResolver _resolver;
     private readonly IOptions<AiOptions> _aiOptions;
+    private readonly ICategorizationDecisionRecorder _categoryDecisionRecorder;
+    private readonly ILogger<CommodityCategorizationService> _logger;
 
     public CommodityCategorizationService(
         IReceiptRepository receiptRepository,
         ICommodityRepository commodityRepository,
         ICommodityCategoryCache cache,
         ICommodityCategoryResolver resolver,
-        IOptions<AiOptions> aiOptions)
+        IOptions<AiOptions> aiOptions,
+        ICategorizationDecisionRecorder categoryDecisionRecorder,
+        ILogger<CommodityCategorizationService> logger)
     {
         _receiptRepository = receiptRepository ?? throw new ArgumentNullException(nameof(receiptRepository));
         _commodityRepository = commodityRepository ?? throw new ArgumentNullException(nameof(commodityRepository));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _aiOptions = aiOptions ?? throw new ArgumentNullException(nameof(aiOptions));
+        _categoryDecisionRecorder = categoryDecisionRecorder ?? throw new ArgumentNullException(nameof(categoryDecisionRecorder));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<ReceiptCategorizationResult> SuggestForReceiptAsync(
@@ -65,6 +74,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         Guid userId,
         Guid receiptId,
         IReadOnlyCollection<ConfirmedCategoryAssignment> items,
+        bool acceptedByAdmin,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -82,6 +92,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
         }
 
         var commoditiesById = receipt.Items.ToDictionary(i => i.Id);
+        var decisions = new List<CategorizationDecisionDraft>();
 
         var updated = 0;
         foreach (var assignment in items)
@@ -89,6 +100,7 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
             if (!commoditiesById.TryGetValue(assignment.CommodityId, out var commodity))
             {
                 // Товар не принадлежит чеку — игнорируем (защита от массового обновления чужих товаров).
+                // «Применённого» присвоения нет, значит и события журнала нет (ADR-033 п. 3.3).
                 continue;
             }
 
@@ -102,9 +114,53 @@ internal sealed class CommodityCategorizationService : ICommodityCategorizationS
                 _cache.TryAdd(normalized, category); // first-wins (FR-1.4); no-op при лимите (FR-1.5)
             }
 
+            // Черновик события — только по применённому присвоению с непустым снимком предложения
+            // (ADR-033 п. 3, FR-5b). Сброс категории (null) даёт final = Undefined (edge case задачи).
+            if (assignment.SuggestedCategory is { } suggestedCategory
+                && !string.IsNullOrWhiteSpace(assignment.SuggestionSource))
+            {
+                decisions.Add(new CategorizationDecisionDraft(
+                    commodity.Name,
+                    assignment.SuggestionSource,
+                    suggestedCategory,
+                    assignment.Category ?? CommodityCategory.Undefined,
+                    userId,
+                    acceptedByAdmin));
+            }
+
             updated++;
         }
 
+        if (decisions.Count > 0)
+        {
+            // ADR-033 п. 3.5/C1: журнал пишется после commit всех пользовательских сохранений
+            // (UpdateCategoryAsync коммитит каждое присвоение) и никогда не влияет на результат.
+            await RecordDecisionsBestEffortAsync(decisions, cancellationToken).ConfigureAwait(false);
+        }
+
         return updated;
+    }
+
+    /// <summary>
+    /// Вызов журнала строго после сохранения (NFR-3). Recorder по контракту (T-03) не бросает;
+    /// защитный <c>catch</c> гарантирует NFR-3 и в случае нарушения контракта. Запись журнала —
+    /// последняя БД-операция запроса: после неё сервис и эндпоинт ничего не сохраняют, поэтому
+    /// оставшиеся в change tracker сущности после сбоя <c>SaveChangesAsync</c> повторно не вставятся.
+    /// </summary>
+    private async Task RecordDecisionsBestEffortAsync(
+        IReadOnlyCollection<CategorizationDecisionDraft> decisions,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _categoryDecisionRecorder.RecordAsync(decisions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Categorization decision log call failed after receipt categories were saved: {DecisionCount} events.",
+                decisions.Count);
+        }
     }
 }

@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -19,6 +21,7 @@ public class CommodityCategorizationServiceTests
     private readonly ICommodityCategoryCache _cache = Substitute.For<ICommodityCategoryCache>();
     private readonly IPrecategorizedCommodityRepository _precategorizedRepository = Substitute.For<IPrecategorizedCommodityRepository>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
+    private readonly ICategorizationDecisionRecorder _recorder = Substitute.For<ICategorizationDecisionRecorder>();
 
     public CommodityCategorizationServiceTests()
     {
@@ -45,7 +48,9 @@ public class CommodityCategorizationServiceTests
             _commodityRepository,
             _cache,
             resolver,
-            aiOptions);
+            aiOptions,
+            _recorder,
+            NullLogger<CommodityCategorizationService>.Instance);
     }
 
     private void ArrangeCacheHit(string normalized, CommodityCategory category)
@@ -258,7 +263,8 @@ public class CommodityCategorizationServiceTests
         };
 
         var service = CreateService();
-        var updated = await service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, assignments, CancellationToken.None);
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
 
         Assert.Equal(1, updated);
         await _commodityRepository.Received(1).UpdateCategoryAsync(item.Id, CommodityCategory.Dairy, Arg.Any<CancellationToken>());
@@ -274,7 +280,8 @@ public class CommodityCategorizationServiceTests
         var assignments = new[] { new ConfirmedCategoryAssignment(item.Id, null) };
 
         var service = CreateService();
-        var updated = await service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, assignments, CancellationToken.None);
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
 
         Assert.Equal(1, updated);
         await _commodityRepository.Received(1).UpdateCategoryAsync(item.Id, (CommodityCategory?)null, Arg.Any<CancellationToken>());
@@ -295,7 +302,8 @@ public class CommodityCategorizationServiceTests
         };
 
         var service = CreateService();
-        var updated = await service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, assignments, CancellationToken.None);
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
 
         Assert.Equal(0, updated);
         await _commodityRepository.DidNotReceiveWithAnyArgs().UpdateCategoryAsync(default, default, default);
@@ -312,7 +320,8 @@ public class CommodityCategorizationServiceTests
         var service = CreateService();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, assignments, CancellationToken.None));
+            service.ApplyConfirmedCategoriesAsync(
+                _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None));
     }
 
     [Fact]
@@ -323,7 +332,8 @@ public class CommodityCategorizationServiceTests
         var service = CreateService();
 
         await Assert.ThrowsAsync<ReceiptNotFoundException>(() =>
-            service.ApplyConfirmedCategoriesAsync(_userId, _receiptId, new[] { new ConfirmedCategoryAssignment(Guid.NewGuid(), CommodityCategory.Food) }, CancellationToken.None));
+            service.ApplyConfirmedCategoriesAsync(
+                _userId, _receiptId, new[] { new ConfirmedCategoryAssignment(Guid.NewGuid(), CommodityCategory.Food) }, acceptedByAdmin: false, CancellationToken.None));
     }
 
     [Fact]
@@ -462,5 +472,265 @@ public class CommodityCategorizationServiceTests
 
         var suggestion = Assert.Single(result.Items);
         Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
+    }
+
+    // ---- T-04: точка фиксации 1 — журнал «предложено → принято» (ADR-033 п. 3, FR-4/FR-5) ----
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_records_agreement_when_snapshot_is_kept()
+    {
+        var item = CreateCommodity(_receiptId, "Молоко");
+        ArrangeReceipt(item);
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                CommodityCategory.Dairy,
+                CommodityCategory.Dairy,
+                CategorizationDecisionSources.Ai)
+        };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 1
+                && drafts.Single().CommodityName == "Молоко"
+                && drafts.Single().SuggestionSource == CategorizationDecisionSources.Ai
+                && drafts.Single().SuggestedCategory == CommodityCategory.Dairy
+                && drafts.Single().FinalCategory == CommodityCategory.Dairy
+                && drafts.Single().AcceptedByUserId == _userId
+                && !drafts.Single().AcceptedByAdmin),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_records_mismatch_when_category_is_changed()
+    {
+        var item = CreateCommodity(_receiptId, "Кефир");
+        ArrangeReceipt(item);
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                CommodityCategory.Meat,
+                CommodityCategory.Dairy,
+                CategorizationDecisionSources.Cache)
+        };
+
+        var service = CreateService();
+        await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 1
+                && drafts.Single().SuggestedCategory == CommodityCategory.Dairy
+                && drafts.Single().FinalCategory == CommodityCategory.Meat
+                && drafts.Single().SuggestionSource == CategorizationDecisionSources.Cache),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_does_not_record_without_snapshot()
+    {
+        var item = CreateCommodity(_receiptId, "Хлеб");
+        ArrangeReceipt(item);
+
+        var assignments = new[] { new ConfirmedCategoryAssignment(item.Id, CommodityCategory.Bakery) };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.DidNotReceiveWithAnyArgs().RecordAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_reset_after_suggestion_records_undefined_final_category()
+    {
+        var item = CreateCommodity(_receiptId, "Йогурт", (int)CommodityCategory.Dairy, "Молочные продукты");
+        ArrangeReceipt(item);
+
+        // edge case задачи: сброс в «Не указана» после предложения — валидное решение.
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                null,
+                CommodityCategory.Dairy,
+                CategorizationDecisionSources.Precategorized)
+        };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 1
+                && drafts.Single().SuggestedCategory == CommodityCategory.Dairy
+                && drafts.Single().FinalCategory == CommodityCategory.Undefined),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_does_not_record_for_commodity_outside_receipt()
+    {
+        ArrangeReceipt(CreateCommodity(_receiptId, "Молоко"));
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                Guid.NewGuid(),
+                CommodityCategory.Food,
+                CommodityCategory.Food,
+                CategorizationDecisionSources.Ai)
+        };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        Assert.Equal(0, updated);
+        await _recorder.DidNotReceiveWithAnyArgs().RecordAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_passes_accepted_by_admin_to_draft()
+    {
+        var item = CreateCommodity(_receiptId, "Сыр");
+        ArrangeReceipt(item);
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                CommodityCategory.Dairy,
+                CommodityCategory.Dairy,
+                CategorizationDecisionSources.Ai)
+        };
+
+        var service = CreateService();
+        await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: true, CancellationToken.None);
+
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts => drafts.Single().AcceptedByAdmin),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_records_one_batch_only_for_assignments_with_snapshot()
+    {
+        var first = CreateCommodity(_receiptId, "Молоко");
+        var second = CreateCommodity(_receiptId, "Хлеб");
+        var third = CreateCommodity(_receiptId, "Сыр");
+        ArrangeReceipt(first, second, third);
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                first.Id, CommodityCategory.Dairy, CommodityCategory.Dairy, CategorizationDecisionSources.Ai),
+            new ConfirmedCategoryAssignment(second.Id, CommodityCategory.Bakery),
+            new ConfirmedCategoryAssignment(
+                third.Id, CommodityCategory.Dairy, CommodityCategory.Dairy, CategorizationDecisionSources.Cache)
+        };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        Assert.Equal(3, updated);
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 2
+                && drafts.Select(draft => draft.CommodityName).OrderBy(name => name).SequenceEqual(
+                    new[] { "Молоко", "Сыр" })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ApplyConfirmedCategories_records_only_after_category_is_saved()
+    {
+        var item = CreateCommodity(_receiptId, "Творог");
+        ArrangeReceipt(item);
+
+        var saved = false;
+        _commodityRepository
+            .UpdateCategoryAsync(item.Id, Arg.Any<CommodityCategory?>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                saved = true;
+                return Task.CompletedTask;
+            });
+
+        var recorderObservedSaved = false;
+        _recorder
+            .RecordAsync(Arg.Any<IReadOnlyCollection<CategorizationDecisionDraft>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                recorderObservedSaved = saved;
+                return Task.CompletedTask;
+            });
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                CommodityCategory.Dairy,
+                CommodityCategory.Dairy,
+                CategorizationDecisionSources.Ai)
+        };
+
+        var service = CreateService();
+        await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        // NFR-3/C1: журнал вызывается строго после commit пользовательского сохранения.
+        Assert.True(recorderObservedSaved);
+    }
+
+    public static IEnumerable<object[]> RecorderFailures()
+    {
+        yield return [new InvalidOperationException("journal is down")];
+        yield return [new OperationCanceledException()];
+    }
+
+    [Theory]
+    [MemberData(nameof(RecorderFailures))]
+    public async Task ApplyConfirmedCategories_ignores_recorder_failure(Exception failure)
+    {
+        var item = CreateCommodity(_receiptId, "Рыба");
+        ArrangeReceipt(item);
+
+        _recorder
+            .RecordAsync(Arg.Any<IReadOnlyCollection<CategorizationDecisionDraft>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(failure));
+
+        var assignments = new[]
+        {
+            new ConfirmedCategoryAssignment(
+                item.Id,
+                CommodityCategory.FishAndSeafood,
+                CommodityCategory.FishAndSeafood,
+                CategorizationDecisionSources.Ai)
+        };
+
+        var service = CreateService();
+        var updated = await service.ApplyConfirmedCategoriesAsync(
+            _userId, _receiptId, assignments, acceptedByAdmin: false, CancellationToken.None);
+
+        // NFR-3: сбой журнала (даже нарушение контракта recorder'а) не меняет результат сохранения.
+        Assert.Equal(1, updated);
+        await _commodityRepository.Received(1).UpdateCategoryAsync(item.Id, CommodityCategory.FishAndSeafood, Arg.Any<CancellationToken>());
+        _cache.Received(1).TryAdd("рыба", CommodityCategory.FishAndSeafood);
     }
 }
