@@ -20,6 +20,12 @@ internal sealed class PrecategorizedCommodityEntity
     /// <summary>Предложенная категория; <c>Undefined</c> (0) в очереди не хранится (D11).</summary>
     public int ProposedCategoryId { get; set; }
 
+    /// <summary>
+    /// Первоначальное предложение строки (ADR-033 п. 1, решение D1). Записывается только фоном
+    /// при вставке; <c>UpdateProposedCategoryAsync</c> его не трогает.
+    /// </summary>
+    public int OriginalProposedCategoryId { get; set; }
+
     public PrecategorizedCommodityStatus Status { get; set; } = PrecategorizedCommodityStatus.Proposed;
 
     public DateTimeOffset CreatedAt { get; set; }

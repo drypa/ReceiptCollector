@@ -22,6 +22,12 @@ internal sealed class ReceiptDbContext : DbContext
     /// </summary>
     public DbSet<PrecategorizedCommodityEntity> PrecategorizedCommodities => Set<PrecategorizedCommodityEntity>();
 
+    /// <summary>
+    /// Журнал решений категоризации (ADR-033 п. 2) — глобальные исторические данные;
+    /// query-filter намеренно не ставится, доступ только через admin-API.
+    /// </summary>
+    public DbSet<CategorizationDecisionEntity> CategorizationDecisions => Set<CategorizationDecisionEntity>();
+
     internal Guid? CurrentUserId { get; private set; }
 
     internal void SetCurrentUser(Guid userId)
@@ -42,6 +48,7 @@ internal sealed class ReceiptDbContext : DbContext
         modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.ApplyConfiguration(new UserAuthLinkConfiguration());
         modelBuilder.ApplyConfiguration(new PrecategorizedCommodityConfiguration());
+        modelBuilder.ApplyConfiguration(new CategorizationDecisionConfiguration());
         modelBuilder.Entity<ReceiptEntity>()
             .HasQueryFilter(r => CurrentUserId == null || r.UserId == CurrentUserId);
     }

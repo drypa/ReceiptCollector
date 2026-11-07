@@ -20,8 +20,8 @@
 
 | ID | Задача | Зависимости | Статус |
 | -- | ------ | ----------- | ------ |
-| T-01 | Миграция PostgreSQL: журнал `categorization_decisions` + исходное предложение очереди | — | approved |
-| T-02 | Домен и persistence журнала + маппинг `original_proposed_category_id` | T-01 | pending |
+| T-01 | Миграция PostgreSQL: журнал `categorization_decisions` + исходное предложение очереди | — | committed |
+| T-02 | Домен и persistence журнала + маппинг `original_proposed_category_id` | T-01 | approved |
 | T-03 | Recorder: контракт, допустимые источники, best-effort запись | T-02 | pending |
 | T-04 | Точка фиксации 1: сохранение категорий чека | T-03 | pending |
 | T-05 | Точка фиксации 2: пакетное сохранение страницы «Товары» | T-03 (порядок — после T-04) | pending |

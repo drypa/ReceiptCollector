@@ -134,6 +134,7 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
                 p.MerchantId,
                 MerchantName = p.Merchant != null ? p.Merchant.Name : null,
                 p.ProposedCategoryId,
+                p.OriginalProposedCategoryId,
                 p.Status,
                 p.CreatedAt,
                 p.AppliedAt
@@ -147,7 +148,8 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
                 row.Name,
                 row.MerchantId,
                 row.MerchantName,
-                (CommodityCategory)row.ProposedCategoryId,
+                proposedCategory: (CommodityCategory)row.ProposedCategoryId,
+                originalProposedCategory: (CommodityCategory)row.OriginalProposedCategoryId,
                 row.Status,
                 row.CreatedAt,
                 row.AppliedAt))
@@ -169,6 +171,7 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
                 p.MerchantId,
                 MerchantName = p.Merchant != null ? p.Merchant.Name : null,
                 p.ProposedCategoryId,
+                p.OriginalProposedCategoryId,
                 p.Status,
                 p.CreatedAt,
                 p.AppliedAt
@@ -186,7 +189,8 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
             row.Name,
             row.MerchantId,
             row.MerchantName,
-            (CommodityCategory)row.ProposedCategoryId,
+            proposedCategory: (CommodityCategory)row.ProposedCategoryId,
+            originalProposedCategory: (CommodityCategory)row.OriginalProposedCategoryId,
             row.Status,
             row.CreatedAt,
             row.AppliedAt);
@@ -243,6 +247,8 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
             Name = candidate.Name,
             MerchantId = candidate.MerchantId,
             ProposedCategoryId = (int)category,
+            // ADR-033 п. 1 (D1): единственное место записи исходного предложения — фоновая вставка.
+            OriginalProposedCategoryId = (int)category,
             Status = PrecategorizedCommodityStatus.Proposed,
             CreatedAt = _timeProvider.GetUtcNow()
         };

@@ -24,6 +24,11 @@ internal sealed class PrecategorizedCommodityConfiguration : IEntityTypeConfigur
         builder.Property(e => e.ProposedCategoryId)
             .IsRequired();
 
+        // ADR-033 п. 1 (D1): неизменяемое исходное предложение; NOT NULL после backfill
+        // в SQL-миграции 20261106120000. Пишется только фоновой вставкой строки.
+        builder.Property(e => e.OriginalProposedCategoryId)
+            .IsRequired();
+
         builder.Property(e => e.Status)
             .HasConversion<short>()
             .IsRequired()

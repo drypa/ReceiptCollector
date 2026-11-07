@@ -8,6 +8,7 @@ using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Users.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Users.Options;
 using ReceiptCollector.Analytics.Application.Modules.Users.Services;
+using ReceiptCollector.Analytics.Domain.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
@@ -42,6 +43,8 @@ public static class DependencyInjectionExtensions
         services.AddHttpClient<IAiClient, OpenAiCompatibleAiClient>();
         services.AddScoped<IPrecategorizedCommodityRepository, PrecategorizedCommodityRepository>();
         services.AddScoped<IPrecategorizedCommodityService, PrecategorizedCommodityService>();
+        // ADR-033 п. 2: журнал решений категоризации — запись батчем после пользовательского сохранения.
+        services.AddScoped<ICategorizationDecisionRepository, CategorizationDecisionRepository>();
 
         // ADR-027 п.9 (NFR-9): единственная точка получения времени/задержек для нового кода.
         services.AddSingleton(TimeProvider.System);

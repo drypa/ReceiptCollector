@@ -205,6 +205,8 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
         {
             var stored = await context.PrecategorizedCommodities.SingleAsync();
             Assert.Equal(CommodityCategory.Dairy, (CommodityCategory)stored.ProposedCategoryId);
+            // ADR-033 D1: фоновая вставка пишет исходное предложение = предложенной категории.
+            Assert.Equal((int)CommodityCategory.Dairy, stored.OriginalProposedCategoryId);
             Assert.Equal(PrecategorizedCommodityStatus.Proposed, stored.Status);
         }
     }
@@ -299,9 +301,9 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
             await context.Database.ExecuteSqlAsync(
                 $"""
                 INSERT INTO precategorized_commodities
-                    (id, name, merchant_id, proposed_category_id, status, created_at)
+                    (id, name, merchant_id, proposed_category_id, original_proposed_category_id, status, created_at)
                 VALUES
-                    ({Guid.NewGuid()}, {"Кефир"}, {merchantA}, {9999}, {(short)0}, {DateTimeOffset.UtcNow})
+                    ({Guid.NewGuid()}, {"Кефир"}, {merchantA}, {9999}, {9999}, {(short)0}, {DateTimeOffset.UtcNow})
                 """);
         }
 
@@ -532,6 +534,8 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
         {
             var stored = await context.PrecategorizedCommodities.FindAsync(proposedId);
             Assert.Equal((int)CommodityCategory.Dairy, stored!.ProposedCategoryId);
+            // ADR-033 D1: PUT .../category меняет только текущее предложение, исходное неизменно.
+            Assert.Equal((int)CommodityCategory.Food, stored.OriginalProposedCategoryId);
         }
     }
 
@@ -639,6 +643,8 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
             Name = name,
             MerchantId = merchantId,
             ProposedCategoryId = (int)category,
+            // Исходное предложение пишется фоном при вставке (ADR-033 D1); PUT его не меняет.
+            OriginalProposedCategoryId = (int)category,
             Status = status,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             AppliedAt = appliedAt

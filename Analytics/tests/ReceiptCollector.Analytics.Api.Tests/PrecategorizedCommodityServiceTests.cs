@@ -157,6 +157,7 @@ public class PrecategorizedCommodityServiceTests
                     merchantId,
                     "Пятёрочка",
                     CommodityCategory.Dairy,
+                    CommodityCategory.Dairy,
                     PrecategorizedCommodityStatus.Proposed,
                     createdAt)
             });
@@ -182,6 +183,7 @@ public class PrecategorizedCommodityServiceTests
             name,
             Guid.NewGuid(),
             "Магазин",
+            CommodityCategory.Dairy,
             CommodityCategory.Dairy,
             PrecategorizedCommodityStatus.Proposed,
             DateTimeOffset.UtcNow);

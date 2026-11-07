@@ -13,6 +13,7 @@ public sealed class PrecategorizedCommodity
         Guid merchantId,
         string? merchantName,
         CommodityCategory proposedCategory,
+        CommodityCategory originalProposedCategory,
         PrecategorizedCommodityStatus status,
         DateTimeOffset createdAt,
         DateTimeOffset? appliedAt = null)
@@ -24,6 +25,7 @@ public sealed class PrecategorizedCommodity
         MerchantId = merchantId;
         MerchantName = merchantName;
         ProposedCategory = proposedCategory;
+        OriginalProposedCategory = originalProposedCategory;
         Status = status;
         CreatedAt = createdAt;
         AppliedAt = appliedAt;
@@ -41,6 +43,13 @@ public sealed class PrecategorizedCommodity
 
     /// <summary>Предложенная категория; <see cref="CommodityCategory.Undefined"/> в очереди не хранится (D11).</summary>
     public CommodityCategory ProposedCategory { get; }
+
+    /// <summary>
+    /// Первоначальное предложение строки очереди (ADR-033 п. 1, решение D1). Пишется только фоном
+    /// при создании строки; <c>PUT .../category</c> его не меняет, поэтому подтверждение может
+    /// зафиксировать в журнале «предложено = исходное, принято = текущее».
+    /// </summary>
+    public CommodityCategory OriginalProposedCategory { get; }
 
     public PrecategorizedCommodityStatus Status { get; }
 
