@@ -1,0 +1,67 @@
+# Задача 07 - Чтение журнала: read-service, дедуп anti-join, фильтры, `Total`
+
+- **Задача**: docs/plans/categorization-decision-log.md#t-07-чтение-read-service-дедуп-anti-join-фильтры-total
+- **Дата**: 2026-11-07
+- **Ревью**: раундов - 1, вердикт APPROVED (блокеров нет)
+
+## Что сделано
+
+Реализована серверная сторона чтения журнала категоризации (ADR-033 п. 7, T-07) - без HTTP-эндпоинта (это T-08) и без фронта (T-11). Репозиторий получил два метода: `GetCombinationsAsync` (страница уникальных сочетаний) и `CountCombinationsAsync` (`Total` для будущего `X-Total-Count`). Дедуп выполнен anti-join'ом (решение E1) строго на уровне EF-запроса - в памяти ничего не materialизуется: событие остаётся, только если в отфильтрованном наборе нет более свежего события того же сочетания `(commodity_name, suggestion_source, suggested_category_id, final_category_id)`; «свежесть» - row-comparison `(created_at, id)`. Порядок выдачи `created_at DESC, id DESC`, `Skip/Take` и `Count()` применяются к одному и тому же дедуп-выражению (`BuildDeduplicatedQuery`/`BuildPageQuery`), поэтому страница и счётчик не «расходятся» (FR-7). Фильтры применяются к событиям до дедупа в порядке: onlyMismatch -> source -> suggested -> final -> search -> from -> to; период (`From` включительно, `To` исключающе) суживает не только выдачу, но и «последнее» событие сочетания (anti-join коррелирован по отфильтрованному набору). Поиск - `ILIKE '%term%'` по исходному ИЛИ нормализованному имени без учёта регистра (прецедент очереди ADR-027); «Хлеб»/«ХЛЕБ» при этом разные строки выдачи (ключ сочетания по исходному имени). Read-сервис (`CategorizationDecisionReadService`, scoped) добавляет только отображение: безопасные имена категорий (код 0 -> «Не указана», код вне справочника -> «—», числовой код сохраняется в строке - ADR-033 п. 1, прецедент ADR-032) и имя принявшего batch-чтением `users` по PK страницы - семантика LEFT JOIN (пользователь удалён или имя пустое -> `AcceptedByName = null`, `AcceptedById` и admin-флаг заполнены всегда). Новый индекс, настройки и монотонные `created_at` не вводились (инвариант 5).
+
+## Изменённые файлы
+
+- `Analytics/src/ReceiptCollector.Analytics.Domain/Modules/CategorizationDecisions/CategorizationDecisionQuery.cs` (новый) - record параметров выборки (фильтры/период/`Limit`/`Offset`); XML-док фиксирует семантики ADR-033 и причину размещения в Domain (см. «Итоги ревью»).
+- `Analytics/src/ReceiptCollector.Analytics.Domain/Modules/CategorizationDecisions/ICategorizationDecisionRepository.cs` - `+GetCombinationsAsync(query)` / `+CountCombinationsAsync(query)`; запись (T-03) не менялась.
+- `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Persistence/Postgres/CategorizationDecisionRepository.cs` - реализация обоих методов: `ApplyEventFilters` (все семь фильтров), `BuildDeduplicatedQuery` (anti-join `!Any(...)` с tie-break `(created_at, id)`), `BuildPageQuery` (`OrderByDescending` + `Skip/Take`); внутренние билдеры оставлены как seam для доказательства трансляции в тестах.
+- `Analytics/src/ReceiptCollector.Analytics.Application/Modules/CategorizationDecisions/Models/CategorizationDecisionModels.cs` - `+CategorizationDecisionRow` (строка выдачи: имя/нормализованное имя, источник, коды и имена категорий, принявший (id/имя/admin), `DecidedAt`).
+- `Analytics/src/ReceiptCollector.Analytics.Application/Modules/CategorizationDecisions/Contracts/ICategorizationDecisionReadService.cs` (новый) - контракт `GetPageAsync(query) -> (Items, Total)`.
+- `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Modules/CategorizationDecisions/CategorizationDecisionReadService.cs` (новый) - Total + страница из репозитория, маппинг имён категорий, batch-чтение `users` (один запрос на страницу, без N+1).
+- `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Configuration/DependencyInjectionExtensions.cs` - `AddScoped<ICategorizationDecisionReadService, CategorizationDecisionReadService>`.
+- `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/CategorizationDecisionReadServiceTests.cs` (новый) - 12 тестов на EF InMemory: дедуп одинаковых сочетаний в одну строку с «последним» решением; `Total` считает сочетания, а не события; onlyMismatch (в т.ч. `final = 0` -> имя «Не указана»); фильтр источника; фильтры suggested/final; границы периода (`From` включительно / `To` исключающе) и сужение «последнего» события периодом; удалённый/безымянный пользователь -> id и admin-флаг при `null` имени; имя известного пользователя; неизвестный код категории -> «—» с сохранением кода; порядок страниц по `DecidedAt DESC`; пустая страница при ненулевом `Offset` всё равно с `Total`.
+- `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/Infrastructure/CategorizationDecisionRepositoryTests.cs` - +6 контейнерных кейсов на реальном PostgreSQL: трансляция Guid tie-break (при равном `created_at` «последним» признаётся событие с большим id); поиск без учёта регистра по обоим именам; порядок `created_at DESC, id DESC`; `Skip/Take` и `Total` по дедуп-строкам, а не по сырым событиям; период и onlyMismatch применяются до дедупа.
+- `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/Infrastructure/CategorizationDecisionReadServiceRegistrationTests.cs` (новый) - DI wiring: контракт резолвится в scoped реализацию.
+- `docs/plans/categorization-decision-log.md` - строка статуса T-07: `pending` -> `in-progress` -> `review` -> `approved`.
+- `docs/reviews/categorization-decision-log/07-read-service.md` (новый - эта сводка).
+
+## Как проверено
+
+- `cd Analytics && dotnet build` - Build succeeded, 0 errors (только существующие предупреждения NU1902/NU1903 по пакетам).
+- `cd Analytics && dotnet test --filter "FullyQualifiedName~CategorizationDecision"` - Passed: 53, Failed: 0 (15 s) - перезапуск после правок по замечаниям ревьюера.
+- `cd Analytics && dotnet test` - Passed: 549, Failed: 0, Skipped: 0 (1 m 05 s). База до T-07 - 530; добавлено 19 кейсов (12 read-service + 6 контейнерных + 1 DI), утверждения существующих тестов репозитория не ослаблялись.
+- Доказательство трансляции (закрытие главного риска): снятый `ToQueryString()` для страницы даёт `... AND NOT EXISTS (SELECT 1 FROM categorization_decisions AS c0 WHERE ...те же фильтры... AND c0.commodity_name = c.commodity_name AND c0.suggestion_source = c.suggestion_source AND c0.suggested_category_id = c.suggested_category_id AND c0.final_category_id = c.final_category_id AND (c0.created_at > c.created_at OR (c0.created_at = c.created_at AND c0.id > c.id))) ORDER BY c.created_at DESC, c.id DESC LIMIT @p OFFSET @p1`.
+- Ревьюер независимо прогнал `dotnet build` (0 errors), фильтр `~CategorizationDecision` (53 passed) и полный `dotnet test` (549 passed / 0 failed), включая контейнерные тесты на реальном PostgreSQL (Docker 29.2.1, `postgres:16-alpine`); проверил отсутствие `FromSqlRaw`/`DISTINCT ON`/`AsEnumerable` и скрытой materialизации, применение `Skip/Take`/`ORDER BY`/`Count` к дедуп-выражению, ключ сочетания ровно из 4 полей, сужение «последнего» события периодом и обоснованность обоих отклонений.
+
+## Итоги ревью
+
+- **Главный риск задачи закрыт фактом, не предположением**: трансляция сравнения `Guid` в Npgsql (tie-break `(created_at, id)` в anti-join, прецедент-предупреждение ADR-027) подтверждена и снятым SQL (`NOT EXISTS ... AND c0.id > c.id`), и зелёными контейнерными тестами на реальном PostgreSQL. Эскалация к @software-architect не понадобилась, запасной вариант E2 (`DISTINCT ON` через `FromSqlRaw`) не использовался; инвариант 5 (без raw SQL, без монотонных `created_at`, без смены tie-break-семантики) соблюдён.
+- **Принятые отклонения (зафиксированы, чтобы на приёмке T-12 это не выглядело случайностью):**
+  - `CategorizationDecisionQuery` размещён в Domain, а не в Application Models (как в тексте плана): `ICategorizationDecisionRepository` - контракт Domain и принимает этот тип параметром, а `Architecture/ProjectDependencyTests` запрещает ссылку Domain -> Application; ссылка Application -> Domain разрешена, read-контракт использует тот же тип. Обоснование - в XML-доке файла.
+  - Имя принявшего получается batch-чтением `users` по PK страницы в read-сервисе, а не JOIN внутри anti-join-запроса репозитория: JOIN в дедуп-выражении заставил бы дублировать anti-join ради одного столбца и усложнил бы `Count`; семантика LEFT JOIN из ADR-033 п. 7 сохранена (нет строки/пустое имя -> `null`, id и admin-флаг всегда), N+1 нет - один запрос на страницу.
+- **Решение ревьюера, зафиксированное как требование к T-08 (не потерять!):** `GetCombinationsAsync`/`CountCombinationsAsync` намеренно НЕ валидируют `Limit`/`Offset` (репозиторий работает с переданными значениями); HTTP-валидация диапазона (`Limit` в `1..200`, `Offset >= 0`, невалидный источник -> `400`) - зона ответственности эндпоинта T-08. В XML-доке `CategorizationDecisionQuery` это помечено.
+- **Замечание ревьюера (применено до финального прогона):** комментарий о сортировке uuid утверждал, что порядок uuid в PostgreSQL **совпадает** с `Guid.CompareTo` в .NET - это строго неверно (`Guid.CompareTo` сравнивает поля знаковыми числами, PostgreSQL - memcmp 16 байт; при `Data1 >= 0x80000000` порядки расходятся). Переформулировано в двух местах: док `BuildDeduplicatedQuery` в `CategorizationDecisionRepository.cs` и док tie-break-теста в `CategorizationDecisionRepositoryTests.cs` - детерминированность порядка гарантирована **внутри одного движка** (в проде и anti-join, и `ORDER BY` исполняет PostgreSQL, противоречие между «кто принял» и порядком строк невозможно); кросс-движковая эквивалентность не предполагается и не нужна. В тестах добавлена явная пометка (док + inline), что тестовые id подобраны так, чтобы .NET и PostgreSQL сортировали их одинаково (`Data1 = 0`, различия только в завершающих байтах node) - это удобство чтения ожиданий, а не свойство реализации.
+- **Второе замечание ревьюера (применено):** в onlyMismatch-кейсе `CategorizationDecisionReadServiceTests` добавлено `Assert.Equal("Не указана", reset.FinalCategoryName)` для события со `final = 0` (сброс после предложения) - заодно закрывает покрытие имени канонического «нет категории» в read-сервисе. Оба прогона после правок - зелёные (см. «Как проверено»).
+
+## Заметки для коммита
+
+- Рекомендуемое сообщение коммита: `T-07 decision log read service` (в стиле `T-03 Recorder`, `t-05 batch processing on commodities page`, `t-06 /precategorized confirm`).
+- Чек-лист файлов коммита (5 новых + 6 изменённых + эта сводка, сверить по `git status`):
+  - `Analytics/src/ReceiptCollector.Analytics.Domain/Modules/CategorizationDecisions/CategorizationDecisionQuery.cs` (новый)
+  - `Analytics/src/ReceiptCollector.Analytics.Application/Modules/CategorizationDecisions/Contracts/ICategorizationDecisionReadService.cs` (новый)
+  - `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Modules/CategorizationDecisions/CategorizationDecisionReadService.cs` (новый)
+  - `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/CategorizationDecisionReadServiceTests.cs` (новый)
+  - `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/Infrastructure/CategorizationDecisionReadServiceRegistrationTests.cs` (новый)
+  - `Analytics/src/ReceiptCollector.Analytics.Domain/Modules/CategorizationDecisions/ICategorizationDecisionRepository.cs`
+  - `Analytics/src/ReceiptCollector.Analytics.Application/Modules/CategorizationDecisions/Models/CategorizationDecisionModels.cs`
+  - `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Persistence/Postgres/CategorizationDecisionRepository.cs`
+  - `Analytics/src/ReceiptCollector.Analytics.Infrastructure/Configuration/DependencyInjectionExtensions.cs`
+  - `Analytics/tests/ReceiptCollector.Analytics.Api.Tests/Infrastructure/CategorizationDecisionRepositoryTests.cs`
+  - `docs/plans/categorization-decision-log.md`
+  - `docs/reviews/categorization-decision-log/07-read-service.md` (новый - эта сводка)
+- Внимание по состоянию индекса: файлы задачи уже добавлены в индекс внешним процессом, но правки по замечаниям ревьюера (комментарии в репозитории и двух тестах + финальная строка статуса плана) лежат поверх индекса нестадий - перед коммитом добавить их (`git add` перечисленных файлов; агенты `git add` не выполняют). Итог сверить по `git status`/`git diff`.
+- В диффе плана будет также строка T-06 `approved -> committed` (выставлена оркестратором после коммита T-06) - это норма, пусть едет в коммите.
+- **Не включать** предсуществующие посторонние изменения: `Analytics/src/ReceiptCollector.Analytics.Api/appsettings.json`, `appsettings.Development.json`, `wwwroot/index.html`.
+- На что обратить внимание при ручной проверке (эндпоинт появится в T-08; до него проверки выполнимы через psql по таблице `categorization_decisions` и поведенчески - через тесты):
+  1. Несколько событий с одинаковым сочетанием (имя, источник, suggested, final) -> в выдаче одна строка с данными самого свежего события; `Total` = число уникальных сочетаний и НЕ равен числу событий в журнале.
+  2. Поиск без учёта регистра находит и по исходному, и по нормализованному имени (`хлеб` находит `Хлеб`); при этом записи `Хлеб` и `ХЛЕБ` - разные строки выдачи (разные ключи сочетания).
+  3. Фильтр «только расхождения» показывает в том числе сброс после предложения (`final_category_id = 0` с именем «Не указана»); период с `From`/`To` может показать более старое событие сочетания - это ожидаемая семантика «фильтр до дедупа».
+  4. Событие, оставленное без строки `users` (или с пустым именем) -> имя принявшего пустое/`null`, но id и admin-флаг на месте.

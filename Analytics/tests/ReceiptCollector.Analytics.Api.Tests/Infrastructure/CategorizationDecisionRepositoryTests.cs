@@ -202,6 +202,273 @@ public sealed class CategorizationDecisionRepositoryTests : IAsyncLifetime
         Assert.Equal("ck_categorization_decisions_suggested_not_undefined", postgresException.ConstraintName);
     }
 
+    // ===== T-07: дедуп anti-join (E1), фильтры, порядок и Total на реальном PostgreSQL =====
+
+    /// <summary>
+    /// Известный риск T-07 (прецедент-предупреждение ADR-027): tie-break «свежести»
+    /// <c>(created_at, id)</c> требует сравнения <c>Guid</c> в EF-трансляции Npgsql. Кейс
+    /// выполняется на реальном PostgreSQL: anti-join обязан отработать, а при равном
+    /// <c>created_at</c> «последним» признаётся событие с большим uuid — таким, каким его
+    /// считает сама БД (anti-join и <c>ORDER BY</c> исполняются одним движком, внутри него
+    /// порядок детерминирован). Id специально подобраны так, чтобы .NET и PostgreSQL сортировали
+    /// их одинаково (<c>Data1 = 0</c>, различаются только завершающие байты node): ожидание
+    /// читается на любом движке. Это удобство теста, а не свойство реализации — кросс-движковая
+    /// эквивалентность порядков <c>Guid</c> не предполагается и не нужна.
+    /// </summary>
+    [Fact]
+    public async Task GetCombinationsAsync_translates_guid_tie_break_and_keeps_greater_id_event()
+    {
+        await ClearDatabaseAsync();
+
+        // Id порядка согласуют оба движка (.NET и PostgreSQL): Data1 = 0, различие в node —
+        // см. док теста.
+        var smallerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var greaterId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var firstAcceptor = Guid.NewGuid();
+        var lastAcceptor = Guid.NewGuid();
+        var sameInstant = new DateTimeOffset(2026, 11, 6, 9, 0, 0, TimeSpan.Zero);
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            // Одно сочетание, два события в один created_at: «последнее» — с большим id.
+            await repository.AddRangeAsync(
+            [
+                CreateDecision(
+                    id: smallerId, acceptedBy: firstAcceptor, acceptedByAdmin: false, createdAt: sameInstant),
+                CreateDecision(
+                    id: greaterId, acceptedBy: lastAcceptor, acceptedByAdmin: true, createdAt: sameInstant)
+            ]);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            var rows = await repository.GetCombinationsAsync(Query());
+
+            var row = Assert.Single(rows);
+            Assert.Equal(greaterId, row.Id);
+            Assert.Equal(lastAcceptor, row.AcceptedBy);
+            Assert.True(row.AcceptedByAdmin);
+            Assert.Equal(sameInstant, row.CreatedAt);
+            Assert.Equal(1, await repository.CountCombinationsAsync(Query()));
+        }
+    }
+
+    [Fact]
+    public async Task GetCombinationsAsync_search_matches_either_name_case_insensitively()
+    {
+        await ClearDatabaseAsync();
+
+        var baseTime = new DateTimeOffset(2026, 11, 6, 8, 0, 0, TimeSpan.Zero);
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            await repository.AddRangeAsync(
+            [
+                // Термин («КЕФИР») отличается по регистру и попадает в commodity_name.
+                CreateDecision("Кефир Ферма", "ферма продукт", createdAt: baseTime),
+                // Термин попадает только в normalized_name.
+                CreateDecision("Простоквашино", "кефир детский", createdAt: baseTime.AddMinutes(1)),
+                // Не попадает ни туда, ни туда.
+                CreateDecision("Молоко", "молоко", createdAt: baseTime.AddMinutes(2))
+            ]);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            // Trim пробелов вокруг термина + ILike '%term%' без учёта регистра по обоим именам.
+            var rows = await repository.GetCombinationsAsync(Query(search: "  КЕФИР  "));
+            var total = await repository.CountCombinationsAsync(Query(search: "  КЕФИР  "));
+
+            Assert.Equal(
+                new[] { "Простоквашино", "Кефир Ферма" },
+                rows.Select(r => r.CommodityName).ToArray());
+            Assert.Equal(2, total);
+        }
+    }
+
+    [Fact]
+    public async Task GetCombinationsAsync_orders_by_created_at_desc_then_id_desc()
+    {
+        await ClearDatabaseAsync();
+
+        // Id порядка согласуют оба движка (.NET и PostgreSQL) — см. док tie-break-теста.
+        var smallerId = Guid.Parse("00000000-0000-0000-0000-00000000000b");
+        var greaterId = Guid.Parse("00000000-0000-0000-0000-00000000000c");
+        var baseTime = new DateTimeOffset(2026, 11, 6, 8, 0, 0, TimeSpan.Zero);
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            await repository.AddRangeAsync(
+            [
+                // Два разных сочетания в один instant — порядок по id DESC.
+                CreateDecision(id: smallerId, commodityName: "Меньший id", normalizedName: "меньший id", createdAt: baseTime),
+                CreateDecision(id: greaterId, commodityName: "Больший id", normalizedName: "больший id", createdAt: baseTime),
+                CreateDecision(commodityName: "Свежее", normalizedName: "свежее", createdAt: baseTime.AddMinutes(2)),
+                CreateDecision(commodityName: "Старее", normalizedName: "старее", createdAt: baseTime.AddMinutes(-2))
+            ]);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            var rows = await repository.GetCombinationsAsync(Query());
+
+            Assert.Equal(
+                new[] { "Свежее", "Больший id", "Меньший id", "Старее" },
+                rows.Select(r => r.CommodityName).ToArray());
+        }
+    }
+
+    [Fact]
+    public async Task GetCombinationsAsync_skip_take_and_total_apply_to_dedup_rows_not_raw_events()
+    {
+        await ClearDatabaseAsync();
+
+        var baseTime = new DateTimeOffset(2026, 11, 6, 8, 0, 0, TimeSpan.Zero);
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            // 6 сырых событий, 3 сочетания: «Молоко» подтверждалось трижды (t-2, t, t+2),
+            // «Хлеб» — дважды (t-1, t+1), «Йогурт» — один раз (t-3).
+            // Дедуп-порядок: Молоко(t+2), Хлеб(t+1), Йогурт(t-1).
+            // Если бы Skip/Take применялись к сырым событиям, первая страница (limit 2) схлопнулась
+            // бы в одну строку, а на второй оказалась копия «Молока» — форма выдачи это ловит.
+            await repository.AddRangeAsync(
+            [
+                CreateDecision(createdAt: baseTime.AddMinutes(-2)),
+                CreateDecision(createdAt: baseTime),
+                CreateDecision(createdAt: baseTime.AddMinutes(2)),
+                CreateDecision("Хлеб", "хлеб", createdAt: baseTime.AddMinutes(1)),
+                CreateDecision("Хлеб", "хлеб", createdAt: baseTime.AddMinutes(-1)),
+                CreateDecision("Йогурт", "йогурт", createdAt: baseTime.AddMinutes(-3))
+            ]);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            var firstPage = await repository.GetCombinationsAsync(Query(limit: 2, offset: 0));
+            var secondPage = await repository.GetCombinationsAsync(Query(limit: 2, offset: 2));
+            var everything = await repository.GetCombinationsAsync(Query(limit: 100, offset: 0));
+            var total = await repository.CountCombinationsAsync(Query(limit: 2, offset: 0));
+
+            Assert.Equal(["Молоко", "Хлеб"], firstPage.Select(r => r.CommodityName).ToArray());
+            Assert.Equal(["Йогурт"], secondPage.Select(r => r.CommodityName).ToArray());
+
+            // Total = 3 уникальных сочетания, а не 6 событий; при limit ≥ общего числа
+            // совпадает с фактическим числом строк выдачи.
+            Assert.Equal(3, total);
+            Assert.Equal(total, everything.Count);
+
+            // «Молоко» представлено самым свежим событием.
+            var moloko = everything.Single(r => r.CommodityName == "Молоко");
+            Assert.Equal(baseTime.AddMinutes(2), moloko.CreatedAt);
+        }
+    }
+
+    [Fact]
+    public async Task GetCombinationsAsync_period_and_onlyMismatch_apply_before_dedup_on_postgres()
+    {
+        await ClearDatabaseAsync();
+
+        var baseTime = new DateTimeOffset(2026, 11, 6, 8, 0, 0, TimeSpan.Zero);
+        var earlyAcceptor = Guid.NewGuid();
+        var inWindowAcceptor = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            await repository.AddRangeAsync(
+            [
+                // Расхождение: два события, раннее вне периода (accepted_by различаются —
+                // по нему видно, какое событие осталось «последним»).
+                CreateDecision("Молоко", "молоко", acceptedBy: earlyAcceptor, createdAt: baseTime),
+                CreateDecision("Молоко", "молоко", acceptedBy: inWindowAcceptor, createdAt: baseTime.AddMinutes(2)),
+                // Согласие (suggested == final) — отсекается onlyMismatch.
+                CreateDecision(
+                    "Хлеб", "хлеб",
+                    suggested: CommodityCategory.Bakery, final: CommodityCategory.Bakery,
+                    createdAt: baseTime.AddMinutes(1))
+            ]);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+
+            // Период [t+2, t+3) оставляет только второе «Молоко»; «Хлеб» вне выдачи по onlyMismatch.
+            var query = new CategorizationDecisionQuery(
+                OnlyMismatch: true,
+                Source: null,
+                SuggestedCategoryId: null,
+                FinalCategoryId: null,
+                Search: null,
+                From: baseTime.AddMinutes(2),
+                To: baseTime.AddMinutes(3),
+                Limit: 10,
+                Offset: 0);
+
+            var rows = await repository.GetCombinationsAsync(query);
+            var total = await repository.CountCombinationsAsync(query);
+
+            var row = Assert.Single(rows);
+            Assert.Equal("Молоко", row.CommodityName);
+            Assert.Equal(inWindowAcceptor, row.AcceptedBy);
+            Assert.Equal(baseTime.AddMinutes(2), row.CreatedAt);
+            Assert.Equal(1, total);
+        }
+    }
+
+    /// <summary>
+    /// Критерий приёмки T-07: дедуп выполняется на уровне EF-запроса, а не в памяти приложения
+    /// после выборки. Проверка — фактическая SQL-выдача Npgsql: anti-join как NOT EXISTS,
+    /// Skip/Take применены к дедуп-запросу; Total считается по тому же anti-join.
+    /// </summary>
+    [Fact]
+    public void BuildPageQuery_and_dedup_query_are_translated_to_anti_join_sql()
+    {
+        // Трансляция LINQ в SQL подключения не требует; исполнение на реальном PostgreSQL
+        // подтверждено тестами выше (иначе они падали бы TranslationNotSupportedException).
+        using var context = CreateContext();
+        var repository = CreateRepository(context);
+
+        var query = new CategorizationDecisionQuery(
+            OnlyMismatch: true,
+            Source: "ai",
+            SuggestedCategoryId: null,
+            FinalCategoryId: null,
+            Search: "хлеб",
+            From: new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero),
+            To: new DateTimeOffset(2026, 11, 30, 0, 0, 0, TimeSpan.Zero),
+            Limit: 25,
+            Offset: 50);
+
+        var pageSql = repository.BuildPageQuery(query).ToQueryString();
+
+        Assert.Contains("NOT EXISTS", pageSql);
+        Assert.Contains("ILIKE", pageSql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("LIMIT", pageSql);
+        Assert.Contains("OFFSET", pageSql);
+        Assert.Contains("DESC", pageSql);
+
+        // Тот же anti-join без пагинации — основа Total = Count().
+        var dedupSql = repository.BuildDeduplicatedQuery(query).ToQueryString();
+
+        Assert.Contains("NOT EXISTS", dedupSql);
+    }
+
     public async Task InitializeAsync()
     {
         await _postgresContainer.StartAsync();
@@ -243,9 +510,10 @@ public sealed class CategorizationDecisionRepositoryTests : IAsyncLifetime
         CommodityCategory final = CommodityCategory.Bakery,
         Guid? acceptedBy = null,
         bool acceptedByAdmin = true,
-        DateTimeOffset? createdAt = null)
+        DateTimeOffset? createdAt = null,
+        Guid? id = null)
         => new(
-            Guid.NewGuid(),
+            id ?? Guid.NewGuid(),
             commodityName,
             normalizedName,
             source,
@@ -254,6 +522,18 @@ public sealed class CategorizationDecisionRepositoryTests : IAsyncLifetime
             acceptedBy ?? Guid.NewGuid(),
             acceptedByAdmin,
             createdAt ?? DateTimeOffset.UtcNow);
+
+    private static CategorizationDecisionQuery Query(
+        bool onlyMismatch = false,
+        string? source = null,
+        int? suggested = null,
+        int? final = null,
+        string? search = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        int limit = 100,
+        int offset = 0)
+        => new(onlyMismatch, source, suggested, final, search, from, to, limit, offset);
 
     private sealed class ConstraintRow
     {

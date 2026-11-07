@@ -52,3 +52,28 @@ public sealed record CategorizationDecisionDraft(
     CommodityCategory FinalCategory,
     Guid AcceptedByUserId,
     bool AcceptedByAdmin);
+
+/// <summary>
+/// Строка выдачи журнала — уникальное сочетание «название + источник + предложено + принято»
+/// (FR-6/FR-7, ADR-033 п. 7). «Кто принял» и <see cref="DecidedAt"/> — от последнего события
+/// сочетания внутри отфильтрованного периода.
+/// <para>
+/// Имена категорий — безопасное чтение (ADR-033 п. 1, прецедент ADR-032): известный код получает
+/// <c>CommodityCategoryHelper.GetDisplayName</c>, удалённый из справочника — «—», при этом числовой
+/// код в строке сохраняется. <see cref="AcceptedByName"/> равен <see langword="null"/>, если
+/// пользователь удалён или имя пустое; <see cref="AcceptedById"/> и <see cref="AcceptedByAdmin"/>
+/// заполнены всегда (F1).
+/// </para>
+/// </summary>
+public sealed record CategorizationDecisionRow(
+    string CommodityName,
+    string NormalizedName,
+    string SuggestionSource,
+    int SuggestedCategoryId,
+    string SuggestedCategoryName,
+    int FinalCategoryId,
+    string FinalCategoryName,
+    Guid AcceptedById,
+    string? AcceptedByName,
+    bool AcceptedByAdmin,
+    DateTimeOffset DecidedAt);

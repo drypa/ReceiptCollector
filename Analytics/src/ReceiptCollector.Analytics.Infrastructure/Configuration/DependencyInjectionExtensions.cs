@@ -49,6 +49,9 @@ public static class DependencyInjectionExtensions
         services.AddScoped<ICategorizationDecisionRepository, CategorizationDecisionRepository>();
         // ADR-033 п. 6 (C1/NFR-3): единая best-effort точка записи журнала — никогда не бросает.
         services.AddScoped<ICategorizationDecisionRecorder, CategorizationDecisionRecorder>();
+        // ADR-033 п. 7 (T-07): серверная выборка уникальных сочетаний (anti-join E1 + имена);
+        // права администратора резолвит эндпоинт T-08.
+        services.AddScoped<ICategorizationDecisionReadService, CategorizationDecisionReadService>();
 
         // ADR-027 п.9 (NFR-9): единственная точка получения времени/задержек для нового кода.
         services.AddSingleton(TimeProvider.System);
