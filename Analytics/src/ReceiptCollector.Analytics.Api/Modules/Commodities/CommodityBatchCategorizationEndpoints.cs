@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
+using ReceiptCollector.Analytics.Api.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Api.Modules.Users;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
@@ -99,6 +100,13 @@ public static class CommodityBatchCategorizationEndpoints
     /// <c>Undefined</c> и числа запрещены. Если после фильтрации «не трогаем» менять нечего —
     /// <c>200 { updated = 0 }</c> без обращения к сервису. Устаревшая страница → <c>409</c>
     /// (ничего не записано).
+    /// <para>
+    /// Аддитивно принимает клиентский снимок предложения (<c>suggestedCategory</c>/<c>suggestionSource</c>,
+    /// ADR-033 п. 4): валидный снимок по реально изменённой строке даёт событие журнала
+    /// «предложено → принято» (сервис), невалидный/частичный — отбрасывается с <c>Warning</c>
+    /// (только количество) без ошибки запроса (NFR-2). Эндпоинт admin-only, поэтому admin-флаг
+    /// журнала — <c>true</c> на стороне сервиса, отдельного запроса в <c>users</c> нет.
+    /// </para>
     /// </summary>
     public static async Task<IResult> Save(
         [FromBody] SaveCommodityCategoriesRequest request,
@@ -125,6 +133,7 @@ public static class CommodityBatchCategorizationEndpoints
         var changes = new List<CommodityCategoryChange>(items.Count);
         var seen = new HashSet<Guid>(items.Count);
         var skipped = 0;
+        var invalidSnapshots = 0;
 
         for (var index = 0; index < items.Count; index++)
         {
@@ -140,9 +149,24 @@ public static class CommodityBatchCategorizationEndpoints
                 return Results.BadRequest($"items contains duplicate commodityId '{item.CommodityId}'.");
             }
 
+            // Разбор снимка предложения общим helper'ом — правила идентичны сохранению чека
+            // (ADR-033 п. 4): невалидный снимок не является ошибкой запроса.
+            var snapshot = SuggestionSnapshotParser.Parse(
+                item.SuggestedCategory,
+                item.SuggestionSource,
+                out var suggestedCategory,
+                out var suggestionSource);
+
+            if (snapshot == SuggestionSnapshotKind.Invalid)
+            {
+                invalidSnapshots++;
+            }
+
             if (string.IsNullOrWhiteSpace(item.Category))
             {
-                // C4: пустое значение/пробелы — «не трогаем», а не сброс категории.
+                // C4: пустое значение/пробелы — «не трогаем», а не сброс категории. Строка не
+                // сохраняется, поэтому снимок на ней не участвует и события журнала не даёт
+                // (ADR-033 п. 4: события — только по строкам из changed).
                 skipped++;
                 continue;
             }
@@ -160,7 +184,19 @@ public static class CommodityBatchCategorizationEndpoints
                 return Results.BadRequest($"items[{index}].category '{item.Category}' is not a valid category name.");
             }
 
-            changes.Add(new CommodityCategoryChange(item.CommodityId, category));
+            changes.Add(new CommodityCategoryChange(
+                item.CommodityId,
+                category,
+                snapshot == SuggestionSnapshotKind.Valid ? suggestedCategory : null,
+                snapshot == SuggestionSnapshotKind.Valid ? suggestionSource : null));
+        }
+
+        if (invalidSnapshots > 0)
+        {
+            // ADR-033 п. 3.2/п. 4/п. 9: невалидный снимок — не ошибка запроса; в Warning только количество.
+            logger.LogWarning(
+                "Commodity batch save: {InvalidSnapshotCount} category suggestion snapshots were ignored as invalid.",
+                invalidSnapshots);
         }
 
         if (changes.Count == 0)
@@ -204,8 +240,17 @@ public sealed record SuggestCommodityCategoriesRequest(IReadOnlyList<Guid>? Comm
 /// <summary>Тело <c>PUT /api/commodities/categories</c>.</summary>
 public sealed record SaveCommodityCategoriesRequest(IReadOnlyList<SaveCommodityCategoryItemRequest>? Items);
 
-/// <summary>Один элемент сохранения: <c>category</c> — имя enum; <c>null</c>/пробелы — «не трогаем».</summary>
-public sealed record SaveCommodityCategoryItemRequest(Guid CommodityId, string? Category);
+/// <summary>
+/// Один элемент сохранения: <c>category</c> — имя enum; <c>null</c>/пробелы — «не трогаем».
+/// <c>suggestedCategory</c>/<c>suggestionSource</c> — аддитивные опциональные поля снимка
+/// предложения (ADR-033 п. 4, решение A1): без них контракт и поведение прежние; валидный снимок
+/// по реально изменённой строке даёт событие журнала «предложено → принято».
+/// </summary>
+public sealed record SaveCommodityCategoryItemRequest(
+    Guid CommodityId,
+    string? Category,
+    string? SuggestedCategory = null,
+    string? SuggestionSource = null);
 
 /// <summary>Ответ сохранения: число строк, у которых значение реально изменилось (C9).</summary>
 public sealed record SaveCommodityCategoriesResponse(int Updated);

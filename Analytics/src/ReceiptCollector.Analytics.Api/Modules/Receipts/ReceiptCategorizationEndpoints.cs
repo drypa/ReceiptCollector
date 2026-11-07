@@ -1,8 +1,8 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Api.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Api.Modules.Users;
-using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Receipts;
@@ -96,7 +96,8 @@ public static class ReceiptCategorizationEndpoints
                 return Results.BadRequest($"items[{index}].commodityId is not a valid GUID.");
             }
 
-            var snapshot = ParseSuggestionSnapshot(
+            // Общий helper разбора снимка (ADR-033 п. 3/п. 4): те же правила для чека и «Товаров».
+            var snapshot = SuggestionSnapshotParser.Parse(
                 item.SuggestedCategory,
                 item.SuggestionSource,
                 out var suggestedCategory,
@@ -163,59 +164,6 @@ public static class ReceiptCategorizationEndpoints
         {
             return Results.NotFound("Receipt not found.");
         }
-    }
-
-    /// <summary>Состояние клиентского снимка предложения в элементе сохранения (ADR-033 п. 3).</summary>
-    private enum SuggestionSnapshotKind
-    {
-        /// <summary>Оба поля пусты — снимка нет (FR-5b).</summary>
-        Absent,
-
-        /// <summary>Снимок валиден: предложенная категория и источник допустимы.</summary>
-        Valid,
-
-        /// <summary>Снимок прислан частично/невалидно — игнорируется без ошибки запроса.</summary>
-        Invalid
-    }
-
-    /// <summary>
-    /// Разбор снимка предложения (ADR-033 п. 3.1–3.2): оба поля пусты — снимка нет; иначе снимок
-    /// валиден только при непустой, не числовой, определённой и не <c>Undefined</c> категории и
-    /// источнике из четырёх допустимых wire-имён (ADR-033 п. 6). Валидацию формы события всё равно
-    /// повторяет recorder — здесь отбрасывается только заведомо невалидный клиентский снимок.
-    /// </summary>
-    private static SuggestionSnapshotKind ParseSuggestionSnapshot(
-        string? suggestedCategory,
-        string? suggestionSource,
-        out CommodityCategory category,
-        out string source)
-    {
-        category = CommodityCategory.Undefined;
-        source = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(suggestedCategory) && string.IsNullOrWhiteSpace(suggestionSource))
-        {
-            return SuggestionSnapshotKind.Absent;
-        }
-
-        if (string.IsNullOrWhiteSpace(suggestedCategory)
-            || string.IsNullOrWhiteSpace(suggestionSource)
-            || int.TryParse(suggestedCategory, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-        {
-            return SuggestionSnapshotKind.Invalid;
-        }
-
-        if (!Enum.TryParse(suggestedCategory, ignoreCase: true, out category)
-            || !Enum.IsDefined(category)
-            || category == CommodityCategory.Undefined
-            || !CategorizationDecisionSources.IsAllowed(suggestionSource))
-        {
-            category = CommodityCategory.Undefined;
-            return SuggestionSnapshotKind.Invalid;
-        }
-
-        source = suggestionSource;
-        return SuggestionSnapshotKind.Valid;
     }
 }
 

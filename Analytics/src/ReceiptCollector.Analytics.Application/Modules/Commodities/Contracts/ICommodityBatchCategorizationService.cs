@@ -37,6 +37,14 @@ public interface ICommodityBatchCategorizationService
     /// Кэш (ADR-019) пополняется только после успешной фиксации — <c>TryAdd</c> по нормализованному
     /// имени для каждой изменённой строки (first-wins/no-op). Очередь предкатегорий не меняется.
     /// </para>
+    /// <para>
+    /// Точка фиксации 2 журнала «предложено → принято» (ADR-033 п. 4): после фиксации сохранения и
+    /// пополнения кэша — один вызов <see cref="ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts.ICategorizationDecisionRecorder"/>
+    /// по строкам, вошедшим в <c>changed</c>, с полным снимком предложения из
+    /// <see cref="CommodityCategoryChange"/>. Без снимка и при <c>updated == 0</c> событий нет;
+    /// admin-флаг — <c>true</c> (вызывающий эндпоинт admin-only); сбой журнала не влияет на
+    /// возвращаемое значение (NFR-3).
+    /// </para>
     /// </summary>
     /// <param name="userId">Владелец товаров.</param>
     /// <param name="changes">Изменения; <see cref="Domain.Modules.Commodities.CommodityCategory.Undefined"/> запрещён.</param>

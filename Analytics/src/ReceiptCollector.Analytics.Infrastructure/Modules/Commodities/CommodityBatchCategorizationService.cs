@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -31,6 +33,7 @@ internal sealed class CommodityBatchCategorizationService : ICommodityBatchCateg
     private readonly ICommodityCategoryResolver _resolver;
     private readonly IOptions<AiOptions> _aiOptions;
     private readonly IOptions<CommodityBatchCategorizationOptions> _batchOptions;
+    private readonly ICategorizationDecisionRecorder _categoryDecisionRecorder;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<CommodityBatchCategorizationService> _logger;
 
@@ -40,6 +43,7 @@ internal sealed class CommodityBatchCategorizationService : ICommodityBatchCateg
         ICommodityCategoryResolver resolver,
         IOptions<AiOptions> aiOptions,
         IOptions<CommodityBatchCategorizationOptions> batchOptions,
+        ICategorizationDecisionRecorder categoryDecisionRecorder,
         TimeProvider timeProvider,
         ILogger<CommodityBatchCategorizationService> logger)
     {
@@ -48,6 +52,7 @@ internal sealed class CommodityBatchCategorizationService : ICommodityBatchCateg
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _aiOptions = aiOptions ?? throw new ArgumentNullException(nameof(aiOptions));
         _batchOptions = batchOptions ?? throw new ArgumentNullException(nameof(batchOptions));
+        _categoryDecisionRecorder = categoryDecisionRecorder ?? throw new ArgumentNullException(nameof(categoryDecisionRecorder));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -228,6 +233,14 @@ internal sealed class CommodityBatchCategorizationService : ICommodityBatchCateg
                     CommodityNameNormalizer.NormalizeName(item.Name),
                     byCommodityId[item.Id]);
             }
+
+            // ADR-033 п. 4 (точка фиксации 2): события — только по реально изменённым строкам
+            // (changed) с полным валидным снимком; updated == 0 — recorder не вызывается.
+            var decisions = CollectDecisionDrafts(changes, changed, byCommodityId, userId);
+            if (decisions.Count > 0)
+            {
+                await RecordDecisionsBestEffortAsync(decisions, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         // ADR-028 п. 11: Information — только счётчики (число строк, пропущенных «не трогаем»,
@@ -238,6 +251,81 @@ internal sealed class CommodityBatchCategorizationService : ICommodityBatchCateg
             byCommodityId.Count);
 
         return updated;
+    }
+
+    /// <summary>
+    /// Черновики журнала «предложено → принято» по строкам <paramref name="changed"/> с полным
+    /// снимком предложения (ADR-033 п. 4): имя — исходное <c>name</c> из <paramref name="changed"/>,
+    /// итог — сохраняемая категория (assign-only, <c>Undefined</c> здесь невозможен), принявший —
+    /// текущий пользователь. Admin-флаг — <c>true</c> без запроса в <c>users</c>: вызывающий эндпоинт
+    /// <c>PUT /api/commodities/categories</c> admin-only. Строки вне <c>changed</c> (значение не
+    /// изменилось) и строки без снимка событий не дают (FR-5).
+    /// </summary>
+    private static List<CategorizationDecisionDraft> CollectDecisionDrafts(
+        IReadOnlyCollection<CommodityCategoryChange> changes,
+        IReadOnlyCollection<Commodity> changed,
+        IReadOnlyDictionary<Guid, CommodityCategory> byCommodityId,
+        Guid userId)
+    {
+        var snapshotsById = new Dictionary<Guid, (CommodityCategory SuggestedCategory, string SuggestionSource)>(changes.Count);
+        foreach (var change in changes)
+        {
+            // Полный снимок — пара «категория + источник»; эндпоинт невалидные снимки передаёт как
+            // null, неполный набор здесь игнорируется defensively (форму проверяет и recorder).
+            if (change.SuggestedCategory is { } suggestedCategory
+                && !string.IsNullOrWhiteSpace(change.SuggestionSource))
+            {
+                snapshotsById[change.CommodityId] = (suggestedCategory, change.SuggestionSource);
+            }
+        }
+
+        if (snapshotsById.Count == 0)
+        {
+            return [];
+        }
+
+        var drafts = new List<CategorizationDecisionDraft>();
+        foreach (var item in changed)
+        {
+            if (!snapshotsById.TryGetValue(item.Id, out var snapshot))
+            {
+                continue;
+            }
+
+            drafts.Add(new CategorizationDecisionDraft(
+                item.Name,
+                snapshot.SuggestionSource,
+                snapshot.SuggestedCategory,
+                byCommodityId[item.Id],
+                userId,
+                AcceptedByAdmin: true));
+        }
+
+        return drafts;
+    }
+
+    /// <summary>
+    /// Вызов журнала строго после фиксации пользовательского сохранения (NFR-3/C1). Recorder по
+    /// контракту (T-03) не бросает; защитный <c>catch</c> гарантирует NFR-3 и в случае нарушения
+    /// контракта (прецедент T-04). Запись журнала — последняя БД-операция запроса: после неё сервис
+    /// и эндпоинт ничего не сохраняют, поэтому оставшиеся в change tracker сущности после сбоя
+    /// <c>SaveChangesAsync</c> повторно не вставятся.
+    /// </summary>
+    private async Task RecordDecisionsBestEffortAsync(
+        IReadOnlyCollection<CategorizationDecisionDraft> decisions,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _categoryDecisionRecorder.RecordAsync(decisions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Categorization decision log call failed after commodity categories were saved: {DecisionCount} events.",
+                decisions.Count);
+        }
     }
 
     /// <summary>

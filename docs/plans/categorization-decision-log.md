@@ -23,8 +23,8 @@
 | T-01 | Миграция PostgreSQL: журнал `categorization_decisions` + исходное предложение очереди | — | committed |
 | T-02 | Домен и persistence журнала + маппинг `original_proposed_category_id` | T-01 | committed |
 | T-03 | Recorder: контракт, допустимые источники, best-effort запись | T-02 | committed |
-| T-04 | Точка фиксации 1: сохранение категорий чека | T-03 | approved |
-| T-05 | Точка фиксации 2: пакетное сохранение страницы «Товары» | T-03 (порядок — после T-04) | pending |
+| T-04 | Точка фиксации 1: сохранение категорий чека | T-03 | committed |
+| T-05 | Точка фиксации 2: пакетное сохранение страницы «Товары» | T-03 (порядок — после T-04) | approved |
 | T-06 | Точка фиксации 3: подтверждение в `/precategorized` | T-02, T-03 (порядок — после T-05) | pending |
 | T-07 | Чтение: read-service, дедуп anti-join, фильтры, `Total` | T-02 (порядок — после T-06) | pending |
 | T-08 | API: `GET /api/categorization-decisions` (admin-only) | T-07 | pending |

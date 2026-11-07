@@ -6,6 +6,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using ReceiptCollector.Analytics.Api.Modules.Commodities;
 using ReceiptCollector.Analytics.Api.Modules.Users;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -462,6 +463,180 @@ public class CommodityBatchCategorizationEndpointsTests
             Arg.Is<IReadOnlyCollection<CommodityCategoryChange>>(changes =>
                 changes.Single().Category == CommodityCategory.Dairy),
             Arg.Any<CancellationToken>());
+    }
+
+    // ---- T-05: снимок предложения в пакетном сохранении (ADR-033 п. 4, FR-4/FR-5) ----
+
+    [Fact]
+    public async Task Save_with_valid_snapshot_passes_it_to_service_without_extra_user_query()
+    {
+        using var context = SetUser(isAdmin: true);
+        var id = Guid.NewGuid();
+
+        _service.ApplyAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<CommodityCategoryChange>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var result = await CommodityBatchCategorizationEndpoints.Save(
+            new SaveCommodityCategoriesRequest(
+                [new SaveCommodityCategoryItemRequest(id, "Dairy", "Meat", CategorizationDecisionSources.Ai)]),
+            _service,
+            _userRepository,
+            NullLoggerFactory.Instance,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<Ok<SaveCommodityCategoriesResponse>>(result);
+        Assert.Equal(1, ok.Value!.Updated);
+
+        await _service.Received(1).ApplyAsync(
+            Arg.Any<Guid>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryChange>>(changes =>
+                changes.Single().CommodityId == id
+                && changes.Single().Category == CommodityCategory.Dairy
+                && changes.Single().SuggestedCategory == CommodityCategory.Meat
+                && changes.Single().SuggestionSource == CategorizationDecisionSources.Ai),
+            Arg.Any<CancellationToken>());
+
+        // Admin-флаг журнала — true на стороне сервиса: единственный запрос в users — проверка прав.
+        await _userRepository.Received(1).GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("123", "ai")]
+    [InlineData("NotACategory", "ai")]
+    [InlineData("Undefined", "ai")]
+    [InlineData("Dairy", "existing")]
+    [InlineData("Dairy", "undefined")]
+    [InlineData("Dairy", "AI")]
+    [InlineData("Dairy", "no-such-source")]
+    [InlineData(null, "ai")]
+    [InlineData("", "ai")]
+    [InlineData("Dairy", "   ")]
+    public async Task Save_with_invalid_or_partial_snapshot_returns_200_and_drops_it(
+        string? suggestedCategory,
+        string? suggestionSource)
+    {
+        using var context = SetUser(isAdmin: true);
+        var id = Guid.NewGuid();
+
+        _service.ApplyAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<CommodityCategoryChange>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var result = await CommodityBatchCategorizationEndpoints.Save(
+            new SaveCommodityCategoriesRequest(
+                [new SaveCommodityCategoryItemRequest(id, "Dairy", suggestedCategory, suggestionSource)]),
+            _service,
+            _userRepository,
+            NullLoggerFactory.Instance,
+            CancellationToken.None);
+
+        // Невалидный/частичный снимок — не ошибка запроса (NFR-2): 200, сохранение прежнее.
+        var ok = Assert.IsType<Ok<SaveCommodityCategoriesResponse>>(result);
+        Assert.Equal(1, ok.Value!.Updated);
+
+        await _service.Received(1).ApplyAsync(
+            Arg.Any<Guid>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryChange>>(changes =>
+                changes.Single().CommodityId == id
+                && changes.Single().Category == CommodityCategory.Dairy
+                && changes.Single().SuggestedCategory == null
+                && changes.Single().SuggestionSource == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_passes_snapshots_only_for_valid_items_in_mixed_request()
+    {
+        using var context = SetUser(isAdmin: true);
+        var validFirst = Guid.NewGuid();
+        var invalidSnapshotId = Guid.NewGuid();
+        var validSecond = Guid.NewGuid();
+
+        _service.ApplyAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<CommodityCategoryChange>>(), Arg.Any<CancellationToken>())
+            .Returns(3);
+
+        var result = await CommodityBatchCategorizationEndpoints.Save(
+            new SaveCommodityCategoriesRequest(
+            [
+                new SaveCommodityCategoryItemRequest(validFirst, "Dairy", "Bakery", CategorizationDecisionSources.Cache),
+                new SaveCommodityCategoryItemRequest(invalidSnapshotId, "Food", "Food", "merchant_default"),
+                new SaveCommodityCategoryItemRequest(validSecond, "Bakery", null, null)
+            ]),
+            _service,
+            _userRepository,
+            NullLoggerFactory.Instance,
+            CancellationToken.None);
+
+        Assert.IsType<Ok<SaveCommodityCategoriesResponse>>(result);
+
+        await _service.Received(1).ApplyAsync(
+            Arg.Any<Guid>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryChange>>(changes =>
+                changes.Count == 3
+                && changes.Single(c => c.CommodityId == validFirst).SuggestedCategory == CommodityCategory.Bakery
+                && changes.Single(c => c.CommodityId == validFirst).SuggestionSource == CategorizationDecisionSources.Cache
+                // «merchant_default» с подчёркиванием недопустим (wire-имя — «merchant-default»).
+                && changes.Single(c => c.CommodityId == invalidSnapshotId).SuggestedCategory == null
+                && changes.Single(c => c.CommodityId == invalidSnapshotId).SuggestionSource == null
+                && changes.Single(c => c.CommodityId == validSecond).SuggestedCategory == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Save_does_not_pass_do_not_touch_item_even_with_valid_snapshot(string? category)
+    {
+        using var context = SetUser(isAdmin: true);
+        var skippedId = Guid.NewGuid();
+        var changedId = Guid.NewGuid();
+
+        _service.ApplyAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<CommodityCategoryChange>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var result = await CommodityBatchCategorizationEndpoints.Save(
+            new SaveCommodityCategoriesRequest(
+            [
+                new SaveCommodityCategoryItemRequest(skippedId, category, "Dairy", CategorizationDecisionSources.Ai),
+                new SaveCommodityCategoryItemRequest(changedId, "Dairy", "Bakery", CategorizationDecisionSources.Ai)
+            ]),
+            _service,
+            _userRepository,
+            NullLoggerFactory.Instance,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<Ok<SaveCommodityCategoriesResponse>>(result);
+        Assert.Equal(1, ok.Value!.Updated);
+
+        // «Не трогаем» не считается изменением и не уходит в сервис — событий на нём быть не может.
+        await _service.Received(1).ApplyAsync(
+            Arg.Any<Guid>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryChange>>(changes =>
+                changes.Count == 1
+                && changes.Single().CommodityId == changedId
+                && changes.Single().SuggestedCategory == CommodityCategory.Bakery),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_with_only_do_not_touch_items_and_snapshots_returns_zero_without_calling_service()
+    {
+        using var context = SetUser(isAdmin: true);
+
+        var result = await CommodityBatchCategorizationEndpoints.Save(
+            new SaveCommodityCategoriesRequest(
+            [
+                new SaveCommodityCategoryItemRequest(Guid.NewGuid(), null, "Dairy", CategorizationDecisionSources.Ai),
+                new SaveCommodityCategoryItemRequest(Guid.NewGuid(), "   ", "Dairy", "invalid-source")
+            ]),
+            _service,
+            _userRepository,
+            NullLoggerFactory.Instance,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<Ok<SaveCommodityCategoriesResponse>>(result);
+        Assert.Equal(0, ok.Value!.Updated);
+        await _service.DidNotReceiveWithAnyArgs().ApplyAsync(default, default!, default);
     }
 
     private IDisposable SetUser(bool isAdmin)

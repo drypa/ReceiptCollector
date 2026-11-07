@@ -3,6 +3,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -25,6 +27,7 @@ public class CommodityBatchCategorizationServiceTests
     private readonly IPrecategorizedCommodityRepository _precategorizedRepository =
         Substitute.For<IPrecategorizedCommodityRepository>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
+    private readonly ICategorizationDecisionRecorder _recorder = Substitute.For<ICategorizationDecisionRecorder>();
 
     public CommodityBatchCategorizationServiceTests()
     {
@@ -51,6 +54,7 @@ public class CommodityBatchCategorizationServiceTests
             {
                 SuggestTimeout = suggestTimeout ?? DefaultTimeout
             }),
+            _recorder,
             timeProvider ?? TimeProvider.System,
             NullLogger<CommodityBatchCategorizationService>.Instance);
 
@@ -490,5 +494,228 @@ public class CommodityBatchCategorizationServiceTests
             .GetByOwnerAsync(default, default!, default);
         await _commodityRepository.DidNotReceiveWithAnyArgs()
             .UpdateCategoriesAsync(default, default!, default);
+    }
+
+    // ---- T-05: точка фиксации 2 — журнал «предложено → принято» (ADR-033 п. 4, FR-4/FR-5) ----
+
+    [Fact]
+    public async Task Apply_changed_row_with_snapshot_records_decision_with_admin_flag()
+    {
+        var commodity = CreateCommodity("Молоко");
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    commodity.Id,
+                    CommodityCategory.Meat,
+                    CommodityCategory.Dairy,
+                    CategorizationDecisionSources.Cache)
+            ],
+            CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 1
+                && drafts.Single().CommodityName == "Молоко"
+                && drafts.Single().SuggestionSource == CategorizationDecisionSources.Cache
+                && drafts.Single().SuggestedCategory == CommodityCategory.Dairy
+                && drafts.Single().FinalCategory == CommodityCategory.Meat
+                && drafts.Single().AcceptedByUserId == _userId
+                // ADR-033 п. 4: эндпоинт admin-only — admin-флаг true без запроса в users.
+                && drafts.Single().AcceptedByAdmin),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Apply_records_only_changed_rows_with_snapshot_in_one_batch()
+    {
+        // «Молоко» уже Dairy — вне changed; «Хлеб» меняется и даёт событие; «Сыр» меняется без снимка.
+        var unchanged = CreateCommodity("Молоко", CommodityCategory.Dairy);
+        var changedRow = CreateCommodity("Хлеб");
+        var changedWithoutSnapshot = CreateCommodity("Сыр");
+        ArrangeOwner(unchanged, changedRow, changedWithoutSnapshot);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(2);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    unchanged.Id,
+                    CommodityCategory.Dairy,
+                    CommodityCategory.Bakery,
+                    CategorizationDecisionSources.Ai),
+                new CommodityCategoryChange(
+                    changedRow.Id,
+                    CommodityCategory.Bakery,
+                    CommodityCategory.Dairy,
+                    CategorizationDecisionSources.Ai),
+                new CommodityCategoryChange(changedWithoutSnapshot.Id, CommodityCategory.Dairy)
+            ],
+            CancellationToken.None);
+
+        Assert.Equal(2, updated);
+        await _recorder.Received(1).RecordAsync(
+            Arg.Is<IReadOnlyCollection<CategorizationDecisionDraft>>(drafts =>
+                drafts.Count == 1
+                && drafts.Single().CommodityName == "Хлеб"
+                && drafts.Single().FinalCategory == CommodityCategory.Bakery),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Apply_does_not_record_without_snapshot()
+    {
+        var commodity = CreateCommodity("Молоко");
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [new CommodityCategoryChange(commodity.Id, CommodityCategory.Dairy)],
+            CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.DidNotReceiveWithAnyArgs().RecordAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Apply_does_not_record_with_partial_snapshot()
+    {
+        // Defensive-контракт: полный снимок — пара «категория + источник»; эндпоинт такое не
+        // передаёт (снимок отбрасывается), но сервис не должен строить событие из половины.
+        var commodity = CreateCommodity("Молоко");
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    commodity.Id,
+                    CommodityCategory.Dairy,
+                    CommodityCategory.Bakery,
+                    SuggestionSource: null)
+            ],
+            CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        await _recorder.DidNotReceiveWithAnyArgs().RecordAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Apply_does_not_record_when_updated_is_zero_even_with_snapshot()
+    {
+        // Значение не изменилось: updated == 0 — recorder не вызывается (строка вне changed).
+        var commodity = CreateCommodity("Молоко", CommodityCategory.Dairy);
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    commodity.Id,
+                    CommodityCategory.Dairy,
+                    CommodityCategory.Dairy,
+                    CategorizationDecisionSources.Ai)
+            ],
+            CancellationToken.None);
+
+        Assert.Equal(0, updated);
+        await _recorder.DidNotReceiveWithAnyArgs().RecordAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Apply_records_only_after_update_and_cache_add()
+    {
+        var commodity = CreateCommodity("Молоко");
+        ArrangeOwner(commodity);
+
+        var saved = false;
+        var cached = false;
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                saved = true;
+                return Task.FromResult(1);
+            });
+        _cache.TryAdd("молоко", CommodityCategory.Dairy).Returns(_ =>
+        {
+            cached = true;
+            return true;
+        });
+
+        var recorderObservedSaveAndCache = false;
+        _recorder
+            .RecordAsync(Arg.Any<IReadOnlyCollection<CategorizationDecisionDraft>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                recorderObservedSaveAndCache = saved && cached;
+                return Task.CompletedTask;
+            });
+
+        await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    commodity.Id,
+                    CommodityCategory.Dairy,
+                    CommodityCategory.Dairy,
+                    CategorizationDecisionSources.Ai)
+            ],
+            CancellationToken.None);
+
+        // NFR-3/C1: журнал — строго после commit сохранения и пополнения кэша.
+        Assert.True(recorderObservedSaveAndCache);
+    }
+
+    public static IEnumerable<object[]> RecorderFailures()
+    {
+        yield return [new InvalidOperationException("journal is down")];
+        yield return [new OperationCanceledException()];
+    }
+
+    [Theory]
+    [MemberData(nameof(RecorderFailures))]
+    public async Task Apply_ignores_recorder_failure(Exception failure)
+    {
+        var commodity = CreateCommodity("Молоко");
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _recorder
+            .RecordAsync(Arg.Any<IReadOnlyCollection<CategorizationDecisionDraft>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(failure));
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [
+                new CommodityCategoryChange(
+                    commodity.Id,
+                    CommodityCategory.Dairy,
+                    CommodityCategory.Dairy,
+                    CategorizationDecisionSources.Ai)
+            ],
+            CancellationToken.None);
+
+        // NFR-3: сбой журнала (даже нарушение контракта recorder'а) не меняет updated и кэш.
+        Assert.Equal(1, updated);
+        _cache.Received(1).TryAdd("молоко", CommodityCategory.Dairy);
     }
 }

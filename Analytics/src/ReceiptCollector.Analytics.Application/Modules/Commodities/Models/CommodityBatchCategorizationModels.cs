@@ -21,5 +21,15 @@ public sealed record CommodityBatchCategorizationResult(
 /// <summary>
 /// Одно assign-only изменение категории при пакетном сохранении (ADR-028 п. 1.2):
 /// <see cref="CommodityCategory.Undefined"/> запрещён, сброс категории этим контрактом не поддерживается.
+/// <para>
+/// <see cref="SuggestedCategory"/> и <see cref="SuggestionSource"/> — аддитивные опциональные поля
+/// снимка предложения (ADR-033 п. 4, решение A1): по реально изменённым строкам с полным валидным
+/// снимком сервис пишет событие журнала «предложено → принято». Неполный снимок (заполнено только
+/// одно поле) сервис игнорирует; эндпоинт до сервиса снимок невалидным полям выставляет <c>null</c>.
+/// </para>
 /// </summary>
-public sealed record CommodityCategoryChange(Guid CommodityId, CommodityCategory Category);
+public sealed record CommodityCategoryChange(
+    Guid CommodityId,
+    CommodityCategory Category,
+    CommodityCategory? SuggestedCategory = null,
+    string? SuggestionSource = null);
