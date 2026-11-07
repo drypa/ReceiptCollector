@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Merchants.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Receipts.Contracts;
@@ -16,6 +17,7 @@ using ReceiptCollector.Analytics.Domain.Modules.Users;
 using ReceiptCollector.Analytics.Infrastructure.AI;
 using ReceiptCollector.Analytics.Infrastructure.Configuration.Options;
 using ReceiptCollector.Analytics.Infrastructure.DataSources.Mongo;
+using ReceiptCollector.Analytics.Infrastructure.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Receipts;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Users;
@@ -45,6 +47,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IPrecategorizedCommodityService, PrecategorizedCommodityService>();
         // ADR-033 п. 2: журнал решений категоризации — запись батчем после пользовательского сохранения.
         services.AddScoped<ICategorizationDecisionRepository, CategorizationDecisionRepository>();
+        // ADR-033 п. 6 (C1/NFR-3): единая best-effort точка записи журнала — никогда не бросает.
+        services.AddScoped<ICategorizationDecisionRecorder, CategorizationDecisionRecorder>();
 
         // ADR-027 п.9 (NFR-9): единственная точка получения времени/задержек для нового кода.
         services.AddSingleton(TimeProvider.System);
