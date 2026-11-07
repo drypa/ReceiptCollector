@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Contracts;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
@@ -7,19 +10,26 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 /// <summary>
 /// Админская бизнес-логика предкатегоризации (ADR-027 п.4, FR-5/FR-6).
 /// Подтверждение выполняет репозиторий в одной транзакции, после её фиксации категория
-/// кладётся в сквозной in-memory кэш (first-wins/no-op — семантика ADR 019).
+/// кладётся в сквозной in-memory кэш (first-wins/no-op — семантика ADR 019), затем —
+/// одно событие журнала «предложено → принято» (ADR-033 п. 5, точка фиксации 3).
 /// </summary>
 internal sealed class PrecategorizedCommodityService : IPrecategorizedCommodityService
 {
     private readonly IPrecategorizedCommodityRepository _repository;
     private readonly ICommodityCategoryCache _cache;
+    private readonly ICategorizationDecisionRecorder _categoryDecisionRecorder;
+    private readonly ILogger<PrecategorizedCommodityService> _logger;
 
     public PrecategorizedCommodityService(
         IPrecategorizedCommodityRepository repository,
-        ICommodityCategoryCache cache)
+        ICommodityCategoryCache cache,
+        ICategorizationDecisionRecorder categoryDecisionRecorder,
+        ILogger<PrecategorizedCommodityService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _categoryDecisionRecorder = categoryDecisionRecorder ?? throw new ArgumentNullException(nameof(categoryDecisionRecorder));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<(IReadOnlyCollection<PrecategorizedCommodityDto> Items, int Total)> GetPageAsync(
@@ -62,6 +72,7 @@ internal sealed class PrecategorizedCommodityService : IPrecategorizedCommodityS
 
     public async Task<ConfirmPrecategorizedCommodityResult> ConfirmAsync(
         Guid id,
+        Guid acceptedByUserId,
         CancellationToken cancellationToken = default)
     {
         var proposal = await _repository.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
@@ -83,6 +94,7 @@ internal sealed class PrecategorizedCommodityService : IPrecategorizedCommodityS
             || result.Name is null
             || result.Category is null)
         {
+            // NotFound/Conflict — подтверждение не состоялось, событий журнала нет (ADR-033 п. 5).
             return new ConfirmPrecategorizedCommodityResult(
                 result.Outcome,
                 id,
@@ -96,12 +108,53 @@ internal sealed class PrecategorizedCommodityService : IPrecategorizedCommodityS
         // FR-6.4: только ПОСЛЕ успешного commit транзакции; TryAdd — no-op при «замороженном» кэше.
         _cache.TryAdd(CommodityNameNormalizer.NormalizeName(result.Name), category);
 
+        // Точка фиксации 3 (ADR-033 п. 5, решение D1): одно событие на строку очереди — решение
+        // админа состоялось даже при updatedCommodities = 0. Предложено — неизменяемое исходное
+        // предложение строки (прочитано до транзакции), принято — значение, реально применённое
+        // в транзакции (result.Category совпадает с proposal.ProposedCategory, который сервис
+        // передал репозиторию).
+        await RecordDecisionsBestEffortAsync(
+            [new CategorizationDecisionDraft(
+                result.Name,
+                CategorizationDecisionSources.Precategorized,
+                proposal.OriginalProposedCategory,
+                category,
+                acceptedByUserId,
+                AcceptedByAdmin: true)],
+            cancellationToken)
+            .ConfigureAwait(false);
+
         return new ConfirmPrecategorizedCommodityResult(
             PrecategorizedOperationOutcome.Applied,
             id,
             (int)category,
             CommodityCategoryHelper.GetDisplayName(category),
             result.UpdatedCommodities);
+    }
+
+    /// <summary>
+    /// Вызов журнала строго после commit подтверждения (NFR-3/C1): ответ эндпоинта и число
+    /// updatedCommodities от журнала не зависят. Recorder по контракту (T-03) не бросает;
+    /// защитный <c>catch</c> гарантирует NFR-3 и в случае нарушения контракта (прецедент
+    /// T-04/T-05). Запись журнала — последняя БД-операция запроса: после неё сервис и эндпоинт
+    /// ничего не сохраняют, поэтому оставшиеся в change tracker сущности после сбоя
+    /// <c>SaveChangesAsync</c> повторно не вставятся.
+    /// </summary>
+    private async Task RecordDecisionsBestEffortAsync(
+        IReadOnlyCollection<CategorizationDecisionDraft> decisions,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _categoryDecisionRecorder.RecordAsync(decisions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Categorization decision log call failed after precategorized proposal was confirmed: {DecisionCount} events.",
+                decisions.Count);
+        }
     }
 
     public Task<PrecategorizedOperationOutcome> DeclineAsync(Guid id, CancellationToken cancellationToken = default)

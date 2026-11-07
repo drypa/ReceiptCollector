@@ -143,7 +143,7 @@ public class PrecategorizedCommodityEndpointsTests
         using var context = SetUser(isAdmin: true);
         var id = Guid.NewGuid();
 
-        _service.ConfirmAsync(id, Arg.Any<CancellationToken>())
+        _service.ConfirmAsync(id, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new ConfirmPrecategorizedCommodityResult(
                 PrecategorizedOperationOutcome.Applied, id, (int)CommodityCategory.Dairy, "Молочные продукты", 0));
 
@@ -154,15 +154,36 @@ public class PrecategorizedCommodityEndpointsTests
         Assert.Equal("Молочные продукты", ok.Value.CategoryName);
         Assert.Equal(0, ok.Value.UpdatedCommodities);
 
-        _service.ConfirmAsync(id, Arg.Any<CancellationToken>())
+        _service.ConfirmAsync(id, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new ConfirmPrecategorizedCommodityResult(PrecategorizedOperationOutcome.Conflict, id, null, null, 0));
         Assert.IsType<Conflict<string>>(await PrecategorizedCommodityEndpoints.Confirm(
             id, _service, _userRepository, CancellationToken.None));
 
-        _service.ConfirmAsync(id, Arg.Any<CancellationToken>())
+        _service.ConfirmAsync(id, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new ConfirmPrecategorizedCommodityResult(PrecategorizedOperationOutcome.NotFound, id, null, null, 0));
         Assert.IsType<NotFound<string>>(await PrecategorizedCommodityEndpoints.Confirm(
             id, _service, _userRepository, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Confirm_passes_current_user_from_user_context_as_accepted_by()
+    {
+        // ADR-033 п. 5 (F1): принявший — авторизованный администратор из UserContext, не клиент.
+        var userId = Guid.NewGuid();
+        _userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new User(userId, "admin", "external", 1, isAdmin: true));
+        using var context = UserContext.SetUserId(userId);
+
+        var id = Guid.NewGuid();
+        _service.ConfirmAsync(id, userId, Arg.Any<CancellationToken>())
+            .Returns(new ConfirmPrecategorizedCommodityResult(
+                PrecategorizedOperationOutcome.Applied, id, (int)CommodityCategory.Dairy, "Молочные продукты", 1));
+
+        var result = await PrecategorizedCommodityEndpoints.Confirm(id, _service, _userRepository, CancellationToken.None);
+
+        var ok = Assert.IsType<Ok<ConfirmPrecategorizedCommodityResponse>>(result);
+        Assert.Equal(1, ok.Value!.UpdatedCommodities);
+        await _service.Received(1).ConfirmAsync(id, userId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -204,7 +225,7 @@ public class PrecategorizedCommodityEndpointsTests
         await AssertStatusCodeAsync(
             await PrecategorizedCommodityEndpoints.Confirm(id, _service, _userRepository, CancellationToken.None),
             StatusCodes.Status403Forbidden);
-        await _service.DidNotReceiveWithAnyArgs().ConfirmAsync(default, default);
+        await _service.DidNotReceiveWithAnyArgs().ConfirmAsync(default, default, default);
         await _service.DidNotReceiveWithAnyArgs().DeclineAsync(default, default);
     }
 

@@ -30,8 +30,24 @@ public interface IPrecategorizedCommodityService
     /// <summary>
     /// Подтверждение: транзакция репозитория (D10) и <c>TryAdd</c> в in-memory кэш
     /// строго после фиксации транзакции (FR-6.4).
+    /// <para>
+    /// После успешного применения (outcome <see cref="PrecategorizedOperationOutcome.Applied"/>)
+    /// — дополнительно одно событие журнала «предложено → принято» (ADR-033 п. 5, решение D1):
+    /// предложено = исходное предложение строки, принято = применённая категория. Единичный
+    /// отказ (<see cref="PrecategorizedOperationOutcome.NotFound"/> /
+    /// <see cref="PrecategorizedOperationOutcome.Conflict"/>) событий не даёт; при
+    /// <c>updatedCommodities = 0</c> событие пишется — решение состоялось. Сбой журнала не влияет
+    /// на результат и ответ (NFR-3).
+    /// </para>
     /// </summary>
-    Task<ConfirmPrecategorizedCommodityResult> ConfirmAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <param name="acceptedByUserId">
+    /// Принявший решение — <c>UserContext.UserId</c> текущего авторизованного администратора
+    /// (серверное значение, ADR-033 F1), а не данные клиента.
+    /// </param>
+    Task<ConfirmPrecategorizedCommodityResult> ConfirmAsync(
+        Guid id,
+        Guid acceptedByUserId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Отклонение — физическое удаление <c>proposed</c>-строки (C4, FR-5.4).</summary>
     Task<PrecategorizedOperationOutcome> DeclineAsync(Guid id, CancellationToken cancellationToken = default);

@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using ReceiptCollector.Analytics.Application.Modules.CategorizationDecisions.Models;
+using ReceiptCollector.Analytics.Application.Modules.Commodities.Contracts;
 using ReceiptCollector.Analytics.Domain.Modules.Commodities;
 using ReceiptCollector.Analytics.Domain.Modules.Merchants;
+using ReceiptCollector.Analytics.Infrastructure.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 using ReceiptCollector.Analytics.Infrastructure.Persistence.Postgres;
 using Testcontainers.PostgreSql;
@@ -11,7 +14,9 @@ namespace ReceiptCollector.Analytics.Api.Tests.Infrastructure;
 /// <summary>
 /// Сквозные тесты админского workflow предкатегоризации (шаг 9 плана, D8/D10, FR-5.4, FR-6, NFR-4/NFR-5):
 /// реальные <see cref="PrecategorizedCommodityRepository"/> + <see cref="PrecategorizedCommodityService"/>
-/// + in-memory кэш на Postgres-контейнере.
+/// + in-memory кэш на Postgres-контейнере. T-06 (ADR-033 п. 5): с реальным
+/// <see cref="CategorizationDecisionRecorder"/> confirm пишет событие журнала
+/// «предложено = исходное предложение строки, принято = применённая категория».
 /// </summary>
 public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
 {
@@ -59,8 +64,8 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         var cache = new InMemoryCommodityCategoryCache(maxSize: 100);
         await using (var context = CreateContext())
         {
-            var service = new PrecategorizedCommodityService(CreateRepository(context), cache);
-            var result = await service.ConfirmAsync(proposalId, CancellationToken.None);
+            var service = CreateService(context, cache);
+            var result = await service.ConfirmAsync(proposalId, Guid.NewGuid(), CancellationToken.None);
 
             Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
             Assert.Equal(2, result.UpdatedCommodities);
@@ -114,8 +119,8 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         var cache = new InMemoryCommodityCategoryCache(maxSize: 100);
         await using (var context = CreateContext())
         {
-            var service = new PrecategorizedCommodityService(CreateRepository(context), cache);
-            var result = await service.ConfirmAsync(proposalId, CancellationToken.None);
+            var service = CreateService(context, cache);
+            var result = await service.ConfirmAsync(proposalId, Guid.NewGuid(), CancellationToken.None);
 
             Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
             Assert.Equal(0, result.UpdatedCommodities);
@@ -125,6 +130,127 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         {
             Assert.Equal(PrecategorizedCommodityStatus.Applied,
                 (await context.PrecategorizedCommodities.FindAsync(proposalId))!.Status);
+        }
+    }
+
+    [Fact]
+    public async Task Confirm_after_update_category_records_event_with_original_suggested_and_changed_final()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var proposalId = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateReceipt(userA, merchantA, ("Молоко", null)));
+            // Фон создал строку с исходным предложением Dairy (original = proposed, D1).
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, proposalId));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, new InMemoryCommodityCategoryCache(maxSize: 100));
+
+            // PUT предложенной категории: админ исправил Dairy → Food (original не трогается).
+            Assert.Equal(PrecategorizedOperationOutcome.Applied,
+                await service.UpdateCategoryAsync(proposalId, CommodityCategory.Food, CancellationToken.None));
+
+            var result = await service.ConfirmAsync(proposalId, adminId, CancellationToken.None);
+            Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
+            Assert.Equal(1, result.UpdatedCommodities);
+        }
+
+        await using (var context = CreateContext())
+        {
+            // ADR-033 п. 5 (D1): suggested = исходная, final = изменённая категория.
+            var decision = Assert.Single(await context.CategorizationDecisions.ToListAsync());
+            Assert.Equal("Молоко", decision.CommodityName);
+            Assert.Equal("молоко", decision.NormalizedName);
+            Assert.Equal(CategorizationDecisionSources.Precategorized, decision.SuggestionSource);
+            Assert.Equal((int)CommodityCategory.Dairy, decision.SuggestedCategoryId);
+            Assert.Equal((int)CommodityCategory.Food, decision.FinalCategoryId);
+            Assert.Equal(adminId, decision.AcceptedBy);
+            Assert.True(decision.AcceptedByAdmin);
+        }
+    }
+
+    [Fact]
+    public async Task Confirm_without_update_records_event_with_suggested_equal_final()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var proposalId = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateReceipt(userA, merchantA, ("Молоко", null)));
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, proposalId));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, new InMemoryCommodityCategoryCache(maxSize: 100));
+            var result = await service.ConfirmAsync(proposalId, adminId, CancellationToken.None);
+            Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
+        }
+
+        await using (var context = CreateContext())
+        {
+            // Согласие (FR-3): подтвердили предложение без правок — suggested == final.
+            var decision = Assert.Single(await context.CategorizationDecisions.ToListAsync());
+            Assert.Equal(CategorizationDecisionSources.Precategorized, decision.SuggestionSource);
+            Assert.Equal((int)CommodityCategory.Dairy, decision.SuggestedCategoryId);
+            Assert.Equal(decision.SuggestedCategoryId, decision.FinalCategoryId);
+            Assert.Equal(adminId, decision.AcceptedBy);
+            Assert.True(decision.AcceptedByAdmin);
+        }
+    }
+
+    [Fact]
+    public async Task Confirm_with_zero_updated_commodities_still_records_event()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var proposalId = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            // Товар уже категоризован — confirm не обновит ни одной позиции...
+            await SeedAsync(context, CreateReceipt(userA, merchantA, ("Молоко", (int)CommodityCategory.Food)));
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, proposalId));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var service = CreateService(context, new InMemoryCommodityCategoryCache(maxSize: 100));
+            var result = await service.ConfirmAsync(proposalId, adminId, CancellationToken.None);
+            Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
+            Assert.Equal(0, result.UpdatedCommodities);
+        }
+
+        await using (var context = CreateContext())
+        {
+            // ...но решение состоялось — событие пишется (ADR-033 п. 5, «Явно зафиксированные семантики»).
+            var decision = Assert.Single(await context.CategorizationDecisions.ToListAsync());
+            Assert.Equal("Молоко", decision.CommodityName);
+            Assert.Equal((int)CommodityCategory.Dairy, decision.SuggestedCategoryId);
+            Assert.Equal((int)CommodityCategory.Dairy, decision.FinalCategoryId);
+            Assert.Equal(adminId, decision.AcceptedBy);
         }
     }
 
@@ -149,7 +275,7 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         await using (var context = CreateContext())
         {
             var repository = CreateRepository(context);
-            var service = new PrecategorizedCommodityService(repository, cache);
+            var service = CreateService(context, cache);
 
             Assert.Equal(PrecategorizedOperationOutcome.Applied, await service.DeclineAsync(proposalId, CancellationToken.None));
             Assert.Empty(await repository.GetPageAsync(10, 0, null, CancellationToken.None));
@@ -164,6 +290,8 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
             var commodity = Assert.Single(await context.Commodities.ToListAsync());
             Assert.Null(commodity.CategoryId); // commodities не изменились
             Assert.Empty(await context.PrecategorizedCommodities.ToListAsync());
+            // Отклонение — удаления proposal: предложение не подтверждено, событий журнала нет (ADR-033 п. 5).
+            Assert.Empty(await context.CategorizationDecisions.ToListAsync());
         }
     }
 
@@ -260,10 +388,28 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
     private static PrecategorizedCommodityRepository CreateRepository(ReceiptDbContext context)
         => new(context, TimeProvider.System, NullLogger<PrecategorizedCommodityRepository>.Instance);
 
+    /// <summary>
+    /// Реальный recorder поверх того же scope/DbContext (прецедент боевого DI): событие журнала
+    /// пишется одним SaveChanges после commit транзакции confirm (NFR-3/C1).
+    /// </summary>
+    private static CategorizationDecisionRecorder CreateRecorder(ReceiptDbContext context)
+        => new(
+            new CategorizationDecisionRepository(context),
+            TimeProvider.System,
+            NullLogger<CategorizationDecisionRecorder>.Instance);
+
+    private static PrecategorizedCommodityService CreateService(ReceiptDbContext context, ICommodityCategoryCache cache)
+        => new(
+            CreateRepository(context),
+            cache,
+            CreateRecorder(context),
+            NullLogger<PrecategorizedCommodityService>.Instance);
+
     private async Task ClearDatabaseAsync()
     {
         await using var context = CreateContext();
         await context.Database.EnsureCreatedAsync();
+        await context.CategorizationDecisions.ExecuteDeleteAsync();
         await context.PrecategorizedCommodities.ExecuteDeleteAsync();
         await context.Commodities.ExecuteDeleteAsync();
         await context.Receipts.ExecuteDeleteAsync();
@@ -322,13 +468,16 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         Guid merchantId,
         CommodityCategory category,
         PrecategorizedCommodityStatus status,
-        Guid id)
+        Guid id,
+        CommodityCategory? original = null)
         => new()
         {
             Id = id,
             Name = name,
             MerchantId = merchantId,
             ProposedCategoryId = (int)category,
+            // ADR-033 п. 1 (D1): фон создаёт строку с исходным предложением = предложению.
+            OriginalProposedCategoryId = (int)(original ?? category),
             Status = status,
             CreatedAt = DateTimeOffset.UtcNow
         };

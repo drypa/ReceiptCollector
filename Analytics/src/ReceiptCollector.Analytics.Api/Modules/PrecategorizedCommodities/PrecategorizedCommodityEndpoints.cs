@@ -106,7 +106,9 @@ public static class PrecategorizedCommodityEndpoints
             return authorization;
         }
 
-        var result = await service.ConfirmAsync(id, cancellationToken);
+        // Принявший — авторизованный администратор (ADR-033 п. 5, F1): после AdminAuthorization
+        // пользователь гарантированно есть (401/403 возвращены выше), поэтому !.Value безопасен.
+        var result = await service.ConfirmAsync(id, UserContext.UserId!.Value, cancellationToken);
 
         return result.Outcome switch
         {
