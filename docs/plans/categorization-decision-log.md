@@ -26,8 +26,8 @@
 | T-04 | Точка фиксации 1: сохранение категорий чека | T-03 | committed |
 | T-05 | Точка фиксации 2: пакетное сохранение страницы «Товары» | T-03 (порядок — после T-04) | committed |
 | T-06 | Точка фиксации 3: подтверждение в `/precategorized` | T-02, T-03 (порядок — после T-05) | committed |
-| T-07 | Чтение: read-service, дедуп anti-join, фильтры, `Total` | T-02 (порядок — после T-06) | approved |
-| T-08 | API: `GET /api/categorization-decisions` (admin-only) | T-07 | pending |
+| T-07 | Чтение: read-service, дедуп anti-join, фильтры, `Total` | T-02 (порядок — после T-06) | committed |
+| T-08 | API: `GET /api/categorization-decisions` (admin-only) | T-07 | approved |
 | T-09 | Frontend: снимок предложения при сохранении чека | T-04 (порядок — после T-08) | pending |
 | T-10 | Frontend: снимок предложения в черновике страницы «Товары» | T-05 (порядок — после T-09) | pending |
 | T-11 | Frontend: страница журнала `/categorization-decisions` | T-08 (порядок — после T-10) | pending |
