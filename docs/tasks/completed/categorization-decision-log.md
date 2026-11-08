@@ -133,4 +133,4 @@ high
 ## Мета
 - Автор: user
 - Дата создания: 2026-11-06
-- Статус: Draft
+- Статус: Completed — реализация валидирована PM 2026-11-08 (`dotnet test` 577/577; `go test` backend/bot — зелёные; финальная сверка T-12: семантики ADR-033 21/21, SQL↔EF без дрейфа, регрессий нет; T-01…T-12 — `committed`). Ручная приёмка через UI — чек-лист с командами в `docs/reviews/categorization-decision-log/12-final-verification.md`.
