@@ -88,7 +88,12 @@ export interface ReceiptItemSuggestion {
   name: string;
   categoryId: number | null;
   categoryName: string | null;
-  source: CategorizationSource;
+  /**
+   * Источник предложения; шире union — устойчивость к будущим аддитивным значениям сервера
+   * (как `CommodityCategorizationItem.source`, ADR-028 п. 1.1). Снимок журнала берут только
+   * четыре известных wire-имени (ADR-033 п. 3), неизвестное значение снимка не даёт.
+   */
+  source: CategorizationSource | string;
   error: string | null;
 }
 
@@ -141,6 +146,14 @@ export interface SaveCategoriesItem {
   commodityId: string;
   /** Имя enum CommodityCategory или null для сброса категории. */
   category: string | null;
+  /**
+   * Снимок предложения, которое человек видел на экране (ADR-033 п. 3, решение A1):
+   * имя enum CommodityCategory (как `category`). Опционально и аддитивно — без снимка
+   * сервер ведёт себя как раньше и событий журнала не пишет (FR-5, NFR-2).
+   */
+  suggestedCategory?: string;
+  /** Wire-имя источника предложения: `ai` | `precategorized` | `cache` | `merchant-default`. */
+  suggestionSource?: string;
 }
 
 export interface SaveCategoriesResult {

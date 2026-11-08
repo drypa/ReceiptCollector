@@ -7,7 +7,7 @@ import {
   applyMerchantDefaultCategory,
 } from '../api/merchants';
 import { suggestReceiptCategories, saveReceiptCategories } from '../api/receipts';
-import type { ReceiptItemSuggestion } from '../api/receipts';
+import type { ReceiptItemSuggestion, SaveCategoriesItem } from '../api/receipts';
 import { fetchCategories } from '../api/commodities';
 import type { Category } from '../types/commodity';
 import { renderCategorySelectOptions } from '../utils/categoryOptions';
@@ -23,6 +23,18 @@ interface ReceiptDetailsProps {
 
 // Подпись-источник предложения вынесена в utils/categorizationSource (ADR-028 п. 9) —
 // общий источник для «Деталей чека» и страницы «Товары»; текст и поведение не изменились.
+
+/**
+ * Источники, которые журнал решений считает предложением категории (ADR-033 п. 3,
+ * «Явно зафиксированные семантики»): `existing` (категория уже была у позиции) и
+ * `undefined` (предложения нет) снимка не дают — по ним события не пишутся (FR-1/FR-5b).
+ */
+const SUGGESTION_SNAPSHOT_SOURCES: ReadonlySet<string> = new Set([
+  'ai',
+  'precategorized',
+  'cache',
+  'merchant-default',
+]);
 
 export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDetailsProps) {
   const { isAdmin } = useAdmin();
@@ -243,13 +255,50 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
     setSelectedCategories({});
   };
 
+  /** Категории справочника, доступные для выбора: «Не указана» (Undefined) исключена — это не категория. */
+  const selectableCategories = categories.filter((c) => c.key !== 'Undefined');
+
   const saveSelectedCategories = async () => {
     setSavingCategories(true);
     try {
-      const items = receipt.items.map((item) => ({
-        commodityId: item.id,
-        category: selectedCategories[item.id] || null,
-      }));
+      // Снимок «что человек видел на экране» (ADR-033 п. 3, решение A1) — аддитивные поля
+      // элемента сохранения. Без suggest снимка нет: payload побайтово прежний (FR-5, NFR-2).
+      // Источник истины «Undefined — не категория» — selectableCategories (как и в select'ах).
+      const categoryKeyById = new Map(
+        selectableCategories.map((category) => [category.id, category.key]),
+      );
+      const suggestionByCommodityId = new Map(
+        (suggestions ?? []).map((suggestion) => [suggestion.commodityId, suggestion]),
+      );
+
+      const items: SaveCategoriesItem[] = receipt.items.map((item) => {
+        const saved: SaveCategoriesItem = {
+          commodityId: item.id,
+          category: selectedCategories[item.id] || null,
+        };
+
+        const suggestion = suggestionByCommodityId.get(item.id);
+        if (
+          !suggestion ||
+          suggestion.categoryId == null ||
+          !SUGGESTION_SNAPSHOT_SOURCES.has(suggestion.source)
+        ) {
+          return saved;
+        }
+
+        const suggestedCategory = categoryKeyById.get(suggestion.categoryId);
+        if (!suggestedCategory) {
+          return saved;
+        }
+
+        // Снимок не зависит от выбранной категории: при сбросе («—») он тоже уходит —
+        // сервер запишет событие с final = Undefined (edge case задачи).
+        return {
+          ...saved,
+          suggestedCategory,
+          suggestionSource: suggestion.source,
+        };
+      });
 
       const result = await saveReceiptCategories(receipt.id, items);
       setSuggestions(null);
@@ -265,9 +314,6 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
       setSavingCategories(false);
     }
   };
-
-  /** Категории справочника, доступные для выбора: «Не указана» (Undefined) исключена — это не категория. */
-  const selectableCategories = categories.filter((c) => c.key !== 'Undefined');
 
   /**
    * Дефолт магазина задан (ADR-032, п. 7): сервер отдаёт валидный код (не NULL и не Undefined —
