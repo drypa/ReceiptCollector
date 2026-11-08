@@ -828,3 +828,35 @@ tbody td:last-child {
   background: rgba(148, 163, 184, 0.2);
   color: #1e293b;
 }
+
+/* === Журнал категоризации (T-11, ADR-033 п. 8) === */
+
+/* Панель фильтров: контролов больше, чем в `.controls` (поиск, чекбокс, три селектора,
+   две даты) — добавлен только перенос строк; подписи и контролы используют
+   существующие стили `.page-size-selector` (прецедент фильтра «Категория» на «Товарах»). */
+.decisions-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+/* Имя принявшего + бейдж в одной ячейке колонки «Кто принял». */
+.accepted-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Бейдж «админ» — снимок флага на момент решения (FR-1): показываем и когда имя
+   пользователя недоступно (ячейка тогда состоит только из бейджа). */
+.admin-badge {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid rgba(111, 66, 193, 0.4);
+  border-radius: 999px;
+  background: rgba(111, 66, 193, 0.08);
+  color: #6f42c1;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}

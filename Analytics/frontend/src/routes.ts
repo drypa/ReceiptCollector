@@ -30,6 +30,11 @@ export function precategorizedPath(): string {
   return '/precategorized';
 }
 
+/** Админский раздел журнала решений категоризации (ADR-033 п. 8, FR-6). */
+export function categorizationDecisionsPath(): string {
+  return '/categorization-decisions';
+}
+
 export function merchantReceiptsPath(merchantId: string): string {
   return `/merchants/${encodeURIComponent(merchantId)}/receipts`;
 }
