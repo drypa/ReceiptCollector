@@ -28,8 +28,8 @@
 | T-06 | Точка фиксации 3: подтверждение в `/precategorized` | T-02, T-03 (порядок — после T-05) | committed |
 | T-07 | Чтение: read-service, дедуп anti-join, фильтры, `Total` | T-02 (порядок — после T-06) | committed |
 | T-08 | API: `GET /api/categorization-decisions` (admin-only) | T-07 | committed |
-| T-09 | Frontend: снимок предложения при сохранении чека | T-04 (порядок — после T-08) | approved |
-| T-10 | Frontend: снимок предложения в черновике страницы «Товары» | T-05 (порядок — после T-09) | pending |
+| T-09 | Frontend: снимок предложения при сохранении чека | T-04 (порядок — после T-08) | committed |
+| T-10 | Frontend: снимок предложения в черновике страницы «Товары» | T-05 (порядок — после T-09) | approved |
 | T-11 | Frontend: страница журнала `/categorization-decisions` | T-08 (порядок — после T-10) | pending |
 | T-12 | Финальная проверка контрактов и регрессии | T-01…T-11 | pending |
 

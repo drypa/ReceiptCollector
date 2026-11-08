@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiRequestError, saveCommodityCategories, suggestCommodityCategories } from '../api/commodities';
 import type { CommodityCategorizationItem, Category, CommodityItem } from '../types/commodity';
 import { useToast } from '../components/Toasts';
+import { buildSuggestionSnapshot } from '../utils/categorizationSource';
 
 /**
  * Максимум уникальных названий в одной порции (ADR-028 п. 2). В запрос порции уходят
@@ -13,9 +14,21 @@ export const PAGE_SUGGEST_CHUNK_SIZE = 5;
 export type CategorizationPhase = 'idle' | 'review' | 'saving';
 
 /**
+ * Снимок предложения в черновике (ADR-033 п. 4, решение A1): `value` — ключ категории
+ * (имя enum), `source` — wire-имя источника. Заполняется **только** валидным предложением
+ * ({@link buildSuggestionSnapshot}) и в дальнейшем не меняется: ручная правка и сбой порции
+ * снимок не трогают — журнал должен видеть «что предложили → что приняли».
+ */
+export interface DraftSuggestion {
+  value: string;
+  source: string;
+}
+
+/**
  * Черновик строки: `value` — **ключ** категории (имя enum, контракт PUT принимает имя),
  * пустая строка = «не трогаем» (C4). `initialValue` — значение на момент старта режима;
  * `touched` — строку правил человек, пришедшие порции её не перезаписывают (ADR-028 п. 2).
+ * `suggested` — несменяемый снимок предложения (ADR-033 п. 4); у `existing`/`undefined` его нет.
  */
 export interface DraftEntry {
   value: string;
@@ -23,6 +36,7 @@ export interface DraftEntry {
   source?: string;
   error?: string;
   touched: boolean;
+  suggested?: DraftSuggestion;
 }
 
 export interface CategorizationProgress {
@@ -39,6 +53,20 @@ interface UseCommodityPageCategorizationOptions {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
+}
+
+/**
+ * Карта `categoryId -> key` справочника для черновика. `Undefined` («Не указана») исключён —
+ * это не категория (тот же фильтр, что `selectableCategories` в таблице и деталях чека):
+ * значение предложения с гипотетическим кодом 0 остаётся пустым («не трогаем»), а снимок
+ * журнала такое предложение всё равно не получит (`buildSuggestionSnapshot`).
+ */
+function buildCategoryKeyById(categories: Category[]): Map<number, string> {
+  return new Map(
+    categories
+      .filter((category) => category.key !== 'Undefined')
+      .map((category) => [category.id, category.key]),
+  );
 }
 
 /** Русские тексты ошибок сохранения по статусу (ADR-028 п. 5; сообщения формируются на клиенте). */
@@ -125,7 +153,7 @@ export function useCommodityPageCategorization({
   // Актуальная карта categoryId → key: справочник может догнать уже запущенный режим
   // (загрузка категорий асинхронна), значения применённых предложений маппятся через неё.
   useEffect(() => {
-    categoryKeyByIdRef.current = new Map(categories.map((category) => [category.id, category.key]));
+    categoryKeyByIdRef.current = buildCategoryKeyById(categories);
   }, [categories]);
 
   // Отменяем всё при размонтировании: ответы не должны попасть в снятый компонент.
@@ -162,6 +190,10 @@ export function useCommodityPageCategorization({
   /**
    * Применение ответа порции по commodityId (порядок не гарантирован):
    * touched-строки НЕ перезаписываются — поздняя порция не стирает введённое вручную.
+   * <p>
+   * Снимок предложения (ADR-033 п. 4) заполняется только валидным предложением; невалидный
+   * ответ (`existing`/`undefined`/неизвестный источник/код без ключа) снимок не создаёт и
+   * не затирает ранее записанный.
    */
   const applySuggestionItems = useCallback((items: CommodityCategorizationItem[]) => {
     setDraft((prev) => {
@@ -172,11 +204,20 @@ export function useCommodityPageCategorization({
         if (!entry || entry.touched) {
           continue;
         }
+        const suggestionSnapshot = buildSuggestionSnapshot(item, categoryKeyByIdRef.current);
         next[item.commodityId] = {
           ...entry,
           value: item.categoryId != null ? (categoryKeyByIdRef.current.get(item.categoryId) ?? '') : '',
           source: item.source,
           error: item.error ?? undefined,
+          ...(suggestionSnapshot
+            ? {
+                suggested: {
+                  value: suggestionSnapshot.suggestedCategory,
+                  source: suggestionSnapshot.suggestionSource,
+                },
+              }
+            : {}),
         };
         changed = true;
       }
@@ -184,7 +225,11 @@ export function useCommodityPageCategorization({
     });
   }, []);
 
-  /** Сбой порции: её строки (кроме touched) становятся «не определена» с текстом ошибки. */
+  /**
+   * Сбой порции: её строки (кроме touched) становятся «не определена» с текстом ошибки.
+   * Снимок предложения не меняется и не очищается (ADR-033 п. 4): сбой повтора не отменяет
+   * того, что человек уже видел валидное предложение.
+   */
   const markChunkFailed = useCallback((commodityIds: string[], message: string) => {
     setDraft((prev) => {
       let changed = false;
@@ -248,7 +293,7 @@ export function useCommodityPageCategorization({
   const start = useCallback(
     (rows: CommodityItem[]) => {
       const generation = invalidate();
-      categoryKeyByIdRef.current = new Map(categories.map((category) => [category.id, category.key]));
+      categoryKeyByIdRef.current = buildCategoryKeyById(categories);
 
       const initial: Record<string, DraftEntry> = {};
       const candidates: CommodityItem[] = [];
@@ -257,6 +302,7 @@ export function useCommodityPageCategorization({
         if (hasMeaningfulCategory) {
           // Уже категоризированная строка: значение предзаполнено, «уже присвоена»,
           // в порции не участвует (0/Undefined трактуется как «категории нет», ADR-028).
+          // Снимка предложения нет: `existing` — не предложение (ADR-033 п. 4, FR-1).
           const key = categoryKeyByIdRef.current.get(row.categoryId as number) ?? '';
           initial[row.id] = { value: key, initialValue: key, source: 'existing', touched: false };
         } else {
@@ -279,7 +325,11 @@ export function useCommodityPageCategorization({
     [categories, invalidate, runChunks],
   );
 
-  /** Ручная правка: значение остаётся пользовательским, подпись — «изменено вручную». */
+  /**
+   * Ручная правка: значение остаётся пользовательским, подпись — «изменено вручную».
+   * Снимок предложения не меняется и не очищается (ADR-033 п. 4): именно расхождение
+   * «предложено ИИ X, принято Y» и есть предмет журнала (FR-3).
+   */
   const setValue = useCallback((commodityId: string, value: string) => {
     setDraft((prev) => {
       const entry = prev[commodityId];
@@ -347,7 +397,10 @@ export function useCommodityPageCategorization({
   /**
    * Сохранение в любой момент (C2/C3): in-flight порция прерывается, сохраняется то,
    * что видит администратор. Отправляются только changed (value !== initialValue и
-   * value !== '' — пустое «не трогаем» не уходит в PUT, C4).
+   * value !== '' — пустое «не трогаем» не уходит в PUT, C4). У changed-строк с снимком
+   * предложения к элементу добавляются `suggestedCategory`/`suggestionSource`
+   * (ADR-033 п. 4, решение A1): сервер запишет событие «предложено → принято».
+   * Без снимка состав полей элемента прежний (FR-5b, NFR-2).
    */
   const save = useCallback(async () => {
     if (phaseRef.current !== 'review') {
@@ -356,7 +409,13 @@ export function useCommodityPageCategorization({
 
     const changed = Object.entries(draftRef.current)
       .filter(([, entry]) => entry.value !== entry.initialValue && entry.value !== '')
-      .map(([commodityId, entry]) => ({ commodityId, category: entry.value }));
+      .map(([commodityId, entry]) => ({
+        commodityId,
+        category: entry.value,
+        ...(entry.suggested
+          ? { suggestedCategory: entry.suggested.value, suggestionSource: entry.suggested.source }
+          : {}),
+      }));
 
     if (changed.length === 0) {
       // ADR-020: N = 0 — тост всё равно показывается; запрос не отправляется.

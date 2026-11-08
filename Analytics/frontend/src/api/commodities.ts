@@ -121,12 +121,26 @@ export async function suggestCommodityCategories(
 }
 
 /**
+ * Элемент пакетного сохранения категорий (ADR-028 п. 1.2 + ADR-033 п. 4):
+ * `category` — ключ категории; `null` — «не трогаем» (не сброс, C4).
+ * `suggestedCategory`/`suggestionSource` — аддитивный снимок предложения (ADR-033,
+ * решение A1): ключ категории enum и wire-имя источника. Поля опциональны: без снимка
+ * элемент побайтово прежний (FR-5b, NFR-2).
+ */
+export interface SaveCommodityCategoryItem {
+  commodityId: string;
+  category: string | null;
+  suggestedCategory?: string;
+  suggestionSource?: string;
+}
+
+/**
  * Пакетное assign-only сохранение категорий (ADR-028 п. 1.2):
  * `PUT /api/commodities/categories`. `category: null` — «не трогаем» (не сброс, C4);
  * `updated` — только реально изменённые строки (считает сервер, C9).
  */
 export async function saveCommodityCategories(
-  items: Array<{ commodityId: string; category: string | null }>,
+  items: SaveCommodityCategoryItem[],
   signal?: AbortSignal,
 ): Promise<{ updated: number }> {
   const response = await fetch('/api/commodities/categories', {

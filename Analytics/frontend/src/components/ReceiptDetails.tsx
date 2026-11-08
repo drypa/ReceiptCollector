@@ -11,7 +11,7 @@ import type { ReceiptItemSuggestion, SaveCategoriesItem } from '../api/receipts'
 import { fetchCategories } from '../api/commodities';
 import type { Category } from '../types/commodity';
 import { renderCategorySelectOptions } from '../utils/categoryOptions';
-import { getSuggestionNote } from '../utils/categorizationSource';
+import { buildSuggestionSnapshot, getSuggestionNote } from '../utils/categorizationSource';
 import { CustomDialog } from './CustomDialog';
 import { useToast } from './Toasts';
 
@@ -21,20 +21,9 @@ interface ReceiptDetailsProps {
   onReceiptRefresh?: () => void;
 }
 
-// Подпись-источник предложения вынесена в utils/categorizationSource (ADR-028 п. 9) —
-// общий источник для «Деталей чека» и страницы «Товары»; текст и поведение не изменились.
-
-/**
- * Источники, которые журнал решений считает предложением категории (ADR-033 п. 3,
- * «Явно зафиксированные семантики»): `existing` (категория уже была у позиции) и
- * `undefined` (предложения нет) снимка не дают — по ним события не пишутся (FR-1/FR-5b).
- */
-const SUGGESTION_SNAPSHOT_SOURCES: ReadonlySet<string> = new Set([
-  'ai',
-  'precategorized',
-  'cache',
-  'merchant-default',
-]);
+// Подпись-источник предложения и правило снимка для журнала решений вынесены в
+// utils/categorizationSource (ADR-028 п. 9, ADR-033 п. 3): общий источник для «Деталей чека»
+// и страницы «Товары»; текст и поведение не изменились.
 
 export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDetailsProps) {
   const { isAdmin } = useAdmin();
@@ -261,9 +250,8 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
   const saveSelectedCategories = async () => {
     setSavingCategories(true);
     try {
-      // Снимок «что человек видел на экране» (ADR-033 п. 3, решение A1) — аддитивные поля
-      // элемента сохранения. Без suggest снимка нет: payload побайтово прежний (FR-5, NFR-2).
-      // Источник истины «Undefined — не категория» — selectableCategories (как и в select'ах).
+      // Источник истины «Undefined — не категория» — selectableCategories (как и в select'ах):
+      // карта id -> key строится только по выбираемым категориям.
       const categoryKeyById = new Map(
         selectableCategories.map((category) => [category.id, category.key]),
       );
@@ -277,27 +265,20 @@ export function ReceiptDetails({ receipt, onBack, onReceiptRefresh }: ReceiptDet
           category: selectedCategories[item.id] || null,
         };
 
-        const suggestion = suggestionByCommodityId.get(item.id);
-        if (
-          !suggestion ||
-          suggestion.categoryId == null ||
-          !SUGGESTION_SNAPSHOT_SOURCES.has(suggestion.source)
-        ) {
-          return saved;
-        }
-
-        const suggestedCategory = categoryKeyById.get(suggestion.categoryId);
-        if (!suggestedCategory) {
+        // Снимок «что человек видел на экране» (ADR-033 п. 3, решение A1) — аддитивные поля
+        // элемента сохранения; правило общее со страницей «Товары»
+        // (utils/categorizationSource). Без suggest снимка нет: payload побайтово прежний.
+        const snapshot = buildSuggestionSnapshot(
+          suggestionByCommodityId.get(item.id),
+          categoryKeyById,
+        );
+        if (!snapshot) {
           return saved;
         }
 
         // Снимок не зависит от выбранной категории: при сбросе («—») он тоже уходит —
         // сервер запишет событие с final = Undefined (edge case задачи).
-        return {
-          ...saved,
-          suggestedCategory,
-          suggestionSource: suggestion.source,
-        };
+        return { ...saved, ...snapshot };
       });
 
       const result = await saveReceiptCategories(receipt.id, items);
