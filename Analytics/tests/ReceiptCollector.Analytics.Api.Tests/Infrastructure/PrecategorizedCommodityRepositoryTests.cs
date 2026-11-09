@@ -225,6 +225,141 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TryAddProposalAsync_returns_false_when_proposed_with_same_normalized_key_exists_at_another_merchant()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var merchantB = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"), CreateMerchant(merchantB, "B"));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.TryAddProposalAsync(
+                new CandidateCursor("Молоко", merchantA), CommodityCategory.Dairy, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            // FR-3.4 ADR-027 по очищенному ключу: тот же ключ уже proposed у другого
+            // магазина — unique-violation по частичному ux_..._normalized_proposed
+            // (прежний индекс (name, merchant_id) такую пару не запрещает), no-op без
+            // исключения (путь catch в TryAddProposalAsync).
+            Assert.False(await repository.TryAddProposalAsync(
+                new CandidateCursor("Молоко", merchantB), CommodityCategory.Food, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var stored = await context.PrecategorizedCommodities.SingleAsync();
+            Assert.Equal(merchantA, stored.MerchantId);
+            Assert.Equal((int)CommodityCategory.Dairy, stored.ProposedCategoryId);
+        }
+    }
+
+    [Fact]
+    public async Task TryAddProposalAsync_writes_normalized_name_and_keeps_raw_name()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        // Ведущий EAN-13: очищенный ключ — без кода (ADR-034 п. 1), сырое имя сохраняется (FR-4).
+        const string rawName = "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ";
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.TryAddProposalAsync(
+                new CandidateCursor(rawName, merchantA), CommodityCategory.Food, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var stored = await context.PrecategorizedCommodities.SingleAsync();
+            Assert.Equal(rawName, stored.Name);
+            Assert.Equal("пирог с вишней по ре", stored.NormalizedName);
+            Assert.Equal(CommodityNameNormalizer.NormalizeName(rawName), stored.NormalizedName);
+        }
+    }
+
+    [Fact]
+    public async Task TryAddProposalAsync_normalized_name_never_exceeds_raw_length_in_current_runtime()
+    {
+        await ClearDatabaseAsync();
+
+        // Отклонение от плана T-02 (зафиксировано в сводке): пример «200 × İ → >256 после
+        // ToLowerInvariant» опирается на полные регистропреобразования .NET Framework.
+        // В .NET 10 (ICU) ToLowerInvariant использует простые соответствия и строку не
+        // расширяет (проверено сканом BMP и дополнительной плоскости: расширяющих символов
+        // нет), поэтому guard на длину очищенного имени — defense-in-depth (ADR-034
+        // «Риски»: «Переполнение varchar(256) после lowercase — Низкая»; та же логика, что
+        // в оговорке T-03 про preflight). Тест фиксирует факт: имя вставляется, ключ не
+        // длиннее сырого имени.
+        var name = new string('İ', 200);
+        Assert.True(name.Length <= 256);
+        Assert.Equal(200, CommodityNameNormalizer.NormalizeName(name).Length);
+
+        var merchantA = Guid.NewGuid();
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.TryAddProposalAsync(
+                new CandidateCursor(name, merchantA), CommodityCategory.Food, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var stored = await context.PrecategorizedCommodities.SingleAsync();
+            Assert.Equal(name, stored.Name);
+            Assert.Equal(200, stored.NormalizedName.Length);
+        }
+    }
+
+    [Fact]
+    public async Task TryAddProposalAsync_accepts_name_exactly_at_schema_limit()
+    {
+        await ClearDatabaseAsync();
+
+        // Граница guard'а включительно: 256 символов — допустимая длина (FR-4.7).
+        var name = new string('x', 256);
+        var merchantA = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.TryAddProposalAsync(
+                new CandidateCursor(name, merchantA), CommodityCategory.Food, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            var stored = await context.PrecategorizedCommodities.SingleAsync();
+            Assert.Equal(name, stored.NormalizedName);
+        }
+    }
+
+    [Fact]
     public async Task GetPageAsync_returns_only_proposed_with_search_paging_and_count()
     {
         await ClearDatabaseAsync();
@@ -301,9 +436,9 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
             await context.Database.ExecuteSqlAsync(
                 $"""
                 INSERT INTO precategorized_commodities
-                    (id, name, merchant_id, proposed_category_id, original_proposed_category_id, status, created_at)
+                    (id, name, merchant_id, proposed_category_id, original_proposed_category_id, status, created_at, normalized_name)
                 VALUES
-                    ({Guid.NewGuid()}, {"Кефир"}, {merchantA}, {9999}, {9999}, {(short)0}, {DateTimeOffset.UtcNow})
+                    ({Guid.NewGuid()}, {"Кефир"}, {merchantA}, {9999}, {9999}, {(short)0}, {DateTimeOffset.UtcNow}, {CommodityNameNormalizer.NormalizeName("Кефир")})
                 """);
         }
 
@@ -413,7 +548,14 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
 
             context.PrecategorizedCommodities.AddRange(
                 Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, id: proposalId),
-                Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, id: siblingId));
+                // ADR-034 п. 2: частичный уникальный индекс ux_..._normalized_proposed
+                // запрещает две proposed-строки с одним очищенным ключом глобально
+                // (FR-3.4 ADR-027 по очищенному ключу), поэтому «сестринской» строке
+                // задан иной ключ — сид с двумя proposed «молоко» новый индекс не
+                // пропускает. Тест проверяет механизм удаления sibling'ов по сырому
+                // имени (переключение на ключ — T-04), а не валидность исторического
+                // сочетания двух proposed.
+                Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, id: siblingId, normalizedName: "sibling"));
             await context.SaveChangesAsync();
         }
 
@@ -636,11 +778,16 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
         PrecategorizedCommodityStatus status,
         DateTimeOffset? createdAt = null,
         DateTimeOffset? appliedAt = null,
-        Guid? id = null)
+        Guid? id = null,
+        string? normalizedName = null)
         => new()
         {
             Id = id ?? Guid.NewGuid(),
             Name = name,
+            // ADR-034 п. 2 (B1): у каждой строки очереди есть очищенный ключ.
+            // normalizedName задаётся явно только там, где «честный» ключ нарушил бы
+            // частичный уникальный индекс proposed (см. комментарий в тесте Confirm).
+            NormalizedName = normalizedName ?? CommodityNameNormalizer.NormalizeName(name),
             MerchantId = merchantId,
             ProposedCategoryId = (int)category,
             // Исходное предложение пишется фоном при вставке (ADR-033 D1); PUT его не меняет.

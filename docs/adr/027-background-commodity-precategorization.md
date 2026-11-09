@@ -43,12 +43,16 @@
 > [ADR 033](033-categorization-decision-log.md).
 >
 > **Дополнено (2026-11-09):** очередь получает колонку `normalized_name` (сырое `name` сохраняется
-> для UI/журнала); поиск для suggest идёт по очищенному ключу, sibling `proposed` при confirm
-> удаляются по нему, появляется глобальный partial unique `(normalized_name) WHERE status = 0`.
-> Фон проверяет кандидатов C#-pre-check'ом по очищенному ключу (same merchant any status / global
-> proposed) и передаёт очищенное имя в ИИ. Миграция удаляет `proposed`-строки и backfill'ит
-> `applied`; статусы, транзакция confirm и стиль админских эндпоинтов — без изменений. См.
-> [ADR 034](034-commodity-name-normalization.md).
+> для UI/журнала); поиск для suggest идёт по очищенному ключу, появляется глобальный partial unique
+> `(normalized_name) WHERE status = 0`. Фон проверяет кандидатов C#-pre-check'ом по очищенному ключу
+> (same merchant any status / global proposed) и передаёт очищенное имя в ИИ. Миграция удаляет
+> `proposed`-строки и backfill'ит `applied`; статусы, транзакция confirm и стиль админских
+> эндпоинтов — без изменений, **кроме шага 3 D10**: удаление сестринских `proposed` отменяется.
+> Глобальный unique по очищенному ключу делает две одновременные `proposed`-строки с одним ключом
+> невозможными (смоук на PostgreSQL: второй `proposed` → `23505`), поэтому ветка была бы доказуемым
+> no-op. Confirm выполняет только обновление `commodities` по точному имени без категории и перевод
+> строки в `applied`; отдельного теста на удаление сестринских строк нет, инвариант держит unique-
+> конфликт `TryAddProposalAsync`. См. [ADR 034](034-commodity-name-normalization.md).
 
 ## Контекст
 
@@ -200,7 +204,9 @@ Seq Scan по отфильтрованному множеству (`category_id 
      записываются `category_id` **и** `category_name` (`CommodityCategoryHelper.GetDisplayName`) —
      как в `CommodityRepository.UpdateCategoryAsync` (FR-6.2);
   2. перевод строки в `applied` (`status = 1`, `applied_at = now()`);
-  3. удаление «сестринских» `proposed`-строк с тем же точным наименованием;
+  3. удаление «сестринских» `proposed`-строк с тем же точным наименованием — **отменено
+     [ADR 034](034-commodity-name-normalization.md)**: глобальный unique `proposed` по очищенному
+     ключу делает sibling-строки недостижимыми, шаг был бы no-op;
   4. `ICommodityCategoryCache.TryAdd(normalizedName, category)` — после фиксации транзакции;
      first-wins/no-op при «замороженном» кэше — существующая семантика ADR-019 (FR-6.4).
   Откат при ошибке — строка остаётся `proposed`. Ответ содержит `updatedCommodities`, которое
@@ -527,7 +533,8 @@ PostgreSQL или выбор лидера). YAGNI при текущем одно
 - Ручной suggest: порядок `existing → cache → precategorized → ai`, `source = "precategorized"`,
   batch-запрос, read-only, деградация при ошибке очереди.
 - Подтверждение: все пользователи, точное имя, только без категории, транзакция, `applied`,
-  удаление сестринских `proposed`, `TryAdd` в кэш, `updatedCommodities`.
+  `TryAdd` в кэш, `updatedCommodities`; удаление сестринских `proposed` отменено ADR-034
+  (глобальный unique делает состояние недостижимым).
 - Отклонение: удаление, `commodities` не меняются.
 - Права: 401/403 по эталону `MerchantEndpoints`; 400/404/409 — как в FR-5.
 - Глобальный запрос возвращает данные всех пользователей при установленном `CurrentUserId`

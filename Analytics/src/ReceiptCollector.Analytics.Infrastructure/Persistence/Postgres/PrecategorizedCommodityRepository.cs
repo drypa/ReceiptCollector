@@ -241,10 +241,27 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
             return false;
         }
 
+        // ADR-034 п. 2 (B1): единственное место вычисления и записи очищенного ключа
+        // строки очереди; NormalizeName вызывается ровно один раз на строку.
+        var normalizedName = CommodityNameNormalizer.NormalizeName(candidate.Name);
+
+        if (normalizedName.Length > MaxNameLength)
+        {
+            // FR-4.7: lowercase-расширение не должно молча обрезаться в varchar(256)
+            // (аналог preflight из миграции 20261109120000 для новых строк).
+            _logger.LogWarning(
+                "Skipping precategorization proposal with normalized name length {NormalizedNameLength} (raw name length {NameLength}, merchant {MerchantId}).",
+                normalizedName.Length,
+                candidate.Name.Length,
+                candidate.MerchantId);
+            return false;
+        }
+
         var entity = new PrecategorizedCommodityEntity
         {
             Id = Guid.NewGuid(),
             Name = candidate.Name,
+            NormalizedName = normalizedName,
             MerchantId = candidate.MerchantId,
             ProposedCategoryId = (int)category,
             // ADR-033 п. 1 (D1): единственное место записи исходного предложения — фоновая вставка.
@@ -262,7 +279,10 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            // FR-4.5: unique-конфликт (name, merchant_id) — параллельная вставка, no-op.
+            // FR-4.5: unique-конфликт — параллельная вставка, no-op. Catch покрывает оба
+            // индекса: ux_precategorized_commodities_name_merchant (name, merchant_id) и
+            // частичный ux_precategorized_commodities_normalized_proposed (normalized_name)
+            // WHERE status = 0 (ADR-034 п. 2).
             _dbContext.Entry(entity).State = EntityState.Detached;
             _logger.LogDebug(
                 "Precategorized proposal for '{Name}' (merchant {MerchantId}) already exists; skipping.",

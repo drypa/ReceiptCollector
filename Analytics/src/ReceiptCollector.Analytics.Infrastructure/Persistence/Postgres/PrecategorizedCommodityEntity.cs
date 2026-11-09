@@ -13,6 +13,13 @@ internal sealed class PrecategorizedCommodityEntity
     /// <summary>Точное наименование товара, как в <c>commodities.name</c> (varchar(256)).</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Очищенный ключ строки (ADR-034 п. 2, решение B1): <c>CommodityNameNormalizer.NormalizeName(Name)</c>
+    /// (varchar(256)). Пишется один раз при вставке (<c>TryAddProposalAsync</c>); сырое <see cref="Name"/>
+    /// сохраняется для UI и журнала (FR-4).
+    /// </summary>
+    public string NormalizedName { get; set; } = string.Empty;
+
     public Guid MerchantId { get; set; }
 
     public MerchantEntity? Merchant { get; set; }

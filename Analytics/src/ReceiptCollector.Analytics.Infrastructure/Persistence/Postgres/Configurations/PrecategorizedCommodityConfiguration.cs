@@ -21,6 +21,12 @@ internal sealed class PrecategorizedCommodityConfiguration : IEntityTypeConfigur
             .IsRequired()
             .HasMaxLength(256);
 
+        // ADR-034 п. 2 (B1): очищенный ключ строки очереди. NOT NULL (в SQL — после
+        // backfill миграцией 20261109120000). Пишется только при вставке в TryAddProposalAsync.
+        builder.Property(e => e.NormalizedName)
+            .IsRequired()
+            .HasMaxLength(256);
+
         builder.Property(e => e.ProposedCategoryId)
             .IsRequired();
 
@@ -55,5 +61,18 @@ internal sealed class PrecategorizedCommodityConfiguration : IEntityTypeConfigur
 
         builder.HasIndex(e => new { e.Status, e.CreatedAt })
             .HasDatabaseName("ix_precategorized_commodities_status");
+
+        // ADR-034 п. 2: поиск по очищенному ключу (любой статус) и pre-check кандидатов.
+        // Индексы объявлены и в EF-модели, и в SQL-миграции 20261109120000: тесты создают
+        // схему через EnsureCreatedAsync по EF-модели, прод — по SQL-скрипту.
+        builder.HasIndex(e => e.NormalizedName)
+            .HasDatabaseName("ix_precategorized_commodities_normalized_name");
+
+        // Один proposed на очищенный ключ глобально (FR-3.4 ADR-027 по очищенному ключу);
+        // applied в частичный индекс не входят.
+        builder.HasIndex(e => e.NormalizedName)
+            .IsUnique()
+            .HasFilter("status = 0")
+            .HasDatabaseName("ux_precategorized_commodities_normalized_proposed");
     }
 }

@@ -54,7 +54,7 @@
 | `Infrastructure/Modules/Commodities/CommodityCategoryResolver.cs` | Шаг 3 вычисляет `normalized` для кэша; шаг 4 передаёт в очередь **сырые** имена; шаг 5 группирует по `NormalizeName`, но в `IAiClient` передаёт `g.First().Name` (сырое) | Нужны: поиск в очереди по очищенному ключу, передача очищенного имени в ИИ |
 | `Infrastructure/Modules/Commodities/CommodityBatchCategorizationService.cs` | Лимит `MaxUniqueNames` считается по сырым именам; фактическая дедупликация ИИ — в resolver'е; запись в кэш — по `NormalizeName` | Контракт и лимит не меняем; дедупликация ИИ уже станет очищенной через resolver |
 | `Infrastructure/Modules/Commodities/PrecategorizationBackgroundService.cs` | Кэш — по `normalized`; ИИ — по сырому `name`; `TryAddProposalAsync` получает сырое имя | Нужны: очищенное имя в ИИ, pre-check очереди по очищенному ключу, запись `normalized_name` |
-| `Persistence/Postgres/PrecategorizedCommodityRepository.cs` | `GetCandidatesAsync` — raw SQL с точными `name`; `GetCategoriesByExactNamesAsync` — точное имя; `ConfirmAsync` обновляет `commodities` по точному `name` и удаляет sibling `proposed` по точному `name` | Нужны: колонка `normalized_name`, поиск по ней, sibling delete по ней, pre-check кандидатов |
+| `Persistence/Postgres/PrecategorizedCommodityRepository.cs` | `GetCandidatesAsync` — raw SQL с точными `name`; `GetCategoriesByExactNamesAsync` — точное имя; `ConfirmAsync` обновляет `commodities` по точному `name` и удаляет sibling `proposed` по точному `name` (ветка мертва после появления глобального unique-индекса, см. D1) | Нужны: колонка `normalized_name`, поиск и pre-check по ней; sibling delete **удаляется** как недостижимый (D1), а не переводится на ключ |
 | `Persistence/Postgres/Configurations/PrecategorizedCommodityConfiguration.cs` | Уникальность `(name, merchant_id)`; индекс `(status, created_at)`; колонки `normalized_name` нет | Добавляем колонку и индексы (в EF-модели и SQL-миграции) |
 | `Infrastructure/Modules/CategorizationDecisions/CategorizationDecisionRecorder.cs` | `commodity_name` — raw после `Trim`; `normalized_name` — `NormalizeName`; guard на 256 для обоих | Код не меняется: новое правило применится автоматически; история не пересчитывается |
 | `Infrastructure/Synchronization/CommodityCategoryCacheInitializationHostedService.cs` | Наполнение кэша при старте по `NormalizeName`, `OrderBy(c.Name)`, first-wins | Коллизии очищенных ключей становятся чаще; порядок детерминирован, но «правильность» выбора не гарантирована (свойство first-wins) |
@@ -155,18 +155,41 @@ EF-модели видят колонку.
 
 ### D. Подтверждение строки очереди
 
-#### D1: `commodities` — по точному сырому имени; sibling `proposed` — по `normalized_name` — **выбран**
+#### D1: `commodities` — по точному сырому имени; sibling delete удаляется как мёртвая ветка — **выбран**
 
-Семантика confirm (ADR-027 D10) сохраняется: обновляются только товары с точно таким же сырым
-именем и без категории. Удаление «сестринских» `proposed`-строк переводится на очищенный ключ, чтобы
-не оставались дубли одного товара с разными кодами.
+Семантика confirm (ADR-027 D10) сохраняется в части обновления: обновляются только товары с точно
+таким же сырым именем и без категории; подтверждение остаётся человеческим, массового применения по
+очищенному ключу нет (NFR-1).
 
-**Плюсы:** нет массового обновления по нормализованному ключу (NFR-1, никакого автопроставления);
-не нужна нормализация `commodities`; транзакция и статусы не меняются.
+Удаление «сестринских» `proposed`-строк **не реализуется**, потому что после T-02 их существование
+невозможно. Шаг 2 миграции удаляет все `proposed`, а шаг 8 создаёт **глобальный** частичный
+уникальный индекс `ux_precategorized_commodities_normalized_proposed (normalized_name) WHERE
+status = 0`. Следовательно, в момент confirm подтверждаемая строка — единственная `proposed` своего
+очищенного ключа, и любой `DELETE ... WHERE normalized_name = @key AND status = 0 AND id <> @id`
+гарантированно удаляет 0 строк. Существующая ветка удаления по точному сырому имени мертва по той же
+причине: одинаковое сырое имя даёт одинаковый очищенный ключ, а все старые `proposed` удалены
+миграцией.
 
-**Минусы:** подтверждение варианта с кодом не проставит категорию варианту без кода; второй вариант
-получит предложение из кэша/очереди и потребует отдельного подтверждения. Это осознанно: массовое
-применение к «похожим» именам — это уже автопроставление.
+Обратная сторона сохранения точного имени: подтверждение варианта с кодом не проставит категорию
+варианту без кода (и наоборот) — второй вариант получит предложение из кэша/очереди и потребует
+отдельного подтверждения. Это осознанно: массовое применение к «похожим» именам было бы
+автопроставлением (NFR-1).
+
+> **Уточнение по итогам ревью T-02 (2026-11-09, смоук на реальном PostgreSQL).** Вторая `proposed`-
+> строка с тем же очищенным ключом у другого магазина отклоняется `23505 unique_violation`. Значит
+> состояние «sibling `proposed` с тем же ключом» недостижимо в проде, а delete-ветка — доказуемый
+> no-op, а не «защита на всякий случай». Решение: **удалить ветку** и не добавлять её вариант по
+> `normalized_name`. Confirm выполняет ровно три шага: `UPDATE commodities` по точному имени без
+> категории, `status = applied` + `applied_at`, commit. Отклонение (`DELETE .../{id}`) по-прежнему
+> удаляет ровно одну строку по `id`.
+
+**Плюсы:** KISS/YAGNI — нет кода, который не может выполниться; на каждый confirm не тратится лишний
+`DELETE`; инвариант держится в БД (самое надёжное место), а не в приложении; не нужен тест, который
+пришлось бы создавать в обход собственного ограничения; при будущем ослаблении индекса код не начнёт
+молча удалять предложения другого магазина по «похожему» ключу.
+
+**Минусы:** нет. Если инвариант когда-нибудь будет ослаблен (снят или изменён partial unique),
+решение пересматривается вместе с ним — это фиксируется здесь, а не «страхуется» недостижимой веткой.
 
 #### D2: обновлять `commodities` по нормализованному ключу (массово) — **отклонено**
 
@@ -177,6 +200,17 @@ EF-модели видят колонку.
 
 **Минусы:** неограниченная выборка/материализация вариантов; тот же риск массового применения;
 сложнее транзакция и тесты.
+
+#### D4: сохранить sibling delete как defense-in-depth — **отклонено**
+
+Оставить удаление «сестринских» `proposed` (по сырому имени или по `normalized_name`) и покрыть его
+тестом с искусственным сидом, где две `proposed`-строки имеют один очищенный ключ.
+
+**Минусы:** ветка защищает от состояния, которое запрещает сама БД; чтобы создать его в тесте, нужно
+обойти `ux_precategorized_commodities_normalized_proposed` (в тестовой схеме индекс создаётся по
+EF-модели), то есть проверить недостижимый путь и получить ложное чувство покрытия; в проде ветка не
+выполняется ни разу; при будущем ослаблении индекса delete по очищенному ключу начнёт удалять
+предложения других магазинов — побочный эффект, которого никто не заказывал.
 
 ### E. Миграция данных
 
@@ -226,8 +260,9 @@ FR-4 требует сохранить сырое имя; ADR-033 E1 испол�
 
 Сводка: **A1** (единственный C#-нормализатор), **B1** (колонка `normalized_name` в очереди),
 **C1** (C#-pre-check кандидатов по очищенному ключу), **D1** (confirm: `commodities` — по точному
-сырому имени, sibling delete — по `normalized_name`), **E1** (delete `proposed` + backfill
-`applied`), **F1** (журнал: сырое имя + очищенный `normalized_name`, ключ сочетания сырой).
+сырому имени; sibling delete отсутствует, так как глобальный unique `proposed` делает его
+недостижимым), **E1** (delete `proposed` + backfill `applied`), **F1** (журнал: сырое имя +
+очищенный `normalized_name`, ключ сочетания сырой).
 
 ### Обоснование
 
@@ -448,7 +483,7 @@ violation и писать Warning'и — данные не повредятся,
 |---|---|
 | Domain | `CommodityNameNormalizer`: новые `[GeneratedRegex]` (leading/trailing/letter-check), обновлённый XML-doc; `IPrecategorizedCommodityRepository`: `GetCategoriesByExactNamesAsync` → `GetCategoriesByNormalizedNamesAsync`, новый `HasBlockingQueueEntryAsync(string normalizedName, Guid merchantId, ct)`. Доменная модель `PrecategorizedCommodity` **не меняется** (нормализованное имя — технический ключ, UI его не показывает) |
 | Application | Контракты не меняются. `IAiClient.SuggestCategoryAsync` по-прежнему принимает строку имени — в неё теперь передаётся очищенное имя. `CommodityBatchCategorizationService`: лимит `MaxUniqueNames` остаётся по сырым именам (консервативно, контракт клиента не меняется), фактическая дедупликация ИИ — в resolver'е по очищенному ключу |
-| Infrastructure | `CommodityCategoryResolver`: очередь — по `GetCategoriesByNormalizedNamesAsync`, lookup — по `NormalizeName(item.Name)`, ИИ — `SuggestCategoryAsync(g.Key, …)` (очищенное имя); `PrecategorizationBackgroundService`: `normalized` вычисляется один раз, pre-check очереди, кэш и ИИ — по `normalized`, `TryAddProposalAsync` получает сырое имя; `PrecategorizedCommodityRepository`: `NormalizedName` в insert, поиск по нему, sibling delete по нему, `HasBlockingQueueEntryAsync`, guard длины сырого и очищенного имени, обновлённый catch unique-violation (оба индекса); `PrecategorizedCommodityEntity` + `Configuration`: колонка, индексы (в EF-модели — для тестов, и в SQL — для прода); `CategorizationDecisionRecorder`: без изменений (новое правило приходит из normalizer'а) |
+| Infrastructure | `CommodityCategoryResolver`: очередь — по `GetCategoriesByNormalizedNamesAsync`, lookup — по `NormalizeName(item.Name)`, ИИ — `SuggestCategoryAsync(g.Key, …)` (очищенное имя); `PrecategorizationBackgroundService`: `normalized` вычисляется один раз, pre-check очереди, кэш и ИИ — по `normalized`, `TryAddProposalAsync` получает сырое имя; `PrecategorizedCommodityRepository`: `NormalizedName` в insert, поиск по нему, `HasBlockingQueueEntryAsync`, guard длины сырого и очищенного имени, обновлённый catch unique-violation (оба индекса), sibling delete удаляется из `ConfirmAsync` (D1); `PrecategorizedCommodityEntity` + `Configuration`: колонка, индексы (в EF-модели — для тестов, и в SQL — для прода); `CategorizationDecisionRecorder`: без изменений (новое правило приходит из normalizer'а) |
 | Api | **Без изменений**: ни новых полей, ни новых кодов, ни изменений текстов ошибок. Suggest по-прежнему возвращает сырое `name`; `/precategorized` показывает сырое `name` |
 | Migrations | `20261109120000_add_precategorized_normalized_name.sql` (п. 2) |
 | Frontend | **Без изменений**: UI показывает сырые имена; пакетный suggest уже обрабатывает ответы по позициям |
@@ -515,6 +550,20 @@ violation и писать Warning'и — данные не повредятся,
 - поиск ADR-033 по `normalized_name` находит оба варианта;
 - накопленная история не пересчитывается (FR-4).
 
+#### 4.5. Подтверждение и отклонение строки очереди
+
+Контракты, коды ответов и статусы не меняются (ADR-027 D10). Confirm в одной транзакции:
+
+1. загрузить строку по `id`; нет строки → `NotFound`, `applied` → `Conflict` (без изменений);
+2. `UPDATE commodities SET category_id, category_name WHERE name = <точное сырое имя> AND
+   (category_id IS NULL OR category_id = 0)` — только точное имя, без нормализации (NFR-1);
+3. `status = applied`, `applied_at = now`, commit.
+
+Шага «удалить сестринские `proposed`» нет: глобальный partial unique по `normalized_name`
+гарантирует, что подтверждаемая строка — единственная `proposed` своего очищенного ключа (D1).
+Отклонение (`DELETE .../{id}`) по-прежнему удаляет ровно одну строку по `id` и не затрагивает
+`commodities`.
+
 ### 5. Явно зафиксированные семантики
 
 | Вопрос | Решение |
@@ -525,7 +574,7 @@ violation и писать Warning'и — данные не повредятся,
 | Цифры < 6 | Не снимаются: `АИ-95`, `256г`, `нар.300г`, `1000 ЛЕПЕСТКОВ`, `(3сл, 4р)` |
 | Бренд `РЖ.КРАЙ` | Не снимается (буквы/точка, не цифровой код); применяется только lowercase |
 | Пустой результат очистки | Fallback на `base` (нормализованный оригинал), не пустая строка |
-| Нет букв после очистки | Fallback на `base` (имя из кода/пунктуации) |
+| Нет букв после очистки | Fallback на `base` (имя из кода/пунктуации); «буква» — `[A-Za-zА-Яа-яЁё]`, другие письменности — см. открытый вопрос 8 |
 | Регистр/пробелы | Lowercase + trim + collapse — как раньше |
 | Код в середине названия | Не снимается (вне правила) |
 | Код, примыкающий к дефису | Ведущий код снимается, дефис может остаться; хвостовой код, примыкающий к не-пробельному символу, не снимается (консервативно) |
@@ -534,7 +583,8 @@ violation и писать Warning'и — данные не повредятся,
 | Ключ поиска в очереди | `normalized_name` (очищенное имя) |
 | Ключ журнала | `commodity_name` (сырое) + source + suggested + final; `normalized_name` — производное, в ключ не входит |
 | `commodities` при confirm | Точное сырое имя; массового обновления по очищенному ключу нет |
-| Строки очереди | `name` — сырое (UI/журнал), `normalized_name` — ключ; `proposed` уникален глобально по ключу, `applied` — по `(name, merchant_id)` |
+| Строки очереди | `name` — сырое (UI/журнал), `normalized_name` — ключ; `proposed` уникален глобально по ключу (следствие — sibling-строк с одним ключом не бывает), `applied` — по `(name, merchant_id)` |
+| Sibling `proposed` при confirm | Не существуют (глобальный partial unique по `normalized_name WHERE status = 0`); confirm их не ищет и не удаляет (D1) |
 | Статусы очереди | Без изменений (`proposed`/`applied`); confirm — та же транзакция |
 | Автопроставление | Нет; нормализация меняет только ключ/промпт |
 | API/UI | Без изменений контрактов; UI показывает сырые имена |
@@ -549,10 +599,18 @@ violation и писать Warning'и — данные не повредятся,
 | `CommodityCategoryResolver` | Очередь находится по очищенному ключу (вариант с кодом находит строку без кода); в `IAiClient` уходит очищенное имя (mock захватывает аргумент); дедупликация двух вариантов — один вызов ИИ; ответ содержит сырое `name`; `existing`/`merchant-default`/`cache` приоритеты не изменились |
 | `CommodityBatchCategorizationService` | Варианты с кодом и без дают одинаковый ключ кэша/дедупликации; `MaxUniqueNames` по сырым именам не сломан; assign-only/`updated`/`SuggestTimeout` без регрессий |
 | `PrecategorizationBackgroundService` | Pre-check блокирует same-merchant any-status и global proposed по очищенному ключу; applied у другого магазина не блокирует; ИИ получает очищенное имя; `TryAddProposalAsync` пишет `normalized_name`; unique-конфликт — no-op; пропуск по длине сырого/очищенного > 256 — Warning |
-| `PrecategorizedCommodityRepository` | Поиск по `normalized_name` в любом статусе, «свежесть» по `AppliedAt ?? CreatedAt`; confirm обновляет `commodities` только по точному `name`; sibling `proposed` удаляются по `normalized_name`; `applied` не удаляются |
+| `PrecategorizedCommodityRepository` | Поиск по `normalized_name` в любом статусе, «свежесть» по `AppliedAt ?? CreatedAt`; confirm обновляет `commodities` только по точному `name` и не меняет строки с другими ключами/статусами; sibling delete отсутствует — состояние недостижимо (D1); `applied` не удаляются |
 | `CategorizationDecisionRecorder` | Новые события: `commodity_name` сырое, `normalized_name` очищенное; guard 256; история не пересчитывается |
 | Миграция | На пустой таблице; `proposed` удалены, `applied` сохранены и backfill'ены; preflight падает на аномальной длине; повторный запуск runner'ом — skip; опционально Testcontainers: SQL-функция на golden corpus совпадает с C# |
 | Регрессия | `cd Analytics && dotnet test` зелёный; API-контракты и frontend не менялись |
+
+> **Регресс-контроль перехода очереди на очищенный ключ.** Так как подтверждаемая строка всегда
+> единственная `proposed` своего ключа, продуктового теста «sibling удалены» не существует. Инвариант
+> («второй `proposed` с тем же очищенным ключом не создаётся, в том числе у другого магазина»)
+> проверяется тестом `TryAddProposalAsync` на unique-conflict по
+> `ux_precategorized_commodities_normalized_proposed`: вторая вставка возвращает `false`, в таблице
+> остаётся одна `proposed`-строка. Этот тест и есть регресс-контроль; тест с искусственным сидом
+> sibling-строк не нужен и не должен вводиться (он требует обхода собственного индекса, D4).
 
 ### 7. Матрица соответствия требованиям
 
@@ -589,7 +647,9 @@ violation и писать Warning'и — данные не повредятся,
   автоприменения нет, ошибочную категорию можно исправить.
 - **Очередь: один `proposed` на очищенный ключ глобально.** Вариант с другим кодом может не получить
   отдельного предложения; администратор увидит сырое имя одной строки и сможет разметить вариант
-  вручную. `applied`-строки у разных магазинов сохраняются.
+  вручную. `applied`-строки у разных магазинов сохраняются. Прямое следствие: состояние «sibling
+  `proposed` с тем же ключом» недостижимо, поэтому confirm не содержит удаления сестринских строк
+  (D1) — это не потеря функциональности, а отсутствие недостижимого кода.
 - **Confirm не массовый.** Подтверждение варианта с кодом не проставит категорию варианту без кода;
   второй вариант получит предложение из кэша/очереди и потребует отдельного подтверждения. Это
   осознанно (NFR-1).
@@ -641,6 +701,12 @@ violation и писать Warning'и — данные не повредятся,
    декомпозиции с учётом времени CI.
 7. **Отображение `normalized_name` в админке.** Показывать ли очищенный ключ/группировку вариантов в
    `/precategorized` — UX-решение; текущий UI показывает сырые имена.
+8. **Класс букв fallback-проверки.** Проверка «есть ли буквы» использует `[A-Za-zА-Яа-яЁё]`;
+   имя, целиком состоящее из букв вне этого класса (украинские `ї/є/ґ`, греческие, латиница с
+   диакритикой — например, `αβγ 123456`), уходит в fallback и сохраняет код. Практическая
+   вероятность низкая (названия чеков — кириллица/латиница), текущая семантика принята;
+   расширение класса (например, `[\p{L}]` с явным исключением цифроподобных) — отдельное
+   решение с оценкой ложных срабатываний.
 
 ## Допущения
 
@@ -668,9 +734,10 @@ violation и писать Warning'и — данные не повредятся,
   старте — без изменений; коллизии очищенных ключей — новый эксплуатационный риск (amend-заметка
   внесена).
 - **ADR-027**: очередь получает `normalized_name` (сырое `name` сохраняется), поиск — по ключу,
-  кандидаты — C#-pre-check, sibling delete — по ключу, глобальный partial unique `proposed`;
-  статусы, транзакция confirm, стиль админских эндпоинтов, `MigrationRunner` — без изменений
-  (amend-заметка внесена).
+  кандидаты — C#-pre-check, глобальный partial unique `proposed`; sibling delete при confirm
+  отсутствует — удаление сестринских `proposed` (шаг 3 D10) отменяется как недостижимое, потому что
+  индекс не допускает второй `proposed` с тем же ключом; статусы, транзакция confirm, стиль
+  админских эндпоинтов, `MigrationRunner` — без изменений (amend-заметка внесена).
 - **ADR-028**: пакетный suggest дедуплицирует ИИ по очищенному ключу; лимит `MaxUniqueNames` — по
   сырым именам; assign-only, `updated`, `SuggestTimeout`, `aiAvailable`, коды — без изменений
   (amend-заметка внесена).

@@ -57,7 +57,14 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
 
             context.PrecategorizedCommodities.AddRange(
                 Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, proposalId),
-                Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, siblingId));
+                // ADR-034 п. 2: частичный уникальный индекс ux_..._normalized_proposed
+                // запрещает две proposed-строки с одним очищенным ключом глобально
+                // (FR-3.4 ADR-027 по очищенному ключу), поэтому «сестринской» строке
+                // задан иной ключ — сид с двумя proposed «молоко» новый индекс не
+                // пропускает. Тест проверяет механизм удаления sibling'ов по сырому
+                // имени (переключение на ключ — T-04), а не валидность исторического
+                // сочетания двух proposed.
+                Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, siblingId, normalizedName: "sibling"));
             await context.SaveChangesAsync();
         }
 
@@ -469,11 +476,16 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
         CommodityCategory category,
         PrecategorizedCommodityStatus status,
         Guid id,
-        CommodityCategory? original = null)
+        CommodityCategory? original = null,
+        string? normalizedName = null)
         => new()
         {
             Id = id,
             Name = name,
+            // ADR-034 п. 2 (B1): у каждой строки очереди есть очищенный ключ.
+            // normalizedName задаётся явно только там, где «честный» ключ нарушил бы
+            // частичный уникальный индекс proposed (см. комментарий в тесте Confirm).
+            NormalizedName = normalizedName ?? CommodityNameNormalizer.NormalizeName(name),
             MerchantId = merchantId,
             ProposedCategoryId = (int)category,
             // ADR-033 п. 1 (D1): фон создаёт строку с исходным предложением = предложению.
