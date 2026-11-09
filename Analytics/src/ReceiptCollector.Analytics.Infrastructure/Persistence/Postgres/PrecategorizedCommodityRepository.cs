@@ -87,6 +87,27 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
             .ToList();
     }
 
+    public async Task<bool> HasBlockingQueueEntryAsync(
+        string normalizedName,
+        Guid merchantId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedName);
+
+        // ADR-034 C1: C# pre-check кандидатов фона по очищенному ключу (SQL-нормализации нет —
+        // ключ передаётся параметром). Блокирует строка с тем же normalized_name у этого
+        // магазина в любом статусе ИЛИ любая proposed-строка с тем же ключом у любого
+        // магазина (FR-3.4 ADR-027 по очищенному ключу). Один индексируемый запрос по
+        // ix_precategorized_commodities_normalized_name (NFR-3).
+        return await _dbContext.PrecategorizedCommodities
+            .AsNoTracking()
+            .AnyAsync(
+                p => p.NormalizedName == normalizedName
+                     && (p.MerchantId == merchantId || p.Status == PrecategorizedCommodityStatus.Proposed),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<CommodityCategory?> GetKnownCategoryByNameAsync(
         string exactName,
         CancellationToken cancellationToken = default)
@@ -335,13 +356,11 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
         entity.AppliedAt = _timeProvider.GetUtcNow();
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        // «Сестринские» proposed-строки с тем же точным наименованием больше не нужны (D10).
-        await _dbContext.PrecategorizedCommodities
-            .Where(p => p.Name == entity.Name
-                        && p.Status == PrecategorizedCommodityStatus.Proposed
-                        && p.Id != entity.Id)
-            .ExecuteDeleteAsync(cancellationToken)
-            .ConfigureAwait(false);
+        // «Сестринских» proposed-строк с тем же очищенным ключом не существует: глобальный
+        // partial unique ux_precategorized_commodities_normalized_proposed гарантирует, что
+        // подтверждаемая строка — единственная proposed своего ключа (ADR-034 D1/D4), поэтому
+        // confirm их не ищет и не удаляет. Прежняя ветка delete по сырому имени удалена
+        // как мёртвая ветка (миграция 20261109120000 сняла все proposed).
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 

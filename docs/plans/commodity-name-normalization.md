@@ -22,8 +22,8 @@
 | -- | ------ | ----------- | ------ |
 | 01 | Нормализатор: правило очистки + юнит-тесты | — | committed |
 | 02 | Схема: SQL-миграция, EF-модель, запись `normalized_name` при вставке | 01 | committed |
-| 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | approved |
-| 04 | Repository: `HasBlockingQueueEntryAsync` + удаление мёртвой sibling-ветки из confirm | 02 | pending |
+| 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | committed |
+| 04 | Repository: `HasBlockingQueueEntryAsync` + удаление мёртвой sibling-ветки из confirm | 02 | approved |
 | 05 | Resolver: очередь по очищенному ключу, ИИ по очищенному имени, переименование lookup | 04 | pending |
 | 06 | Фон предкатегоризации: pre-check очереди, ИИ и кэш по очищенному ключу | 04, 05 | pending |
 | 07 | Пакетный suggest и suggest чека: проверка ключей без изменения контрактов | 05 | pending |

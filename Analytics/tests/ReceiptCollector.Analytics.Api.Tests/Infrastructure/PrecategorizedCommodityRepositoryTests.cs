@@ -523,7 +523,161 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ConfirmAsync_updates_commodities_of_all_users_and_removes_sibling_proposals()
+    public async Task HasBlockingQueueEntryAsync_blocks_applied_row_of_same_merchant()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Applied));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            // C1: строка с тем же ключом у этого магазина в ЛЮБОМ статусе блокирует кандидата.
+            Assert.True(await repository.HasBlockingQueueEntryAsync("молоко", merchantA, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task HasBlockingQueueEntryAsync_blocks_proposed_row_of_same_merchant()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.HasBlockingQueueEntryAsync("молоко", merchantA, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task HasBlockingQueueEntryAsync_blocks_proposed_row_of_another_merchant()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var merchantB = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"), CreateMerchant(merchantB, "B"));
+            // FR-3.4 ADR-027 по очищенному ключу: proposed у другого магазина блокирует и здесь.
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.True(await repository.HasBlockingQueueEntryAsync("молоко", merchantA, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task HasBlockingQueueEntryAsync_does_not_block_applied_row_of_another_merchant()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var merchantB = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"), CreateMerchant(merchantB, "B"));
+            // applied у другого магазина НЕ блокирует (тот же инвариант, что у NOT EXISTS в GetCandidatesAsync).
+            context.PrecategorizedCommodities.Add(
+                Proposal("Сыр", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Applied));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            Assert.False(await repository.HasBlockingQueueEntryAsync("сыр", merchantA, CancellationToken.None));
+            // ...а у своего магазина тот же applied блокирует.
+            Assert.True(await repository.HasBlockingQueueEntryAsync("сыр", merchantB, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task HasBlockingQueueEntryAsync_returns_false_for_other_key_and_empty_table()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+
+        await using (var context = CreateContext())
+        {
+            // Пустая таблица — ничего не блокирует.
+            var repository = CreateRepository(context);
+            Assert.False(await repository.HasBlockingQueueEntryAsync("молоко", merchantA, CancellationToken.None));
+        }
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+            context.PrecategorizedCommodities.Add(
+                Proposal("Молоко", merchantA, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            // Другой ключ — не блокирует.
+            Assert.False(await repository.HasBlockingQueueEntryAsync("хлеб", merchantA, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task HasBlockingQueueEntryAsync_matches_by_cleaned_key()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        const string storedName = "Туалетная бумага \"СВАЁ\" (3сл, 4р)";
+        const string variantName = "2195738 Туалетная бумага \"СВАЁ\" (3сл, 4р) 4810981001530";
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+            context.PrecategorizedCommodities.Add(
+                Proposal(storedName, merchantA, CommodityCategory.HouseholdChemicals, PrecategorizedCommodityStatus.Proposed));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var stored = await context.PrecategorizedCommodities.SingleAsync();
+            Assert.Equal("туалетная бумага \"сваё\" (3сл, 4р)", stored.NormalizedName);
+
+            var repository = CreateRepository(context);
+            // Вариант с артикулом в начале и EAN в конце даёт тот же очищенный ключ → блокировка.
+            var variantKey = CommodityNameNormalizer.NormalizeName(variantName);
+            Assert.True(await repository.HasBlockingQueueEntryAsync(variantKey, merchantA, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_updates_commodities_of_all_users_and_touches_only_confirmed_row()
     {
         await ClearDatabaseAsync();
 
@@ -552,9 +706,8 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
                 // запрещает две proposed-строки с одним очищенным ключом глобально
                 // (FR-3.4 ADR-027 по очищенному ключу), поэтому «сестринской» строке
                 // задан иной ключ — сид с двумя proposed «молоко» новый индекс не
-                // пропускает. Тест проверяет механизм удаления sibling'ов по сырому
-                // имени (переключение на ключ — T-04), а не валидность исторического
-                // сочетания двух proposed.
+                // пропускает. В проде sibling-состояние недостижимо, и confirm его
+                // не ищет и не удаляет (ADR-034 D1/D4): строка остаётся в таблице.
                 Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, id: siblingId, normalizedName: "sibling"));
             await context.SaveChangesAsync();
         }
@@ -595,8 +748,59 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
             Assert.Equal(PrecategorizedCommodityStatus.Applied, storedProposal!.Status);
             Assert.NotNull(storedProposal.AppliedAt);
 
-            // «Сестринская» proposed-строка удалена (D10).
-            Assert.Null(await context.PrecategorizedCommodities.FindAsync(siblingId));
+            // Confirm переводит в applied только свою строку; «сестринская» proposed
+            // не удаляется — confirm не ищет и не удаляет sibling-строки (ADR-034 D1/D4).
+            var sibling = await context.PrecategorizedCommodities.FindAsync(siblingId);
+            Assert.NotNull(sibling);
+            Assert.Equal(PrecategorizedCommodityStatus.Proposed, sibling!.Status);
+        }
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_updates_commodities_only_by_exact_raw_name()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
+        var userB = Guid.NewGuid();
+        var proposalId = Guid.NewGuid();
+
+        // Регресс ADR-034 D1/NFR-1: подтверждение строки с кодом НЕ проставляет категорию
+        // варианту без кода (тот же очищенный ключ) — commodities обновляются только
+        // по точному сырому имени, массового применения по ключу нет.
+        const string rawName = "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ";
+        const string variantName = "ПИРОГ С ВИШНЕЙ ПО РЕ";
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(
+                context,
+                CreateReceipt(userA, merchantA, (rawName, null)),
+                CreateReceipt(userB, merchantA, (variantName, null)));
+
+            context.PrecategorizedCommodities.Add(
+                Proposal(rawName, merchantA, CommodityCategory.Food, PrecategorizedCommodityStatus.Proposed, id: proposalId));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            var result = await repository.ConfirmAsync(proposalId, CommodityCategory.Food, CancellationToken.None);
+
+            Assert.Equal(PrecategorizedOperationOutcome.Applied, result.Outcome);
+            Assert.Equal(1, result.UpdatedCommodities);
+        }
+
+        await using (var context = CreateContext())
+        {
+            var withCode = Assert.Single(await context.Commodities.Where(c => c.Name == rawName).ToListAsync());
+            Assert.Equal((int)CommodityCategory.Food, withCode.CategoryId);
+
+            var variant = Assert.Single(await context.Commodities.Where(c => c.Name == variantName).ToListAsync());
+            Assert.Null(variant.CategoryId);
+            Assert.Null(variant.CategoryName);
         }
     }
 

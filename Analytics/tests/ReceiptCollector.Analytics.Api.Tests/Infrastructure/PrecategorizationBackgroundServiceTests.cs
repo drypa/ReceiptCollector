@@ -566,6 +566,14 @@ public sealed class PrecategorizationBackgroundServiceTests
                 ? (CommodityCategory?)category
                 : null);
 
+        // Механическая реализация под новый метод интерфейса (T-04): фон pre-check пока не
+        // вызывает (подключение — T-06), по умолчанию «ничего не заблокировано».
+        public Task<bool> HasBlockingQueueEntryAsync(
+            string normalizedName,
+            Guid merchantId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> TryAddProposalAsync(
             CandidateCursor candidate,
             CommodityCategory category,

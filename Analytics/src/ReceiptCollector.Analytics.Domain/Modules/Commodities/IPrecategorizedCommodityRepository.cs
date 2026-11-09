@@ -20,6 +20,19 @@ public interface IPrecategorizedCommodityRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Pre-check кандидатов фона по очищенному ключу (ADR-034 C1): <c>true</c> — существует
+    /// строка с тем же <c>normalized_name</c> у этого магазина в любом статусе
+    /// <b>или</b> любая <c>proposed</c>-строка с тем же ключом у любого магазина
+    /// (FR-3.4 ADR-027 по очищенному ключу). Такой кандидат фоном пропускается —
+    /// повторного предложения не будет. Ключ вычисляется в C#
+    /// (<see cref="CommodityNameNormalizer"/>) и передаётся параметром: SQL-нормализации нет.
+    /// </summary>
+    Task<bool> HasBlockingQueueEntryAsync(
+        string normalizedName,
+        Guid merchantId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Глобальный existing-шаг фона (D1/FR-3.3): первая содержательная категория
     /// (<c>category_id IS NOT NULL AND &lt;&gt; 0</c>) среди товаров всех пользователей
     /// по точному наименованию. <c>null</c> — категории нет.
@@ -58,9 +71,15 @@ public interface IPrecategorizedCommodityRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Подтверждение предложения одной транзакцией (D10, FR-6.1–6.5): обновление
-    /// <c>commodities</c> всех пользователей по точному имени (только без категории),
-    /// перевод строки в <c>applied</c>, удаление «сестринских» <c>proposed</c>-строк.
+    /// Подтверждение предложения одной транзакцией (D10, FR-6.1–6.5, ADR-034 п. 4.5):
+    /// 1) загрузка строки по <paramref name="id"/> — нет строки → NotFound,
+    ///    <c>applied</c> → Conflict;
+    /// 2) обновление <c>commodities</c> всех пользователей по <b>точному сырому</b> имени
+    ///    и только строк без категории (NFR-1 — массового применения по очищенному ключу нет);
+    /// 3) перевод строки в <c>applied</c> с <c>applied_at</c>, commit.
+    /// «Сестринские» <c>proposed</c>-строки не ищутся и не удаляются: глобальный partial unique
+    /// по <c>normalized_name</c> гарантирует, что подтверждаемая строка — единственная
+    /// <c>proposed</c> своего очищенного ключа (ADR-034 D1).
     /// Кэш здесь не трогается — это делает сервис после фиксации транзакции.
     /// </summary>
     Task<ConfirmPrecategorizedResult> ConfirmAsync(

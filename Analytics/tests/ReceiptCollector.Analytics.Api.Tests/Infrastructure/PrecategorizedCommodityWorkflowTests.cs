@@ -32,7 +32,7 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Confirm_updates_two_users_marks_applied_removes_siblings_and_fills_cache()
+    public async Task Confirm_updates_two_users_marks_applied_and_touches_only_confirmed_row_and_fills_cache()
     {
         await ClearDatabaseAsync();
 
@@ -61,9 +61,8 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
                 // запрещает две proposed-строки с одним очищенным ключом глобально
                 // (FR-3.4 ADR-027 по очищенному ключу), поэтому «сестринской» строке
                 // задан иной ключ — сид с двумя proposed «молоко» новый индекс не
-                // пропускает. Тест проверяет механизм удаления sibling'ов по сырому
-                // имени (переключение на ключ — T-04), а не валидность исторического
-                // сочетания двух proposed.
+                // пропускает. В проде sibling-состояние недостижимо, и confirm его
+                // не ищет и не удаляет (ADR-034 D1/D4): строка остаётся в таблице.
                 Proposal("Молоко", merchantB, CommodityCategory.Dairy, PrecategorizedCommodityStatus.Proposed, siblingId, normalizedName: "sibling"));
             await context.SaveChangesAsync();
         }
@@ -95,7 +94,11 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
 
             var stored = await context.PrecategorizedCommodities.FindAsync(proposalId);
             Assert.Equal(PrecategorizedCommodityStatus.Applied, stored!.Status);
-            Assert.Null(await context.PrecategorizedCommodities.FindAsync(siblingId));
+            // Confirm трогает только подтверждаемую строку; «сестринская» proposed
+            // остаётся в таблице (ADR-034 D1/D4: sibling-строк не бывает, удалять нечего).
+            var sibling = await context.PrecategorizedCommodities.FindAsync(siblingId);
+            Assert.NotNull(sibling);
+            Assert.Equal(PrecategorizedCommodityStatus.Proposed, sibling!.Status);
         }
     }
 
