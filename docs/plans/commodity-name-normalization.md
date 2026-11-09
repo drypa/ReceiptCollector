@@ -20,7 +20,7 @@
 
 | NN | Задача | Зависимости | Статус |
 | -- | ------ | ----------- | ------ |
-| 01 | Нормализатор: правило очистки + юнит-тесты | — | pending |
+| 01 | Нормализатор: правило очистки + юнит-тесты | — | approved |
 | 02 | Схема: SQL-миграция, EF-модель, запись `normalized_name` при вставке | 01 | pending |
 | 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | pending |
 | 04 | Repository: sibling delete по ключу + `HasBlockingQueueEntryAsync` | 02 | pending |
