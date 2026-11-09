@@ -605,8 +605,8 @@ public sealed class PrecategorizationBackgroundServiceTests
             Guid id, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByExactNamesAsync(
-            IReadOnlyCollection<string> names, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByNormalizedNamesAsync(
+            IReadOnlyCollection<string> normalizedNames, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 

@@ -32,7 +32,7 @@ public class CommodityBatchCategorizationServiceTests
     public CommodityBatchCategorizationServiceTests()
     {
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
     }
 
@@ -92,6 +92,11 @@ public class CommodityBatchCategorizationServiceTests
             });
     }
 
+    /// <summary>
+    /// Стаб успешного ответа ИИ. <paramref name="name"/> — строка, которую реально получает
+    /// <c>IAiClient</c>: после ADR-034 FR-2 resolver передаёт очищенное имя (ключ группы),
+    /// поэтому стабы строятся по очищенным наименованиям.
+    /// </summary>
     private void ArrangeAiSuccess(string name, CommodityCategory category)
     {
         _aiClient
@@ -132,7 +137,7 @@ public class CommodityBatchCategorizationServiceTests
 
         _cache.DidNotReceiveWithAnyArgs().TryGet(default!, out _);
         await _precategorizedRepository.DidNotReceiveWithAnyArgs()
-            .GetCategoriesByExactNamesAsync(default!, default);
+            .GetCategoriesByNormalizedNamesAsync(default!, default);
         await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
     }
 
@@ -158,13 +163,14 @@ public class CommodityBatchCategorizationServiceTests
         var first = CreateCommodity("Чай");
         var second = CreateCommodity("Кофе");
         ArrangeOwner(first, second);
+        // ADR-034 п. 4.1: ключ результата очереди — очищенное имя; в ИИ тоже уходит очищенное имя.
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
             {
-                ["Чай"] = CommodityCategory.Beverages
+                ["чай"] = CommodityCategory.Beverages
             });
-        ArrangeAiSuccess("Кофе", CommodityCategory.Beverages);
+        ArrangeAiSuccess("кофе", CommodityCategory.Beverages);
 
         var result = await CreateService().SuggestAsync(
             _userId,
@@ -176,7 +182,7 @@ public class CommodityBatchCategorizationServiceTests
         Assert.Equal(CategorizationSourceNames.Ai, SingleFor(result, second).Source);
 
         await _precategorizedRepository.Received(1)
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -186,7 +192,7 @@ public class CommodityBatchCategorizationServiceTests
         var second = CreateCommodity("Молоко");
         var third = CreateCommodity("Молоко");
         ArrangeOwner(first, second, third);
-        ArrangeAiSuccess("Молоко", CommodityCategory.Dairy);
+        ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
         var result = await CreateService().SuggestAsync(
             _userId,
@@ -201,7 +207,7 @@ public class CommodityBatchCategorizationServiceTests
         });
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("Молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -236,9 +242,9 @@ public class CommodityBatchCategorizationServiceTests
         ArrangeOwner(failing, ok);
 
         _aiClient
-            .SuggestCategoryAsync("Сломанный товар", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync("сломанный товар", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new AiClientException("boom"));
-        ArrangeAiSuccess("Молоко", CommodityCategory.Dairy);
+        ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
         var result = await CreateService().SuggestAsync(
             _userId,
@@ -304,7 +310,7 @@ public class CommodityBatchCategorizationServiceTests
         var blank = CreateCommodity("   ");
         var normal = CreateCommodity("Молоко");
         ArrangeOwner(blank, normal);
-        ArrangeAiSuccess("Молоко", CommodityCategory.Dairy);
+        ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
         var result = await CreateService().SuggestAsync(_userId, [blank.Id, normal.Id], CancellationToken.None);
 
@@ -313,7 +319,7 @@ public class CommodityBatchCategorizationServiceTests
         Assert.Equal("Название товара не заполнено.", item.Error);
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("Молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
         await _aiClient.DidNotReceive()
             .SuggestCategoryAsync("   ", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
@@ -337,7 +343,7 @@ public class CommodityBatchCategorizationServiceTests
     {
         var commodity = CreateCommodity("Молоко");
         ArrangeOwner(commodity);
-        ArrangeAiSuccess("Молоко", CommodityCategory.Dairy);
+        ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
         await CreateService().SuggestAsync(_userId, [commodity.Id], CancellationToken.None);
 
@@ -355,7 +361,7 @@ public class CommodityBatchCategorizationServiceTests
     {
         var owned = CreateCommodity("Молоко");
         ArrangeOwner(owned);
-        ArrangeAiSuccess("Молоко", CommodityCategory.Dairy);
+        ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
         var result = await CreateService().SuggestAsync(
             _userId,

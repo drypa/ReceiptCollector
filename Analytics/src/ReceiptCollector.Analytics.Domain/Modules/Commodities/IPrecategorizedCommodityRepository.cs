@@ -94,11 +94,13 @@ public interface IPrecategorizedCommodityRepository
     Task<PrecategorizedOperationOutcome> DeleteProposedAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batch-поиск по очереди для ручного suggest (FR-9.2/9.3): словарь
-    /// <c>точное наименование → категория</c> по строкам в любом статусе; при дублях берётся
-    /// самая свежая (<c>applied_at</c>/<c>created_at</c>); невалидные значения enum отбрасываются.
+    /// Batch-поиск по очереди для ручного suggest (FR-9.2/9.3, ADR-034 п. 3/п. 4.1): словарь
+    /// <c>очищенное наименование (<c>normalized_name</c>) → категория</c> по строкам в любом
+    /// статусе; при дублях берётся самая свежая строка (<c>applied_at ?? created_at</c>);
+    /// невалидные значения enum отбрасываются. Ключ вычисляется в C#
+    /// (<see cref="CommodityNameNormalizer"/>) и передаётся параметром: SQL-нормализации нет.
     /// </summary>
-    Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByExactNamesAsync(
-        IReadOnlyCollection<string> names,
+    Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByNormalizedNamesAsync(
+        IReadOnlyCollection<string> normalizedNames,
         CancellationToken cancellationToken = default);
 }

@@ -395,32 +395,34 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
         return PrecategorizedOperationOutcome.Applied;
     }
 
-    public async Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByExactNamesAsync(
-        IReadOnlyCollection<string> names,
+    public async Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByNormalizedNamesAsync(
+        IReadOnlyCollection<string> normalizedNames,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(names);
+        ArgumentNullException.ThrowIfNull(normalizedNames);
 
         var result = new Dictionary<string, CommodityCategory>(StringComparer.Ordinal);
-        if (names.Count == 0)
+        if (normalizedNames.Count == 0)
         {
             return result;
         }
 
-        var nameList = names.Distinct(StringComparer.Ordinal).ToList();
+        // ADR-034 п. 3: ключ — очищенное имя (normalized_name), вычисленное в C# и переданное
+        // параметром (SQL-нормализации нет); sargable по ix_precategorized_commodities_normalized_name.
+        var normalizedList = normalizedNames.Distinct(StringComparer.Ordinal).ToList();
 
-        // FR-9.2: поиск по точному наименованию в любом статусе, самая свежая строка при дублях.
+        // FR-9.2: поиск по очищенному ключу в любом статусе, самая свежая строка при дублях.
         var rows = await _dbContext.PrecategorizedCommodities
             .AsNoTracking()
-            .Where(p => nameList.Contains(p.Name))
+            .Where(p => normalizedList.Contains(p.NormalizedName))
             .OrderByDescending(p => p.AppliedAt ?? p.CreatedAt)
-            .Select(p => new { p.Name, p.ProposedCategoryId })
+            .Select(p => new { p.NormalizedName, p.ProposedCategoryId })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
         foreach (var row in rows)
         {
-            if (result.ContainsKey(row.Name))
+            if (result.ContainsKey(row.NormalizedName))
             {
                 continue; // уже выбрана самая свежая строка
             }
@@ -436,7 +438,7 @@ internal sealed class PrecategorizedCommodityRepository : IPrecategorizedCommodi
                 continue;
             }
 
-            result[row.Name] = category;
+            result[row.NormalizedName] = category;
         }
 
         return result;

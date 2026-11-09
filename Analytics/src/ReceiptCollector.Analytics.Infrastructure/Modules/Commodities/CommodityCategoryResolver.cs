@@ -16,9 +16,13 @@ namespace ReceiptCollector.Analytics.Infrastructure.Modules.Commodities;
 ///   <item>категория уже присвоена товару (<c>existing</c>);</item>
 ///   <item>товарная категория по умолчанию магазина чека (<c>merchant-default</c>, ADR-032);</item>
 ///   <item>in-memory кэш (<c>cache</c>, ADR-019);</item>
-///   <item>очередь предкатегорий одним batch-запросом (<c>precategorized</c>, ADR-027);</item>
-///   <item>ИИ с дедупликацией по нормализованному имени (<c>ai</c> / <c>undefined</c>).</item>
+///   <item>очередь предкатегорий одним batch-запросом по очищенным ключам
+///       (<c>precategorized</c>, ADR-027, ADR-034 п. 4.1);</item>
+///   <item>ИИ с дедупликацией по очищенному имени: в <see cref="IAiClient"/> уходит ключ группы,
+///       а не сырое наименование (<c>ai</c> / <c>undefined</c>, ADR-034 FR-2/FR-3).</item>
 /// </list>
+/// Нормализация позиции вычисляется один раз (шаг 3) и передаётся на шаги 4–5: очередь,
+/// дедупликация ИИ и lookup результатов работают по уже посчитанному ключу (NFR-3).
 /// Регистрация — Scoped: <see cref="SemaphoreSlim"/> создаётся на экземпляр, как раньше на
 /// scoped-сервисе (публичное поведение не меняется, ADR-028 п. 12).
 /// Suggest остаётся read-only: дефолт магазина только предлагается (<c>source = "merchant-default"</c>),
@@ -142,7 +146,9 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
         }
 
         // Шаг 3: in-memory кэш ранее присвоенных категорий (сквозной, без userId; FR-2.4).
-        var pendingAfterCache = new List<Commodity>();
+        // Очищенный ключ позиции вычисляется здесь ровно один раз и передаётся на шаги 4–5
+        // (ADR-034 п. 4.1, NFR-3): повторных вызовов нормализации на позицию нет.
+        var pendingAfterCache = new List<PendingItem>();
         foreach (var item in pendingAfterMerchantDefault)
         {
             var normalized = CommodityNameNormalizer.NormalizeName(item.Name);
@@ -154,27 +160,28 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
             }
             else
             {
-                pendingAfterCache.Add(item);
+                pendingAfterCache.Add(new PendingItem(item, normalized));
             }
         }
 
-        // Шаг 4: очередь предкатегорий (ADR-027, D13/FR-9): один batch-запрос на порцию,
-        // только для наименований, которым не нашлось категории на existing/merchant-default/cache (FR-9.3).
-        var aiCandidates = new List<Commodity>();
+        // Шаг 4: очередь предкатегорий (ADR-027, D13/FR-9, ADR-034 п. 4.1): один batch-запрос
+        // на порцию по очищенным ключам, только для наименований, которым не нашлось категории
+        // на existing/merchant-default/cache (FR-9.3).
+        var aiCandidates = new List<PendingItem>();
         if (pendingAfterCache.Count > 0)
         {
             var queueCategories = await GetQueueCategoriesAsync(pendingAfterCache, cancellationToken)
                 .ConfigureAwait(false);
 
-            foreach (var item in pendingAfterCache)
+            foreach (var pendingItem in pendingAfterCache)
             {
-                if (queueCategories.TryGetValue(item.Name, out var queuedCategory)
+                if (queueCategories.TryGetValue(pendingItem.Normalized, out var queuedCategory)
                     && queuedCategory != CommodityCategory.Undefined
                     && Enum.IsDefined(typeof(CommodityCategory), queuedCategory))
                 {
                     // FR-9.4: источник precategorized, ИИ для позиции не вызывается.
                     results.Add(CreateResult(
-                        item,
+                        pendingItem.Item,
                         (int)queuedCategory,
                         CommodityCategoryHelper.GetDisplayName(queuedCategory),
                         CategorizationSource.Precategorized,
@@ -182,20 +189,21 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
                 }
                 else
                 {
-                    aiCandidates.Add(item);
+                    aiCandidates.Add(pendingItem);
                 }
             }
         }
 
-        // Шаг 5: AI. Одинаковые нормализованные названия категоризируем один раз.
+        // Шаг 5: AI. Одинаковые очищенные названия категоризируем один раз: группировка по ключу
+        // шага 3, в IAiClient уходит ключ группы (ADR-034 FR-2), раздача результатов — по ключу.
         if (aiCandidates.Count > 0)
         {
             if (!aiEnabled)
             {
                 // ADR-028 п. 4 (C7): ИИ не настроен — остаток «не определена», без исключения и 503.
-                foreach (var item in aiCandidates)
+                foreach (var pendingItem in aiCandidates)
                 {
-                    results.Add(CreateResult(item, null, null, CategorizationSource.Undefined, AiNotConfiguredError));
+                    results.Add(CreateResult(pendingItem.Item, null, null, CategorizationSource.Undefined, AiNotConfiguredError));
                 }
             }
             else
@@ -203,18 +211,17 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
                 var suggestions = await SuggestByAiAsync(aiCandidates, aiCancellationToken, cancellationToken)
                     .ConfigureAwait(false);
 
-                foreach (var item in aiCandidates)
+                foreach (var pendingItem in aiCandidates)
                 {
-                    var key = CommodityNameNormalizer.NormalizeName(item.Name);
-                    if (suggestions.TryGetValue(key, out var outcome) && outcome.Suggestion is { } suggestion)
+                    if (suggestions.TryGetValue(pendingItem.Normalized, out var outcome) && outcome.Suggestion is { } suggestion)
                     {
                         var categoryName = CommodityCategoryHelper.GetDisplayName(suggestion.Category);
-                        results.Add(CreateResult(item, (int)suggestion.Category, categoryName, CategorizationSource.Ai, null));
+                        results.Add(CreateResult(pendingItem.Item, (int)suggestion.Category, categoryName, CategorizationSource.Ai, null));
                     }
                     else
                     {
                         var error = outcome.Error ?? AiNotDefinedError;
-                        results.Add(CreateResult(item, null, null, CategorizationSource.Undefined, error));
+                        results.Add(CreateResult(pendingItem.Item, null, null, CategorizationSource.Undefined, error));
                     }
                 }
             }
@@ -224,20 +231,21 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
     }
 
     /// <summary>
-    /// Batch-поиск категорий в очереди предкатегорий по точным наименованиям (FR-9.2/9.3).
+    /// Batch-поиск категорий в очереди предкатегорий по очищенным ключам позиций
+    /// (FR-9.2/9.3, ADR-034 п. 4.1): ключи уже посчитаны на шаге 3, нормализация не повторяется.
     /// Ошибка чтения очереди не ломает категоризацию: Warning + деградация к ИИ (FR-9.6).
     /// </summary>
     private async Task<IReadOnlyDictionary<string, CommodityCategory>> GetQueueCategoriesAsync(
-        IReadOnlyCollection<Commodity> items,
+        IReadOnlyCollection<PendingItem> items,
         CancellationToken cancellationToken)
     {
-        var names = items
-            .Select(item => item.Name)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
+        var keys = items
+            .Select(item => item.Normalized)
+            .Where(normalized => !string.IsNullOrWhiteSpace(normalized))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (names.Count == 0)
+        if (keys.Count == 0)
         {
             return EmptyQueueCategories;
         }
@@ -245,7 +253,7 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
         try
         {
             var categories = await _precategorizedRepository
-                .GetCategoriesByExactNamesAsync(names, cancellationToken)
+                .GetCategoriesByNormalizedNamesAsync(keys, cancellationToken)
                 .ConfigureAwait(false);
 
             return categories ?? EmptyQueueCategories;
@@ -308,15 +316,18 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
     /// <summary>
     /// Параллельный вызов ИИ с ограничением concurrency; результат — словарь
     /// normalizedName → исход (категория либо текст ошибки по названию).
+    /// Группировка — по очищенному ключу шага 3 (нормализация не повторяется); в
+    /// <see cref="IAiClient"/> передаётся ключ группы (ADR-034 FR-2), сырое имя сохраняется
+    /// только в логах (FR-4).
     /// </summary>
     private async Task<IReadOnlyDictionary<string, AiCategorizationOutcome>> SuggestByAiAsync(
-        IReadOnlyCollection<Commodity> items,
+        IReadOnlyCollection<PendingItem> items,
         CancellationToken aiCancellationToken,
         CancellationToken cancellationToken)
     {
         var uniqueItems = items
-            .GroupBy(i => CommodityNameNormalizer.NormalizeName(i.Name))
-            .Select(g => (Key: g.Key, Name: g.First().Name))
+            .GroupBy(i => i.Normalized)
+            .Select(g => (Key: g.Key, Name: g.First().Item.Name))
             .ToList();
 
         var tasks = uniqueItems.Select(async item =>
@@ -328,7 +339,7 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
                 acquired = true;
 
                 var result = await _aiClient
-                    .SuggestCategoryAsync(item.Name, CategoryNames, aiCancellationToken)
+                    .SuggestCategoryAsync(item.Key, CategoryNames, aiCancellationToken)
                     .ConfigureAwait(false);
 
                 return (item.Key, Outcome: new AiCategorizationOutcome(result, null));
@@ -373,6 +384,12 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
             CategorizationSourceNames.ToWireName(source),
             error);
     }
+
+    /// <summary>
+    /// Позиция, не получившая категорию на шагах existing/merchant-default/cache:
+    /// сырая позиция + очищенный ключ (посчитан один раз на шаге 3, ADR-034 п. 4.1).
+    /// </summary>
+    private readonly record struct PendingItem(Commodity Item, string Normalized);
 
     /// <summary>Исход вызова ИИ по одному нормализованному названию.</summary>
     private readonly record struct AiCategorizationOutcome(AiSuggestionResult? Suggestion, string? Error);

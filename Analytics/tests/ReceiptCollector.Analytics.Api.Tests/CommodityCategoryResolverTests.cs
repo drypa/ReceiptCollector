@@ -15,7 +15,8 @@ namespace ReceiptCollector.Analytics.Api.Tests;
 /// Тесты шага <c>merchant-default</c> общего конвейера (T-03, ADR-032 D1; FR-M4/M8):
 /// порядок existing → merchant-default → cache → precategorized → ai, ровно один batch-запрос
 /// дефолтов на порцию, отказоустойчивая деградация, read-only. Провайдер замокан (NSubstitute);
-/// EF-часть — <c>MerchantDefaultCategoryProviderTests</c>.
+/// EF-часть — <c>MerchantDefaultCategoryProviderTests</c>. Очередь и ИИ по очищенному ключу —
+/// ADR-034 FR-2/FR-3 (T-05).
 /// </summary>
 public class CommodityCategoryResolverTests
 {
@@ -29,7 +30,7 @@ public class CommodityCategoryResolverTests
         // Фоновые шаги пусты по умолчанию — сценарии, сфокусированные на шаге merchant-default,
         // не меняются от посторонних попаданий (прецедент CommodityCategorizationServiceTests).
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
         _merchantDefaultProvider
             .GetDefaultsByReceiptIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -124,7 +125,7 @@ public class CommodityCategoryResolverTests
         // Наименование есть и в кэше, и в очереди — дефолт магазина приоритетнее их обоих.
         ArrangeCacheHit("комплексный обед", CommodityCategory.Food);
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
             {
                 ["Комплексный обед"] = CommodityCategory.Snacks
@@ -142,7 +143,7 @@ public class CommodityCategoryResolverTests
         _cache.DidNotReceiveWithAnyArgs().TryGet(default!, out _);
         await _precategorizedRepository
             .DidNotReceiveWithAnyArgs()
-            .GetCategoriesByExactNamesAsync(default!, default);
+            .GetCategoriesByNormalizedNamesAsync(default!, default);
         await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
     }
 
@@ -247,7 +248,8 @@ public class CommodityCategoryResolverTests
         var cachedItem = CreateCommodity(receiptId, "Кефир");
         var aiItem = CreateCommodity(Guid.NewGuid(), "Пельмени");
         ArrangeCacheHit("кефир", CommodityCategory.Dairy);
-        _aiClient.SuggestCategoryAsync("Пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        // ADR-034 FR-2: в ИИ уходит очищенное имя позиции.
+        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.ReadyMeals));
         _merchantDefaultProvider
             .GetDefaultsByReceiptIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -313,6 +315,89 @@ public class CommodityCategoryResolverTests
 
         var result = Assert.Single(results);
         Assert.Equal(CategorizationSourceNames.Cache, result.Source);
+    }
+
+    // ---------------- Очередь и ИИ по очищенному ключу (ADR-034 FR-2/FR-3) ----------------
+
+    [Fact]
+    public async Task Resolve_finds_queue_row_by_cleaned_key_and_skips_ai()
+    {
+        // FR-3 (ADR-034 п. 4.1): позиция с артикулом и EAN находит строку очереди,
+        // сохранённую под очищенным ключом без кодов; ИИ не вызывается.
+        var item = CreateCommodity(Guid.NewGuid(), "2195738 Туалетная бумага \"СВАЁ\" (3сл, 4р) 4810981001530");
+        var cleanedKey = CommodityNameNormalizer.NormalizeName(item.Name); // туалетная бумага "сваё" (3сл, 4р)
+        _precategorizedRepository
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
+            {
+                [cleanedKey] = CommodityCategory.HouseholdChemicals
+            });
+
+        var results = await CreateResolver()
+            .ResolveAsync([item], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Equal(CategorizationSourceNames.Precategorized, result.Source);
+        Assert.Equal((int)CommodityCategory.HouseholdChemicals, result.CategoryId);
+        // NFR-2: в ответе наименование остаётся сырым.
+        Assert.Equal(item.Name, result.Name);
+
+        // Batch-запрос в очередь передаёт очищенный ключ, а не сырое наименование.
+        await _precategorizedRepository.Received(1).GetCategoriesByNormalizedNamesAsync(
+            Arg.Is<IReadOnlyCollection<string>>(keys => keys.Count == 1 && keys.Contains(cleanedKey)),
+            Arg.Any<CancellationToken>());
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Resolve_sends_cleaned_name_to_ai()
+    {
+        // FR-2 (ADR-034 п. 4.1): в IAiClient уходит очищенное имя группы, а не сырое наименование.
+        var item = CreateCommodity(Guid.NewGuid(), "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        _aiClient
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
+
+        var results = await CreateResolver()
+            .ResolveAsync([item], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Equal(CategorizationSourceNames.Ai, result.Source);
+        Assert.Equal((int)CommodityCategory.Bakery, result.CategoryId);
+        // NFR-2: в ответе наименование остаётся сырым.
+        Assert.Equal(item.Name, result.Name);
+
+        await _aiClient.Received(1)
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Resolve_deduplicates_variants_with_and_without_code_into_one_ai_call()
+    {
+        // FR-3: варианты одного товара «с кодом» и «без кода» — один вызов ИИ по общему
+        // очищенному ключу, обе позиции получают категорию из этого результата.
+        var withCode = CreateCommodity(Guid.NewGuid(), "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        var plain = CreateCommodity(Guid.NewGuid(), "ПИРОГ С ВИШНЕЙ ПО РЕ");
+        _aiClient
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
+
+        var results = await CreateResolver()
+            .ResolveAsync([withCode, plain], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+        var items = results.ToList();
+
+        Assert.Equal(2, items.Count);
+        Assert.All(items, r =>
+        {
+            Assert.Equal(CategorizationSourceNames.Ai, r.Source);
+            Assert.Equal((int)CommodityCategory.Bakery, r.CategoryId);
+        });
+        // NFR-2: каждая позиция сохраняет своё сырое имя в ответе.
+        Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", items.Single(r => r.CommodityId == withCode.Id).Name);
+        Assert.Equal("ПИРОГ С ВИШНЕЙ ПО РЕ", items.Single(r => r.CommodityId == plain.Id).Name);
+
+        await _aiClient.Received(1)
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
 
     // ---------------- Wire-имена источников ----------------

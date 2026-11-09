@@ -415,7 +415,7 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCategoriesByExactNamesAsync_returns_latest_row_and_skips_invalid_categories()
+    public async Task GetCategoriesByNormalizedNamesAsync_returns_latest_row_and_skips_invalid_categories()
     {
         await ClearDatabaseAsync();
 
@@ -445,16 +445,56 @@ public sealed class PrecategorizedCommodityRepositoryTests : IAsyncLifetime
         await using (var context = CreateContext())
         {
             var repository = CreateRepository(context);
-            var categories = await repository.GetCategoriesByExactNamesAsync(
-                new[] { "Молоко", "Хлеб", "Кефир", "Неизвестно" },
+            // ADR-034 п. 3: параметр и ключ результата — очищенное имя (normalized_name).
+            var categories = await repository.GetCategoriesByNormalizedNamesAsync(
+                new[] { "молоко", "хлеб", "кефир", "неизвестно" },
                 CancellationToken.None);
 
             Assert.Equal(2, categories.Count);
             // Самая свежая строка (proposed молоко) выигрывает.
-            Assert.Equal(CommodityCategory.Dairy, categories["Молоко"]);
-            Assert.Equal(CommodityCategory.Bakery, categories["Хлеб"]);
-            Assert.False(categories.ContainsKey("Кефир"));
-            Assert.False(categories.ContainsKey("Неизвестно"));
+            Assert.Equal(CommodityCategory.Dairy, categories["молоко"]);
+            Assert.Equal(CommodityCategory.Bakery, categories["хлеб"]);
+            Assert.False(categories.ContainsKey("кефир"));
+            Assert.False(categories.ContainsKey("неизвестно"));
+        }
+    }
+
+    [Fact]
+    public async Task GetCategoriesByNormalizedNamesAsync_matches_row_by_cleaned_key()
+    {
+        await ClearDatabaseAsync();
+
+        var merchantA = Guid.NewGuid();
+        // ADR-034 п. 6: очередь находится по очищенному ключу — вариант с кодами находит
+        // строку, сохранённую под ключом без кодов; поиск по сырому имени более не совпадает.
+        const string storedName = "Туалетная бумага \"СВАЁ\" (3сл, 4р)";
+        const string variantName = "2195738 Туалетная бумага \"СВАЁ\" (3сл, 4р) 4810981001530";
+
+        await using (var context = CreateContext())
+        {
+            await SeedAsync(context, CreateMerchant(merchantA, "A"));
+            context.PrecategorizedCommodities.Add(
+                Proposal(storedName, merchantA, CommodityCategory.HouseholdChemicals,
+                    PrecategorizedCommodityStatus.Applied, DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext())
+        {
+            var repository = CreateRepository(context);
+            var key = CommodityNameNormalizer.NormalizeName(variantName);
+
+            var categories = await repository.GetCategoriesByNormalizedNamesAsync(
+                [key], CancellationToken.None);
+
+            var entry = Assert.Single(categories);
+            Assert.Equal(key, entry.Key);
+            Assert.Equal(CommodityCategory.HouseholdChemicals, entry.Value);
+
+            // Регресс: сырое имя (с кодами) как параметр больше не матчится — ключ только очищенный.
+            var byRawName = await repository.GetCategoriesByNormalizedNamesAsync(
+                [variantName], CancellationToken.None);
+            Assert.Empty(byRawName);
         }
     }
 

@@ -27,7 +27,7 @@ public class CommodityCategorizationServiceTests
     {
         // ADR-027 (FR-9): по умолчанию очередь пуста — существующие сценарии не меняются.
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
     }
 
@@ -134,7 +134,8 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Пельмени");
         ArrangeReceipt(item);
 
-        _aiClient.SuggestCategoryAsync("Пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        // ADR-034 FR-2: в ИИ уходит очищенное имя группы, а не сырое наименование позиции.
+        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.ReadyMeals));
 
         var service = CreateService();
@@ -144,7 +145,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal((int)CommodityCategory.ReadyMeals, suggestion.CategoryId);
         Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
 
-        await _aiClient.Received(1).SuggestCategoryAsync("Пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+        await _aiClient.Received(1).SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -203,7 +204,7 @@ public class CommodityCategorizationServiceTests
         await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
 
         await _aiClient.Received(1).SuggestCategoryAsync(
-            "Бананы",
+            "бананы",
             Arg.Is<IReadOnlyCollection<string>>(names =>
                 names.Contains("Food") &&
                 names.Contains("Dairy") &&
@@ -340,13 +341,14 @@ public class CommodityCategorizationServiceTests
     public async Task Suggest_uses_precategorized_queue_and_skips_ai()
     {
         // FR-9.1/9.4: наименование найдено в очереди → source = precategorized, ИИ не вызывается.
+        // ADR-034 п. 4.1: результат очереди ключуется очищенным именем (normalized_name).
         var item = CreateCommodity(_receiptId, "Молоко 3,2% 1л");
         ArrangeReceipt(item);
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
             {
-                ["Молоко 3,2% 1л"] = CommodityCategory.Dairy
+                ["молоко 3,2% 1л"] = CommodityCategory.Dairy
             });
 
         var service = CreateService();
@@ -372,13 +374,14 @@ public class CommodityCategorizationServiceTests
         ArrangeReceipt(existing, cached, queued, ai);
 
         ArrangeCacheHit("из кэша", CommodityCategory.Food);
+        // ADR-034 п. 4.1: ключ результата очереди — очищенное имя.
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
             {
-                ["Из очереди"] = CommodityCategory.Bakery,
+                ["из очереди"] = CommodityCategory.Bakery,
                 // Наименования, уже обслуженные existing/cache, в очередь не попадают (FR-9.3).
-                ["Из кэша"] = CommodityCategory.Meat
+                ["из кэша"] = CommodityCategory.Meat
             });
         _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Other));
@@ -393,13 +396,15 @@ public class CommodityCategorizationServiceTests
         Assert.Equal(CategorizationSourceNames.Ai, items[3].Source);
         Assert.Equal((int)CommodityCategory.Bakery, items[2].CategoryId);
 
-        await _aiClient.Received(1).SuggestCategoryAsync("Только ИИ", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+        // ADR-034 FR-2: в ИИ уходит очищенное имя позиции («только ии»), а не сырое.
+        await _aiClient.Received(1).SuggestCategoryAsync("только ии", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Suggest_queries_queue_once_with_distinct_pending_names()
     {
         // FR-9.3: один batch-запрос на чек по различным наименованиям без existing/cache.
+        // ADR-034 п. 4.1: запрос передаёт очищенные ключи (normalized_name), а не сырые имена.
         var first = CreateCommodity(_receiptId, "Хлеб");
         var second = CreateCommodity(_receiptId, "Молоко");
         var duplicate = CreateCommodity(_receiptId, "Хлеб");
@@ -409,9 +414,9 @@ public class CommodityCategorizationServiceTests
         var service = CreateService();
         await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
 
-        await _precategorizedRepository.Received(1).GetCategoriesByExactNamesAsync(
-            Arg.Is<IReadOnlyCollection<string>>(names =>
-                names.Count == 2 && names.Contains("Хлеб") && names.Contains("Молоко") && !names.Contains("Сыр")),
+        await _precategorizedRepository.Received(1).GetCategoriesByNormalizedNamesAsync(
+            Arg.Is<IReadOnlyCollection<string>>(keys =>
+                keys.Count == 2 && keys.Contains("хлеб") && keys.Contains("молоко") && !keys.Contains("сыр")),
             Arg.Any<CancellationToken>());
     }
 
@@ -422,10 +427,10 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Кефир");
         ArrangeReceipt(item);
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal)
             {
-                ["Кефир"] = CommodityCategory.Dairy
+                ["кефир"] = CommodityCategory.Dairy
             });
 
         var service = CreateService();
@@ -446,9 +451,9 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Йогурт");
         ArrangeReceipt(item);
         _precategorizedRepository
-            .GetCategoriesByExactNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns<IReadOnlyDictionary<string, CommodityCategory>>(_ => throw new InvalidOperationException("queue is down"));
-        _aiClient.SuggestCategoryAsync("Йогурт", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("йогурт", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Dairy));
 
         var service = CreateService();
@@ -464,7 +469,7 @@ public class CommodityCategorizationServiceTests
     {
         var item = CreateCommodity(_receiptId, "Сок");
         ArrangeReceipt(item);
-        _aiClient.SuggestCategoryAsync("Сок", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("сок", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Beverages));
 
         var service = CreateService();
