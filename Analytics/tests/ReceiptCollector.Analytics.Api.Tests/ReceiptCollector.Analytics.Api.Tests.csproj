@@ -28,6 +28,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Паритетный тест PrecategorizedNormalizedNameMigrationTests применяет реальный файл
+         миграции; скрипт копируется в output (Scripts/), путь в тесте строится от
+         AppContext.BaseDirectory и не хардкодится (план T-03). -->
+    <None Include="..\..\src\ReceiptCollector.Analytics.Migrations\Scripts\20261109120000_add_precategorized_normalized_name.sql"
+          Link="Scripts/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\ReceiptCollector.Analytics.Api\ReceiptCollector.Analytics.Api.csproj" />
     <ProjectReference Include="..\..\src\ReceiptCollector.Analytics.Infrastructure\ReceiptCollector.Analytics.Infrastructure.csproj" />
   </ItemGroup>

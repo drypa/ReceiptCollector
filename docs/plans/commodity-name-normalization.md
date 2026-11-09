@@ -21,9 +21,9 @@
 | NN | Задача | Зависимости | Статус |
 | -- | ------ | ----------- | ------ |
 | 01 | Нормализатор: правило очистки + юнит-тесты | — | committed |
-| 02 | Схема: SQL-миграция, EF-модель, запись `normalized_name` при вставке | 01 | approved |
-| 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | pending |
-| 04 | Repository: sibling delete по ключу + `HasBlockingQueueEntryAsync` | 02 | pending |
+| 02 | Схема: SQL-миграция, EF-модель, запись `normalized_name` при вставке | 01 | committed |
+| 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | approved |
+| 04 | Repository: `HasBlockingQueueEntryAsync` + удаление мёртвой sibling-ветки из confirm | 02 | pending |
 | 05 | Resolver: очередь по очищенному ключу, ИИ по очищенному имени, переименование lookup | 04 | pending |
 | 06 | Фон предкатегоризации: pre-check очереди, ИИ и кэш по очищенному ключу | 04, 05 | pending |
 | 07 | Пакетный suggest и suggest чека: проверка ключей без изменения контрактов | 05 | pending |
@@ -59,15 +59,15 @@ cd Analytics && dotnet test --filter "FullyQualifiedName~<Fragment>"
 | 01 | Правило очистки в `CommodityNameNormalizer` + тесты | Domain | P0 | 0.5 | — |
 | 02 | SQL-миграция, EF-колонка/индексы, запись ключа при вставке, правка сидов тестов | Migrations/Infra | P0 | 1.0 | 01 |
 | 03 | Golden corpus + паритетный Testcontainers-тест миграции + контрольные запросы | Tests | P0 | 0.75 | 02 |
-| 04 | Sibling delete по `normalized_name`, `HasBlockingQueueEntryAsync` | Domain/Infra | P0 | 0.75 | 02 |
+| 04 | `HasBlockingQueueEntryAsync`, удаление мёртвой sibling-ветки из confirm | Domain/Infra | P0 | 0.5 | 02 |
 | 05 | Resolver: `GetCategoriesByNormalizedNamesAsync`, очередь/ИИ по очищенному имени | Infra | P0 | 1.25 | 04 |
 | 06 | Фон: pre-check, единственный `normalized`, ИИ по ключу | Infra | P0 | 1.0 | 04, 05 |
 | 07 | Пакетный suggest/чек: тесты ключей, без изменения контрактов | Tests | P1 | 0.5 | 05 |
 | 08 | Журнал: регресс сырого/очищенного имени, история не пересчитывается | Tests | P1 | 0.5 | 01 |
 | 09 | Финальная проверка, релизная инструкция, ручная приёмка | все | P0 | 0.75–1.0 | 01…08 |
 
-**Критический путь:** 01 → 02 → 04 → 05 → 06 → 09 (≈ 5.25–5.5 чел.-дн.).
-Суммарно последовательно ≈ 7.0–7.25 чел.-дн. до ручной приёмки.
+**Критический путь:** 01 → 02 → 04 → 05 → 06 → 09 (≈ 5.0–5.25 чел.-дн.).
+Суммарно последовательно ≈ 6.75–7.0 чел.-дн. до ручной приёмки.
 
 ## Общие инварианты для всех задач
 
@@ -199,7 +199,8 @@ cd Analytics && dotnet test
   - сырое имя > 256 → `false` (прежнее поведение не сломано).
 
 ### Что НЕ входит
-- Чтение/поиск по ключу, sibling delete по ключу, `HasBlockingQueueEntryAsync` (T-04, T-05).
+- Чтение/поиск по ключу, `HasBlockingQueueEntryAsync`, удаление мёртвой sibling-ветки из
+  `ConfirmAsync` (T-04, T-05).
 - Паритетный тест SQL ↔ C# и golden corpus (T-03).
 - **Применение миграции** на dev/prod — это шаг эксплуатации, а не код (раздел «Порядок применения
   миграции»); в задаче только скрипт и его комментарии.
@@ -296,39 +297,72 @@ cd Analytics && dotnet test
 
 ---
 
-## T-04. Repository: sibling delete по ключу + `HasBlockingQueueEntryAsync`
+## T-04. Repository: `HasBlockingQueueEntryAsync` + удаление мёртвой sibling-ветки из confirm
 
-**Приоритет:** P0 · **Оценка:** 0.75 чел.-дн. · **Зависит от:** T-02
+> **Правка 2026-11-09:** объём сокращён ревизией ADR-034 D1 после ревью T-02 (сводка
+> [`02-schema-normalized-name.md`](../reviews/commodity-name-normalization/02-schema-normalized-name.md),
+> раздел «Эскалация до старта T-04»).
+
+**Приоритет:** P0 · **Оценка:** 0.5 чел.-дн. · **Зависит от:** T-02
 
 ### Цель
-Дать слою хранения две операции по очищенному ключу (решения C1, D1): удаление «сестринских»
-`proposed`-строк при confirm и pre-check кандидатов фона. Поиск для suggest пока **не меняется**
-(переключение — T-05, чтобы промежуточное состояние не ломало очередь).
+Дать слою хранения C# pre-check кандидатов фона по очищенному ключу (решение C1 — без изменений) и
+**удалить** из `ConfirmAsync` ветку удаления «сестринских» `proposed`-строк по сырому имени.
+Миграция T-02 (коммит `4695f69`) удалила все `proposed` и создала глобальный частичный unique
+`ux_precategorized_commodities_normalized_proposed (normalized_name) WHERE status = 0`, поэтому
+состояние «sibling `proposed` с одним очищенным ключом» недостижимо, а delete-ветка — мёртвый код
+(ADR-034 **D1** «sibling delete удаляется как мёртвая ветка — выбран», **D4** «defense-in-depth —
+отклонено», п. 4.5). Остальная семантика confirm не меняется: `commodities` — по **точному сырому**
+имени и только строки без категории (NFR-1), та же транзакция, те же статусы и коды
+`Applied`/`Conflict`/`NotFound`. Поиск для suggest пока **не меняется** (переключение — T-05, чтобы
+промежуточное состояние не ломало очередь).
 
 ### Что входит
 - **Domain:** `Modules/Commodities/IPrecategorizedCommodityRepository.cs`
   - новый метод `Task<bool> HasBlockingQueueEntryAsync(string normalizedName, Guid merchantId,
     CancellationToken ct = default)` c XML-doc: «строка с тем же `normalized_name` у этого магазина
-    в любом статусе **или** любая `proposed`-строка с тем же ключом у любого магазина»;
-  - `ConfirmAsync`-док: sibling delete — по `normalized_name`; `commodities` — по точному имени.
+    в любом статусе **или** любая `proposed`-строка с тем же ключом у любого магазина» (C1 — без
+    изменений);
+  - `ConfirmAsync`-док: убрать упоминание sibling delete и описать три шага ADR-034 п. 4.5 —
+    `UPDATE commodities` по точному сырому имени без категории → `status = applied` + `applied_at`
+    → commit; «сестринские `proposed` не ищутся и не удаляются: глобальный partial unique по
+    `normalized_name` гарантирует, что подтверждаемая строка — единственная `proposed` своего
+    очищенного ключа (D1)».
 - **Infrastructure:** `Persistence/Postgres/PrecategorizedCommodityRepository.cs`
   - `HasBlockingQueueEntryAsync` — один индексируемый запрос:
     `p.NormalizedName == key && (p.MerchantId == merchantId || p.Status == Proposed)`
     (`AsNoTracking().AnyAsync`), guard на пустой ключ как у `GetKnownCategoryByNameAsync`;
-  - `ConfirmAsync`: удаление sibling'ов — `p.NormalizedName == entity.NormalizedName &&
-    p.Status == Proposed && p.Id != entity.Id`; обновление `commodities` **не меняется** (точное
-    сырое имя, NFR-1/решение D1); транзакция и статусы не меняются.
+  - `ConfirmAsync`: **удалить** ветку удаления sibling `proposed` по сырому имени; ветку по
+    `normalized_name` **не вводить** (D1/D4). Ничего не заменять: `UPDATE commodities` по точному
+    сырому имени без категории (NFR-1/решение D1), `status = applied` + `applied_at`, та же
+    транзакция и статусы; отклонение (`DELETE .../{id}`) — как сейчас, ровно одна строка по `id`.
 - **Тесты:** `Infrastructure/PrecategorizedCommodityRepositoryTests.cs` (Testcontainers):
   - `HasBlockingQueueEntryAsync`: блокирует `applied` того же магазина; блокирует `proposed` того же
     магазина; блокирует `proposed` другого магазина; **не** блокирует `applied` другого магазина;
     `false` при другом ключе и на пустой таблице;
   - `..._matches_by_cleaned_key`: строка хранится с ключом `туалетная бумага "сваё" (3сл, 4р)`,
     запрос — с ключом варианта `2195738 Туалетная бумага "СВАЁ" (3сл, 4р) 4810981001530`;
-  - `ConfirmAsync_deletes_sibling_proposed_by_normalized_key`: два `proposed` с одним ключом
-    (разные магазины, разные сырые имена) → sibling удалён, `applied` остаётся; `proposed` с другим
-    ключом не удалён;
   - `ConfirmAsync_updates_commodities_only_by_exact_raw_name` (регресс D1): товар-вариант без кода
-    не получает категорию при подтверждении строки с кодом.
+    не получает категорию при подтверждении строки с кодом;
+  - **исключено из плана:** кейс `ConfirmAsync_deletes_sibling_proposed_by_normalized_key` —
+    посев двух `proposed` с одним очищенным ключом **невыполним in principle** (вторая вставка
+    отклоняется `23505` по `ux_precategorized_commodities_normalized_proposed`), а тест с
+    искусственным сидом в обход собственного индекса запрещён ADR-034 D4. Регресс-контроль
+    очищенного ключа уже есть в T-02 —
+    `TryAddProposalAsync_returns_false_when_proposed_with_same_normalized_key_exists_at_another_merchant`
+    (уникальный `proposed` на ключ); тестом T-04 не дублируется;
+  - **правка существующих тестов — меняются утверждения:**
+    `ConfirmAsync_updates_commodities_of_all_users_and_removes_sibling_proposals` и workflow-аналог
+    `Confirm_updates_two_users_marks_applied_removes_siblings_and_fills_cache`. После удаления ветки
+    «сестринская» proposed (искусственный сид T-02 с явным `normalizedName: "sibling"`, в проде
+    недостижим) **остаётся** в таблице: `Assert.Null(FindAsync(siblingId))` → `Assert.NotNull(...)`
+    и статус `Proposed`. Переписать оба теста на «confirm переводит в `applied` только свою строку,
+    остальные не трогает» — имена без `removes_sibling(s)` (например,
+    `ConfirmAsync_updates_commodities_of_all_users_and_touches_only_confirmed_row` и
+    `Confirm_updates_two_users_marks_applied_and_touches_only_confirmed_row_and_fills_cache`),
+    комментарии про «переключение на ключ — T-04» удалить; сид менять не нужно (индекс он проходит);
+    остальные утверждения (`UpdatedCommodities = 2`, `Conflict`/`NotFound`, наполнение кэша,
+    «уже категоризированный не тронут», «`Молоко 1%` не тронута») — без изменений.
 - **Тесты (механическая правка):** `Infrastructure/PrecategorizationBackgroundServiceTests.cs` —
   fake `IPrecategorizedCommodityRepository` получает реализацию `HasBlockingQueueEntryAsync`
   (по умолчанию `false`), иначе сборка тестов не компилируется.
@@ -336,18 +370,25 @@ cd Analytics && dotnet test
 ### Что НЕ входит
 - Переключение lookupa на `normalized_name` и переименование `GetCategoriesByExactNamesAsync`
   (T-05), вызовы из resolver и фона (T-05, T-06).
+- **Любая замена удалённой ветки:** возврат sibling delete по сырому имени или по `normalized_name`,
+  «defense-in-depth» и тесты с искусственным посевом двух `proposed` одного очищенного ключа —
+  ADR-034 D1/D4. Ослабление partial unique индекса — повод пересмотреть решение отдельным ADR,
+  а не страховка недостижимым кодом.
 - SQL в `GetCandidatesAsync` — **без изменений** (точные NOT EXISTS остаются дополнительным
   фильтром, ADR-034 C1 «безвредная избыточность»).
 - Глобальный existing-шаг фона (`GetKnownCategoryByNameAsync`) — остаётся по точному имени
   (ADR-034, открытый вопрос 4).
-- Массовое обновление `commodities` по очищенному ключу — запрещено (NFR-1, D2 отклонено).
+- Массовое обновление `commodities` по очищенному ключу — запрещено (NFR-1, D2/D3 отклонены).
 
 ### Тесты / ручная проверка
 - Автотесты выше. Ручной сценарий — в T-09 (подтверждение в `/precategorized`).
 
 ### Критерии готовности
 - `dotnet test` зелёный; подтверждение в `/precategorized` отвечает прежними телами/кодами.
-- В репозитории нет запросов, нормализующих имя в SQL (только C#-ключ параметром).
+- В `ConfirmAsync` не осталось операций удаления `proposed` (кроме отклонения строки по `id`);
+  в репозитории нет запросов, нормализующих имя в SQL (только C#-ключ параметром).
+- Утверждения изменены ровно в двух confirm-тестах (репозиторий + workflow) со ссылкой на ADR-034
+  D1/D4 в сводке задачи; других изменений утверждений нет.
 
 ### Проверка
 ```bash
@@ -732,14 +773,14 @@ EF-модели, функции в ней не было бы), нормализ�
 |---|---|
 | FR-1 (правило очистки, границы, fallback) | T-01 (реализация и юнит-тесты), T-03 (corpus), T-02 (ключ при вставке), T-03 (backfill) |
 | FR-2 (ИИ получает очищенное имя во всех suggest) | T-05 (чек и «Товары» — resolver), T-06 (фон), T-07 (проверка), T-09 (ручная приёмка) |
-| FR-3 (единый ключ: кэш, дедупликация, очередь, группировка, журнал) | T-02 (колонка/запись), T-04 (pre-check, sibling delete), T-05 (lookup/дедуп/группировка), T-06 (фон), T-07 (кэш/дедуп страницы), T-08 (`normalized_name` журнала) |
+| FR-3 (единый ключ: кэш, дедупликация, очередь, группировка, журнал) | T-02 (колонка/запись), T-04 (pre-check по очищенному ключу; sibling delete удалён как мёртвый код — D1), T-05 (lookup/дедуп/группировка), T-06 (фон), T-07 (кэш/дедуп страницы), T-08 (`normalized_name` журнала) |
 | FR-4 (сырые данные и история не теряются) | общий инвариант 2, T-04 (confirm по точному имени), T-08 (регресс журнала), T-09 |
 | FR-5 (миграция: удалить `proposed`, сохранить `applied`, пустая таблица, идемпотентность) | T-02 (скрипт + порядок), T-03 (паритетный тест + контрольные запросы), T-09 (проверка на dev) |
-| NFR-1 (нет автопроставления) | T-04 (D1: только sibling delete), T-05, T-06, T-07 (поведение не меняется), T-09 |
+| NFR-1 (нет автопроставления) | T-04 (D1: `commodities` — только по точному сырому имени; sibling delete удалён как мёртвая ветка, D4 «defense-in-depth» отклонено), T-05, T-06, T-07 (поведение не меняется), T-09 |
 | NFR-2 (интерфейс и контракты API не меняются) | T-05, T-06, T-07 (без правок DTO/эндпоинтов), T-09 (сверка кодов/тел) |
 | NFR-3 (детерминизм, без побочных эффектов, несущественные накладные расходы) | T-01 (чистая функция, `GeneratedRegex`/`NonBacktracking`), T-04 (один индексируемый запрос на кандидата), T-05 (один batch-запрос), T-09 |
 | NFR-4 (существующие тесты зелёные) | все задачи (инвариант 7), T-09 (финальный прогон) |
-| Критерии приёмки задачи | T-01 (юнит-тесты и границы), T-02/T-03/T-09 (миграция), T-04/T-05 (поиск по очищенному ключу), T-05/T-07 (ИИ и равенство ключей), T-08 (журнал), T-09 (`dotnet test`, контракты, отсутствие автоприменений) |
+| Критерии приёмки задачи | T-01 (юнит-тесты и границы), T-02/T-03/T-09 (миграция), T-04/T-05 (pre-check и поиск по очищенному ключу), T-05/T-07 (ИИ и равенство ключей), T-08 (журнал), T-09 (`dotnet test`, контракты, отсутствие автоприменений) |
 | Edge cases задачи | T-01 (все кейсы), T-03 (те же кейсы в backfill), T-09 (ручная проверка «только код»/короткие числа) |
 | ADR-034 п. 2 «дрейф SQL ↔ C#», открытый вопрос 6 | T-03, раздел «Ответ на открытый вопрос №6 ADR» |
 

@@ -7,7 +7,6 @@ public class CommodityNameNormalizerTests
 {
     [Theory]
     [InlineData("Молоко", "молоко")]
-    [InlineData("  МОЛОКО  3.2%  ", "молоко 3.2%")]
     [InlineData("Чай\tЛиптон", "чай липтон")]
     [InlineData("Хлеб   Бородинский", "хлеб бородинский")]
     [InlineData("coca-cola", "coca-cola")]
@@ -17,54 +16,14 @@ public class CommodityNameNormalizerTests
         Assert.Equal(expected, CommodityNameNormalizer.NormalizeName(input));
     }
 
-    // Каноническое правило очистки — таблица примеров ADR-034 п. 1 (все строки, включая
-    // документированные ограничения: дефис внутри номера и кластер через запятую).
+    // Каноническое правило очистки — golden corpus (таблица примеров ADR-034 п. 1, границы
+    // и документированные ограничения). Единственный источник кейсов — CommodityNameNormalizationCorpus,
+    // тот же corpus проверяет SQL-backfill миграции (PrecategorizedNormalizedNameMigrationTests).
     [Theory]
-    // Четыре примера из задачи.
-    [InlineData("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", "пирог с вишней по ре")]
-    [InlineData("2444436000001 СЕТ ДУЭТ 256г", "сет дуэт 256г")]
-    [InlineData("*3455614 РЖ.КРАЙ Хлеб нар.300г", "рж.край хлеб нар.300г")]
-    [InlineData(
-        "2195738 Туалетная бумага \"СВАЁ\" (3сл, 4р) 4810981001530",
-        "туалетная бумага \"сваё\" (3сл, 4р)")]
-    // Короткие числа и бренд не снимаются.
-    [InlineData("АИ-95", "аи-95")]
-    [InlineData("1000 ЛЕПЕСТКОВ", "1000 лепестков")]
-    [InlineData("256г", "256г")]
-    [InlineData("нар.300г", "нар.300г")]
-    [InlineData("(3сл, 4р)", "(3сл, 4р)")]
-    [InlineData("РЖ.КРАЙ", "рж.край")]
-    // Имя состоит только из мусора/кода — fallback на нормализованный оригинал.
-    [InlineData("*3455614", "*3455614")]
-    [InlineData("2417268000006", "2417268000006")]
-    [InlineData("*345", "*345")]
-    // Ведущий мусор и код снимаются полностью.
-    [InlineData("№ 2417268000006 хлеб", "хлеб")]
-    [InlineData("**##№№ 2417268000006 хлеб", "хлеб")]
-    // Хвостовой код и кластер кодов через пробел.
-    [InlineData("пирог 123456", "пирог")]
-    [InlineData("пирог 12345", "пирог 12345")]
-    [InlineData("пирог 123456 789012", "пирог")]
-    // Документированные ограничения правила: дефис и запятая внутри номера не распознаются.
-    [InlineData("241-7268000006 хлеб", "241-7268000006 хлеб")]
-    [InlineData("хлеб 241-7268000006", "хлеб 241-7268000006")]
-    [InlineData("хлеб 123456, 789012", "хлеб 123456,")]
-    // Хвостовой мусор не снимается; 5-значный сосед не мешает снятию хвостового кода.
-    [InlineData("хлеб *", "хлеб *")]
-    [InlineData("хлеб 12345 789012", "хлеб 12345")]
+    [MemberData(nameof(CommodityNameNormalizationCorpus.TheoryCases), MemberType = typeof(CommodityNameNormalizationCorpus))]
     public void NormalizeName_applies_canonical_cleaning_rule(string input, string expected)
     {
         Assert.Equal(expected, CommodityNameNormalizer.NormalizeName(input));
-    }
-
-    [Theory]
-    [InlineData("хлеб 123456 пирог")]
-    [InlineData("хлеб 2417268000006 пирог с вишней")]
-    public void NormalizeName_does_not_strip_code_in_the_middle(string input)
-    {
-        var result = CommodityNameNormalizer.NormalizeName(input);
-
-        Assert.Equal(input, result);
     }
 
     [Fact]
