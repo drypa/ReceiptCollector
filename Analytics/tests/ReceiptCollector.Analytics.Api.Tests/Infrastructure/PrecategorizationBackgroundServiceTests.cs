@@ -169,10 +169,11 @@ public sealed class PrecategorizationBackgroundServiceTests
         });
         harness.Monitor.Idle = true;
         harness.Repository.Candidates = Candidates(3);
+        // T-06: в ИИ уходит очищенное имя — ключи стаба в очищенной форме (механическая правка).
         harness.Ai.Behavior = name => name switch
         {
-            "Товар 1" => new AiSuggestionResult(CommodityCategory.Undefined),
-            "Товар 2" => throw new AiClientException("boom"),
+            "товар 1" => new AiSuggestionResult(CommodityCategory.Undefined),
+            "товар 2" => throw new AiClientException("boom"),
             _ => new AiSuggestionResult(CommodityCategory.Dairy)
         };
 
@@ -220,6 +221,143 @@ public sealed class PrecategorizationBackgroundServiceTests
         harness.Time.Advance(CheckInterval);
         await WaitUntilAsync(() => harness.Repository.ReceivedCursors.Count == 2);
         Assert.Equal(new CandidateCursor("Товар 2", merchantId), harness.Repository.ReceivedCursors[1]);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Precheck_blocks_candidate_without_cache_ai_or_proposal_and_moves_cursor()
+    {
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(2);
+        // C1: у «Товар 1» уже есть строка очереди по очищенному ключу — кандидат пропускается.
+        harness.Repository.Blocking = (normalizedName, _) => normalizedName == "товар 1";
+        harness.Ai.Behavior = _ => new AiSuggestionResult(CommodityCategory.Dairy);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 1);
+
+        // Заблокированный кандидат не доходит ни до кэша, ни до ИИ, ни до вставки:
+        // кэш спрошен только для «Товар 2», вызов ИИ один, строка добавлена только за «Товар 2».
+        Assert.Equal(1, harness.Cache.TryGetCalls);
+        Assert.Equal(["товар 2"], harness.Ai.Calls);
+        // Блокировка по C1 — рутинный пропуск (Debug), предупреждений нет.
+        Assert.Equal(0, harness.Logger.WarningCount);
+        var added = Assert.Single(harness.Repository.Added);
+        Assert.Equal("Товар 2", added.Candidate.Name);
+        // Pre-check выполнен по очищенному ключу для обоих кандидатов.
+        var merchantId = harness.Repository.Candidates.First().MerchantId;
+        Assert.Equal([("товар 1", merchantId), ("товар 2", merchantId)], harness.Repository.PreChecks);
+
+        // D14: курсор двигается и мимо пропущенного кандидата — следующая сессия продолжается с «Товар 2».
+        harness.Time.Advance(CheckInterval);
+        await WaitUntilAsync(() => harness.Repository.ReceivedCursors.Count == 2);
+        Assert.Equal(new CandidateCursor("Товар 2", merchantId), harness.Repository.ReceivedCursors[1]);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Precheck_error_skips_candidate_with_warning_and_session_continues()
+    {
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(2);
+        // ADR-034 п. 4.3: ошибка pre-check'а — fail-safe, без дубля предложения.
+        harness.Repository.Blocking = (normalizedName, _) => normalizedName == "товар 1"
+            ? throw new InvalidOperationException("db is down")
+            : false;
+        harness.Ai.Behavior = _ => new AiSuggestionResult(CommodityCategory.Dairy);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 1);
+
+        // FR-2.6: ошибка одной позиции — Warning (существующий per-candidate catch),
+        // «Товар 1» пропущен (в ИИ не уходил, строки нет), сессия продолжилась со «Товар 2».
+        Assert.True(harness.Logger.WarningCount >= 1);
+        Assert.Equal(["товар 2"], harness.Ai.Calls);
+        var added = Assert.Single(harness.Repository.Added);
+        Assert.Equal("Товар 2", added.Candidate.Name);
+
+        harness.Time.Advance(CheckInterval);
+        await WaitUntilAsync(() => harness.Repository.ReceivedCursors.Count == 2);
+        var merchantId = harness.Repository.Candidates.Last().MerchantId;
+        Assert.Equal(new CandidateCursor("Товар 2", merchantId), harness.Repository.ReceivedCursors[1]);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Ai_and_precheck_receive_cleaned_name_and_proposal_keeps_raw_name()
+    {
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero
+        });
+        harness.Monitor.Idle = true;
+        var merchantId = Guid.NewGuid();
+        const string rawName = "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ";
+        harness.Repository.Candidates = new[] { new CandidateCursor(rawName, merchantId) };
+        harness.Ai.Behavior = _ => new AiSuggestionResult(CommodityCategory.Bakery);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 1);
+
+        // FR-2 ADR-034: в ИИ уходит очищенное имя (захват аргумента).
+        Assert.Single(harness.Ai.Calls);
+        Assert.Equal(CommodityNameNormalizer.NormalizeName(rawName), harness.Ai.Calls[0]);
+        Assert.Equal("пирог с вишней по ре", harness.Ai.Calls[0]);
+
+        // C1: pre-check — по тому же очищенному ключу и магазину кандидата.
+        Assert.Equal([("пирог с вишней по ре", merchantId)], harness.Repository.PreChecks);
+
+        // FR-4: TryAddProposalAsync получает сырое имя (очищенный ключ пишет репозиторий — T-02).
+        var added = Assert.Single(harness.Repository.Added);
+        Assert.Equal(rawName, added.Candidate.Name);
+        Assert.Equal(merchantId, added.Candidate.MerchantId);
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Precheck_false_lets_all_candidates_through_unchanged_flow()
+    {
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero
+        });
+        harness.Monitor.Idle = true;
+        harness.Repository.Candidates = Candidates(2);
+        // applied-строка другого магазина даёт HasBlockingQueueEntryAsync == false (EF-семантика — T-04);
+        // на уровне фейка: pre-check ничего не блокирует — прежний поток без изменений.
+        harness.Repository.Blocking = (_, _) => false;
+        harness.Ai.Behavior = _ => new AiSuggestionResult(CommodityCategory.Dairy);
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 2);
+
+        Assert.Equal(2, harness.Repository.PreChecks.Count);
+        Assert.Equal(["товар 1", "товар 2"], harness.Ai.Calls);
+        Assert.Equal(["Товар 1", "Товар 2"], harness.Repository.Added.Select(a => a.Candidate.Name));
 
         await harness.Service.StopAsync(CancellationToken.None);
     }
@@ -543,6 +681,12 @@ public sealed class PrecategorizationBackgroundServiceTests
 
         public List<(CandidateCursor Candidate, CommodityCategory Category)> Added { get; } = new();
 
+        /// <summary>Решение pre-check'а (C1) по <c>(normalized_name, merchant_id)</c>; по умолчанию — ничего не заблокировано.</summary>
+        public Func<string, Guid, bool> Blocking { get; set; } = (_, _) => false;
+
+        /// <summary>Пары <c>(normalized_name, merchant_id)</c> всех вызовов pre-check'а.</summary>
+        public List<(string NormalizedName, Guid MerchantId)> PreChecks { get; } = new();
+
         public Task<IReadOnlyCollection<CandidateCursor>> GetCandidatesAsync(
             CandidateCursor? after,
             int limit,
@@ -566,13 +710,16 @@ public sealed class PrecategorizationBackgroundServiceTests
                 ? (CommodityCategory?)category
                 : null);
 
-        // Механическая реализация под новый метод интерфейса (T-04): фон pre-check пока не
-        // вызывает (подключение — T-06), по умолчанию «ничего не заблокировано».
+        // Pre-check (ADR-034 C1, T-06): решение задаёт тест через Blocking; вызовы записываются,
+        // чтобы проверять очищенный ключ и магазин кандидата.
         public Task<bool> HasBlockingQueueEntryAsync(
             string normalizedName,
             Guid merchantId,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
+        {
+            PreChecks.Add((normalizedName, merchantId));
+            return Task.FromResult(Blocking(normalizedName, merchantId));
+        }
 
         public Task<bool> TryAddProposalAsync(
             CandidateCursor candidate,
@@ -616,10 +763,16 @@ public sealed class PrecategorizationBackgroundServiceTests
 
         public int Count => _items.Count;
 
+        /// <summary>Число обращений <c>TryGet</c> — проверка, что заблокированный кандидат не доходит до кэша.</summary>
+        public int TryGetCalls { get; private set; }
+
         public void Add(string normalizedName, CommodityCategory category) => _items[normalizedName] = category;
 
         public bool TryGet(string normalizedName, out CommodityCategory category)
-            => _items.TryGetValue(normalizedName, out category);
+        {
+            TryGetCalls++;
+            return _items.TryGetValue(normalizedName, out category);
+        }
 
         public bool TryAdd(string normalizedName, CommodityCategory category)
         {

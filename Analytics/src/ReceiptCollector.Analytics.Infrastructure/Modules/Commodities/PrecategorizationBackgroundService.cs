@@ -300,9 +300,14 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
     }
 
     /// <summary>
-    /// Обработка одного кандидата: глобальный existing-запрос → in-memory кэш → ИИ (D1, FR-3.6, FR-4.3).
+    /// Обработка одного кандидата (ADR-034 п. 4.3): pre-check очереди по очищенному ключу →
+    /// глобальный existing-запрос по точному сырому имени → in-memory кэш по очищенному имени →
+    /// ИИ с очищенным именем (D1, FR-3.6, FR-4.3; ADR-034 C1, FR-2).
+    /// Очищенный ключ вычисляется <b>один раз</b> на кандидата и используется для pre-check'а,
+    /// кэша и ИИ; сырое имя сохраняется в строке очереди (его пишет репозиторий) и в логах (FR-4).
     /// Результат ИИ сохраняется сразу; пауза <c>IntervalBetweenCalls</c> выдерживается циклом сессии
-    /// между вызовами (D4, FR-2.4, FR-2.5).
+    /// между вызовами (D4, FR-2.4, FR-2.5). Ошибка pre-check'а попадает в существующий
+    /// per-candidate <c>catch</c> цикла сессии (Warning, пропуск — fail-safe, без дубля предложения).
     /// </summary>
     private async Task ProcessCandidateAsync(
         CandidateCursor candidate,
@@ -324,6 +329,27 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
             return;
         }
 
+        // ADR-034 п. 4.3: единственный расчёт очищенного ключа на кандидата —
+        // дальше pre-check, кэш и ИИ используют только его.
+        var normalized = CommodityNameNormalizer.NormalizeName(name);
+
+        // C1: очередь уже содержит строку с этим очищенным ключом (у этого магазина в любом
+        // статусе или proposed у любого магазина) — кандидат пропускается до existing/кэша/ИИ,
+        // вызов ИИ не тратится. Курсор двигает вызывающий код.
+        var blocked = await repository
+            .HasBlockingQueueEntryAsync(normalized, candidate.MerchantId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (blocked)
+        {
+            _logger.LogDebug(
+                "Skipping precategorization candidate '{ProductName}' (merchant {MerchantId}): the queue already has an entry for its normalized key.",
+                name,
+                candidate.MerchantId);
+            return;
+        }
+
+        // Глобальный existing — по точному сырому имени (ADR-034, открытый вопрос 4: без изменений).
         var knownCategory = await repository
             .GetKnownCategoryByNameAsync(name, cancellationToken)
             .ConfigureAwait(false);
@@ -334,7 +360,6 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
             return;
         }
 
-        var normalized = CommodityNameNormalizer.NormalizeName(name);
         if (cache.TryGet(normalized, out var cachedCategory) && cachedCategory != CommodityCategory.Undefined)
         {
             await AddProposalAsync(repository, candidate, cachedCategory, state, cancellationToken).ConfigureAwait(false);
@@ -361,8 +386,9 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         try
         {
             var callStartedAt = _timeProvider.GetUtcNow();
+            // FR-2 ADR-034: в ИИ уходит очищенное имя; сырое имя остаётся только в логах (FR-4).
             suggestion = await aiClient
-                .SuggestCategoryAsync(name, CategoryNames, cancellationToken)
+                .SuggestCategoryAsync(normalized, CategoryNames, cancellationToken)
                 .ConfigureAwait(false);
             callDuration = _timeProvider.GetUtcNow() - callStartedAt;
         }
@@ -409,6 +435,11 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         await AddProposalAsync(repository, candidate, category, state, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Вставка proposed-строки: репозиторий получает <b>сырое</b> имя кандидата и сам вычисляет
+    /// <c>normalized_name</c> (T-02); unique-конфликт по любому из индексов — прежний no-op
+    /// (<c>false</c>, сессия продолжается).
+    /// </summary>
     private async Task AddProposalAsync(
         IPrecategorizedCommodityRepository repository,
         CandidateCursor candidate,
