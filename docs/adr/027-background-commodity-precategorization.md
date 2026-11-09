@@ -41,6 +41,14 @@
 > `PUT .../category` её не меняет; backfill = текущее значение). Статусы очереди, транзакция
 > confirm и отклонение (DELETE) без изменений. См.
 > [ADR 033](033-categorization-decision-log.md).
+>
+> **Дополнено (2026-11-09):** очередь получает колонку `normalized_name` (сырое `name` сохраняется
+> для UI/журнала); поиск для suggest идёт по очищенному ключу, sibling `proposed` при confirm
+> удаляются по нему, появляется глобальный partial unique `(normalized_name) WHERE status = 0`.
+> Фон проверяет кандидатов C#-pre-check'ом по очищенному ключу (same merchant any status / global
+> proposed) и передаёт очищенное имя в ИИ. Миграция удаляет `proposed`-строки и backfill'ит
+> `applied`; статусы, транзакция confirm и стиль админских эндпоинтов — без изменений. См.
+> [ADR 034](034-commodity-name-normalization.md).
 
 ## Контекст
 
