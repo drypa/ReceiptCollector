@@ -13,6 +13,8 @@ namespace ReceiptCollector.Analytics.Api.Tests;
 /// Тесты единой точки записи журнала категоризации (T-03, ADR-033 п. 6, C1/NFR-3):
 /// фильтрация невалидных черновиков, единственная нормализация имени, серверное время,
 /// один батч-INSERT и контракт «никогда не бросает».
+/// Регресс T-08 (ADR-034 п. 4.4 / FR-4): новые события хранят сырое <c>commodity_name</c>
+/// и очищенный <c>normalized_name</c>, накопленная история журнала не пересчитывается.
 /// </summary>
 public class CategorizationDecisionRecorderTests
 {
@@ -49,6 +51,76 @@ public class CategorizationDecisionRecorderTests
         Assert.Equal(_userId, decision.AcceptedBy);
         Assert.True(decision.AcceptedByAdmin);
         Assert.Equal(Now, decision.CreatedAt);
+    }
+
+    [Fact]
+    public async Task RecordAsync_name_with_leading_ean_keeps_raw_name_and_cleans_normalized_name()
+    {
+        // ADR-034 п. 4.4 / F1, FR-4: сырое имя не переписывается, очистка живёт только
+        // в производном normalized_name.
+        var draft = CreateDraft("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+
+        var decisions = await RecordAndCaptureAsync(CreateRecorder(), draft);
+
+        var decision = Assert.Single(decisions);
+        Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", decision.CommodityName);
+        Assert.Equal("пирог с вишней по ре", decision.NormalizedName);
+    }
+
+    [Fact]
+    public async Task RecordAsync_code_only_name_gets_non_empty_fallback_within_column_guard()
+    {
+        // FR-1/FR-4: имя из одного кода не даёт пустой ключ — нормализатор возвращает base.
+        // Второй вариант проверяет форму fallback'а: вход `*  #3455614` после collapse даёт
+        // `* #3455614`, то есть normalized_name не повторяет вход буквально.
+        var codeOnly = CreateDraft("*3455614");
+        var noisyCodeOnly = CreateDraft("*  #3455614");
+
+        var decisions = await RecordAndCaptureAsync(CreateRecorder(), codeOnly, noisyCodeOnly);
+
+        Assert.Equal(2, decisions.Count);
+
+        var plain = Assert.Single(decisions, decision => decision.CommodityName == "*3455614");
+        Assert.Equal("*3455614", plain.NormalizedName);
+
+        var noisy = Assert.Single(decisions, decision => decision.CommodityName == "*  #3455614");
+        Assert.Equal("* #3455614", noisy.NormalizedName);
+
+        Assert.All(decisions, decision => Assert.False(string.IsNullOrWhiteSpace(decision.NormalizedName)));
+        Assert.All(decisions, decision => Assert.True(decision.NormalizedName.Length <= MaxNameLength));
+    }
+
+    [Fact]
+    public async Task RecordAsync_max_length_name_with_leading_code_is_written_with_shorter_normalized_name()
+    {
+        // Guard 256 проверяется по сырому имени; очистка только сокращает normalized_name.
+        const string leadingCode = "2417268000006 ";
+        var rawName = leadingCode + new string('Я', MaxNameLength - leadingCode.Length);
+
+        var decisions = await RecordAndCaptureAsync(CreateRecorder(), CreateDraft(rawName));
+
+        var decision = Assert.Single(decisions);
+        Assert.Equal(MaxNameLength, decision.CommodityName.Length);
+        Assert.Equal(rawName, decision.CommodityName);
+        Assert.True(decision.NormalizedName.Length <= MaxNameLength);
+        Assert.Equal(new string('я', MaxNameLength - leadingCode.Length), decision.NormalizedName);
+    }
+
+    [Fact]
+    public async Task RecordAsync_variants_with_and_without_code_share_normalized_name_but_not_raw_name()
+    {
+        // ADR-033 (ключ сочетания / E1): ключ остаётся по сырому имени, поэтому варианты
+        // с кодом и без остаются двумя разными событиями, хотя очищенный ключ у них общий.
+        var withCode = CreateDraft("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        var withoutCode = CreateDraft("ПИРОГ С ВИШНЕЙ ПО РЕ");
+
+        var decisions = await RecordAndCaptureAsync(CreateRecorder(), withCode, withoutCode);
+
+        Assert.Equal(2, decisions.Count);
+        Assert.Equal("пирог с вишней по ре", Assert.Single(decisions.Select(d => d.NormalizedName).Distinct()));
+        Assert.Equal(2, decisions.Select(d => d.CommodityName).Distinct().Count());
+        Assert.Contains(decisions, d => d.CommodityName == "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        Assert.Contains(decisions, d => d.CommodityName == "ПИРОГ С ВИШНЕЙ ПО РЕ");
     }
 
     [Theory]
