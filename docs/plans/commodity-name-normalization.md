@@ -25,8 +25,8 @@
 | 03 | Golden corpus + Testcontainers-паритет SQL-backfill ↔ C# + контрольные запросы | 02 | committed |
 | 04 | Repository: `HasBlockingQueueEntryAsync` + удаление мёртвой sibling-ветки из confirm | 02 | committed |
 | 05 | Resolver: очередь по очищенному ключу, ИИ по очищенному имени, переименование lookup | 04 | committed |
-| 06 | Фон предкатегоризации: pre-check очереди, ИИ и кэш по очищенному ключу | 04, 05 | approved |
-| 07 | Пакетный suggest и suggest чека: проверка ключей без изменения контрактов | 05 | pending |
+| 06 | Фон предкатегоризации: pre-check очереди, ИИ и кэш по очищенному ключу | 04, 05 | committed |
+| 07 | Пакетный suggest и suggest чека: проверка ключей без изменения контрактов | 05 | approved |
 | 08 | Журнал решений: регресс (сырое имя + очищенный `normalized_name`) | 01 | pending |
 | 09 | Финальная проверка, релизная инструкция, ручная приёмка | 01…08 | pending |
 

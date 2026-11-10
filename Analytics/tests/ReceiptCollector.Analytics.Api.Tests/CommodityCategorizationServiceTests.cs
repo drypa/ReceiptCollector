@@ -479,6 +479,94 @@ public class CommodityCategorizationServiceTests
         Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
     }
 
+    // ---- T-07: ключи suggest чека (ADR-034 п. 4.1, FR-2/FR-3) ----
+
+    [Fact]
+    public async Task Suggest_sends_cleaned_name_to_ai_and_returns_raw_name()
+    {
+        // FR-2: в промпт ИИ уходит очищенное имя; name в ответе остаётся сырым (FR-4/NFR-2).
+        var item = CreateCommodity(_receiptId, "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        ArrangeReceipt(item);
+        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
+
+        var service = CreateService();
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
+        Assert.Equal((int)CommodityCategory.Bakery, suggestion.CategoryId);
+        Assert.Equal("Хлеб и выпечка", suggestion.CategoryName);
+        Assert.Null(suggestion.Error);
+        Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", suggestion.Name);
+
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "пирог с вишней по ре",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+        await _aiClient.DidNotReceive().SuggestCategoryAsync(
+            Arg.Is<string>(name => name.Contains("2417268000006", StringComparison.Ordinal)),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Suggest_variant_without_code_comes_from_cache_on_cleaned_key_without_second_ai_call()
+    {
+        // Сценарий задачи (п. 1–2): после предложения для варианта с кодом категория лежит в кэше
+        // под очищенным ключом (ADR-019), поэтому вариант без кода получает cache, а не новый ИИ.
+        var withCode = CreateCommodity(_receiptId, "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        var withoutCode = CreateCommodity(_receiptId, "ПИРОГ С ВИШНЕЙ ПО РЕ");
+        ArrangeReceipt(withCode);
+        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
+
+        var service = CreateService();
+        var first = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+        Assert.Equal(CategorizationSourceNames.Ai, Assert.Single(first.Items).Source);
+
+        // Подтверждение пользователем пишет категорию в кэш (FR-1.3 ADR-009); здесь эмулируем попадание.
+        ArrangeCacheHit("пирог с вишней по ре", CommodityCategory.Bakery);
+        ArrangeReceipt(withoutCode);
+        _cache.ClearReceivedCalls();
+
+        var second = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(second.Items);
+        Assert.Equal(CategorizationSourceNames.Cache, suggestion.Source);
+        Assert.Equal((int)CommodityCategory.Bakery, suggestion.CategoryId);
+        Assert.Equal("ПИРОГ С ВИШНЕЙ ПО РЕ", suggestion.Name);
+
+        // Кэш ищется по очищенному ключу; второго вызова ИИ нет.
+        _cache.Received(1).TryGet("пирог с вишней по ре", out Arg.Any<CommodityCategory>());
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Suggest_without_ai_base_url_keeps_undefined_outcome_for_code_prefixed_name()
+    {
+        // NFR-2: при пустом AI:BaseUrl эндпоинт чека отвечает 503 до вызова сервиса
+        // (ReceiptCategorizationEndpointsTests); поведение сервиса не меняется — позиция остаётся
+        // undefined без вызова ИИ, форма результата прежняя.
+        var item = CreateCommodity(_receiptId, "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        ArrangeReceipt(item);
+
+        var service = CreateService(new AiOptions { BaseUrl = " ", Concurrency = 3 });
+        var result = await service.SuggestForReceiptAsync(_userId, _receiptId, CancellationToken.None);
+
+        var suggestion = Assert.Single(result.Items);
+        Assert.Equal(CategorizationSourceNames.Undefined, suggestion.Source);
+        Assert.Null(suggestion.CategoryId);
+        Assert.Null(suggestion.CategoryName);
+        Assert.Equal("ИИ не настроен.", suggestion.Error);
+        Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", suggestion.Name);
+
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+    }
+
     // ---- T-04: точка фиксации 1 — журнал «предложено → принято» (ADR-033 п. 3, FR-4/FR-5) ----
 
     [Fact]

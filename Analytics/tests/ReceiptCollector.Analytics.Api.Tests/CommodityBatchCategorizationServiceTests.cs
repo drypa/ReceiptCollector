@@ -338,6 +338,98 @@ public class CommodityBatchCategorizationServiceTests
         await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
     }
 
+    // ---- T-07: ключи пакетного suggest страницы «Товары» (ADR-034 п. 4.2, FR-2/FR-3) ----
+
+    [Fact]
+    public async Task Suggest_variants_with_and_without_leading_code_share_one_ai_call()
+    {
+        // ADR-034 п. 4.2: два варианта одного товара в одной порции дают один очищенный ключ,
+        // поэтому ИИ вызывается один раз с очищенным именем, а результаты одинаковы.
+        var withCode = CreateCommodity("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        var withoutCode = CreateCommodity("ПИРОГ С ВИШНЕЙ ПО РЕ");
+        ArrangeOwner(withCode, withoutCode);
+        ArrangeAiSuccess("пирог с вишней по ре", CommodityCategory.Bakery);
+
+        var result = await CreateService().SuggestAsync(
+            _userId,
+            [withCode.Id, withoutCode.Id],
+            CancellationToken.None);
+
+        var first = SingleFor(result, withCode);
+        var second = SingleFor(result, withoutCode);
+
+        Assert.Equal((int)CommodityCategory.Bakery, first.CategoryId);
+        Assert.Equal((int)CommodityCategory.Bakery, second.CategoryId);
+        Assert.Equal(CategorizationSourceNames.Ai, first.Source);
+        Assert.Equal(CategorizationSourceNames.Ai, second.Source);
+        Assert.Null(first.Error);
+        Assert.Null(second.Error);
+
+        // FR-4/NFR-2: name в ответах — сырое, ключ (кэш/дедупликация/ИИ) — очищенный.
+        Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", first.Name);
+        Assert.Equal("ПИРОГ С ВИШНЕЙ ПО РЕ", second.Name);
+
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "пирог с вишней по ре",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+        await _aiClient.DidNotReceive().SuggestCategoryAsync(
+            Arg.Is<string>(name => name.Contains("2417268000006", StringComparison.Ordinal)),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+
+        // FR-3: кэш опрашивается по очищенному ключу для обоих вариантов.
+        _cache.Received(2).TryGet("пирог с вишней по ре", out Arg.Any<CommodityCategory>());
+    }
+
+    [Fact]
+    public async Task Suggest_counts_max_unique_names_by_raw_names_not_cleaned_keys()
+    {
+        // ADR-034 п. 5: MaxUniqueNames — защитный лимит размера порции по СЫРЫМ именам.
+        // 21 сырое имя с разными ведущими кодами схлопывается в один очищенный ключ «пирог»,
+        // но лимит всё равно срабатывает: дедупликация не расширяет допустимую порцию.
+        var commodities = Enumerable.Range(0, 21)
+            .Select(index => CreateCommodity($"{2417268000006 + index} ПИРОГ"))
+            .ToArray();
+        ArrangeOwner(commodities);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            CreateService().SuggestAsync(_userId, commodities.Select(c => c.Id).ToList(), CancellationToken.None));
+
+        // Отказ именно лимита порции, а не любая ArgumentException.
+        Assert.Equal("commodityIds", exception.ParamName);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Suggest_allows_20_raw_variants_of_one_cleaned_name_and_calls_ai_once()
+    {
+        // Граница лимита включительно и по сырым именам: 20 разных кодов → 20 сырых имён,
+        // один очищенный ключ → один вызов ИИ, все позиции получают один и тот же результат.
+        var commodities = Enumerable.Range(0, 20)
+            .Select(index => CreateCommodity($"{2417268000006 + index} ПИРОГ"))
+            .ToArray();
+        ArrangeOwner(commodities);
+        ArrangeAiSuccess("пирог", CommodityCategory.Bakery);
+
+        var result = await CreateService().SuggestAsync(
+            _userId,
+            commodities.Select(c => c.Id).ToList(),
+            CancellationToken.None);
+
+        Assert.Equal(20, result.Items.Count);
+        Assert.All(result.Items, item =>
+        {
+            Assert.Equal((int)CommodityCategory.Bakery, item.CategoryId);
+            Assert.Equal(CategorizationSourceNames.Ai, item.Source);
+        });
+
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "пирог",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Suggest_is_read_only()
     {
@@ -396,6 +488,29 @@ public class CommodityBatchCategorizationServiceTests
             Arg.Is<IReadOnlyDictionary<Guid, CommodityCategory>>(changes =>
                 changes.Count == 1 && changes[commodity.Id] == CommodityCategory.Dairy),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Apply_stores_cleaned_name_in_cache_for_raw_name_with_leading_code()
+    {
+        // FR-3 + assign-only (ADR-028 п. 1.2, ADR-034 п. 4.2): сохранение меняет одну строку,
+        // а в кэш категория попадает под очищенным ключом, а не под сырым именем с кодом.
+        var commodity = CreateCommodity("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
+        ArrangeOwner(commodity);
+        _commodityRepository
+            .UpdateCategoriesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyDictionary<Guid, CommodityCategory>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var updated = await CreateService().ApplyAsync(
+            _userId,
+            [new CommodityCategoryChange(commodity.Id, CommodityCategory.Bakery)],
+            CancellationToken.None);
+
+        Assert.Equal(1, updated);
+        _cache.Received(1).TryAdd("пирог с вишней по ре", CommodityCategory.Bakery);
+        _cache.DidNotReceive().TryAdd(
+            Arg.Is<string>(key => key.Contains("2417268000006", StringComparison.Ordinal)),
+            Arg.Any<CommodityCategory>());
     }
 
     [Fact]
