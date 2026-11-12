@@ -42,6 +42,9 @@ public static class DependencyInjectionExtensions
         // пути; репозиторий — Scoped (scoped DbContext), прогрев — hosted service (ровно один раз).
         services.AddSingleton<ICommodityCategoryKeywordCache, InMemoryCommodityCategoryKeywordCache>();
         services.AddScoped<ICommodityCategoryKeywordRepository, CommodityCategoryKeywordRepository>();
+        // ADR-035 п. 6–7 (T-04): админский сервис слов — scoped поверх scoped-репозитория
+        // и singleton-кэша; инвалидация кэша — после commit мутации.
+        services.AddScoped<ICommodityCategoryKeywordService, CommodityCategoryKeywordService>();
 
         services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
         // ADR-028 п. 9: общий конвейер категоризации (Scoped — SemaphoreSlim на экземпляр, как раньше).

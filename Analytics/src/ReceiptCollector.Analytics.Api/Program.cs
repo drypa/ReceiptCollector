@@ -1,6 +1,7 @@
 using ReceiptCollector.Analytics.Api.Middleware;
 using ReceiptCollector.Analytics.Api.Modules.CategorizationDecisions;
 using ReceiptCollector.Analytics.Api.Modules.Commodities;
+using ReceiptCollector.Analytics.Api.Modules.CommodityCategoryKeywords;
 using ReceiptCollector.Analytics.Api.Modules.Merchants;
 using ReceiptCollector.Analytics.Api.Modules.PrecategorizedCommodities;
 using ReceiptCollector.Analytics.Api.Modules.Receipts;
@@ -40,6 +41,7 @@ app.MapCommodityBatchCategorizationEndpoints();
 app.MapMerchantEndpoints();
 app.MapPrecategorizedCommodityEndpoints();
 app.MapCategorizationDecisionEndpoints();
+app.MapCommodityCategoryKeywordEndpoints();
 app.MapGet("/health", () => Results.Ok("healthy"));
 app.MapFallbackToFile("/index.html");
 
