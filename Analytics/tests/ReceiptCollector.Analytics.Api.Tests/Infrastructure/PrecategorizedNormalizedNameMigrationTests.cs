@@ -16,6 +16,12 @@ namespace ReceiptCollector.Analytics.Api.Tests.Infrastructure;
 /// делает <c>MigrationRunner</c>. Транзакция на скрипт и учёт в
 /// <c>migration_scripts_history</c> — свойства раннера (покрыты его прецедентами), здесь
 /// не моделируются; повторный прогон скрипта не проверяется (план T-03, «Что НЕ входит»).
+/// <para>
+/// SQL-копия в скрипте заморожена: миграция уже применена на проде и не переписывается,
+/// поэтому более новое C-правило (POS-маркеры «N: код», corpus <c>MarkerPrefixCases</c>)
+/// в неё не внесён. Паритет сверяется только с <c>MigrationEraCases</c> — кейсами,
+/// которые frozen-копия обязана воспроизводить.
+/// </para>
 /// </summary>
 /// <remarks>
 /// Preflight (<c>RAISE EXCEPTION</c> при длине ключа &gt; 256) отдельным тестом
@@ -66,12 +72,14 @@ public sealed class PrecategorizedNormalizedNameMigrationTests : IAsyncLifetime
             await context.Database.ExecuteSqlRawAsync(
                 "ALTER TABLE precategorized_commodities DROP COLUMN normalized_name");
 
-            // applied-строки — весь golden corpus через raw SQL по «старым» колонкам
-            // (normalized_name в схеме ещё нет): паритет backfill ↔ C# сверяется по всему
-            // корпусу (план T-03 / ответ на открытый вопрос 6 ADR), а не по выборке —
-            // иначе умышленная правка одного regex в скрипте может остаться незамеченной.
+            // applied-строки — весь migration-era corpus через raw SQL по «старым» колонкам
+            // (normalized_name в схеме ещё нет): паритет backfill ↔ C# сверяется по всем
+            // кейсам, которые frozen-копия обязана воспроизводить (план T-03 / ответ на
+            // открытый вопрос 6 ADR), а не по выборке — иначе умышленная правка одного
+            // regex в скрипте может остаться незамеченной. Маркерные кейсы
+            // (MarkerPrefixCases) в паритет не входят: SQL-копия заморожена.
             var createdAt = DateTimeOffset.UtcNow;
-            foreach (var (input, _) in CommodityNameNormalizationCorpus.Cases)
+            foreach (var (input, _) in CommodityNameNormalizationCorpus.MigrationEraCases)
             {
                 await context.Database.ExecuteSqlAsync(
                     $"""
@@ -129,12 +137,12 @@ public sealed class PrecategorizedNormalizedNameMigrationTests : IAsyncLifetime
                 .Select(p => new { p.Id, p.Name, p.NormalizedName })
                 .ToListAsync(CancellationToken.None);
 
-            Assert.Equal(CommodityNameNormalizationCorpus.Cases.Count, applied.Count);
+            Assert.Equal(CommodityNameNormalizationCorpus.MigrationEraCases.Count, applied.Count);
 
-            // Паритет SQL-backfill ↔ C# по всему corpus: для каждой applied-строки
+            // Паритет SQL-backfill ↔ C# по migration-era corpus: для каждой applied-строки
             // normalized_name == CommodityNameNormalizer.NormalizeName(name) (и == ожиданию
             // corpus — тот же факт с другой стороны).
-            foreach (var (input, expected) in CommodityNameNormalizationCorpus.Cases)
+            foreach (var (input, expected) in CommodityNameNormalizationCorpus.MigrationEraCases)
             {
                 var row = Assert.Single(applied, a => a.Name == input);
                 Assert.Equal(expected, row.NormalizedName);

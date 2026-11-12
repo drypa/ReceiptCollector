@@ -16,9 +16,11 @@ public class CommodityNameNormalizerTests
         Assert.Equal(expected, CommodityNameNormalizer.NormalizeName(input));
     }
 
-    // Каноническое правило очистки — golden corpus (таблица примеров ADR-034 п. 1, границы
-    // и документированные ограничения). Единственный источник кейсов — CommodityNameNormalizationCorpus,
-    // тот же corpus проверяет SQL-backfill миграции (PrecategorizedNormalizedNameMigrationTests).
+    // Каноническое правило очистки — golden corpus (таблица примеров ADR-034 п. 1, границы,
+    // документированные ограничения и маркерное правило «N: код»). Единственный источник
+    // кейсов — CommodityNameNormalizationCorpus; паритетный тест миграции
+    // (PrecategorizedNormalizedNameMigrationTests) сверяет frozen SQL-backfill только
+    // с его MigrationEraCases (SQL-копия заморожена, миграция применена на проде).
     [Theory]
     [MemberData(nameof(CommodityNameNormalizationCorpus.TheoryCases), MemberType = typeof(CommodityNameNormalizationCorpus))]
     public void NormalizeName_applies_canonical_cleaning_rule(string input, string expected)
