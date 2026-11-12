@@ -15,12 +15,38 @@ namespace ReceiptCollector.Analytics.Infrastructure.AI;
 /// <summary>
 /// OpenAI-совместимый HTTP-клиент категоризации товаров (ADR 009, решение C6).
 /// POST {BaseUrl}/chat/completions с JSON-ответом вида {"category": "<имя enum>"}.
+/// User-сообщение: товар, реестр категорий, блок совпавших ключевых слов (ADR-035 решение F1,
+/// только при непустых подсказках) и последней строкой — инструкция формата ответа.
 /// Ретрай: один повтор при сетевых ошибках, таймауте или HTTP 5xx. Невалидный
 /// ответ/JSON не ретраится (тратит квоту впустую).
 /// </summary>
 internal sealed class OpenAiCompatibleAiClient : IAiClient
 {
     private const int RetryCount = 1;
+
+    /// <summary>
+    /// Максимум подсказок в промте (ADR-035, решение F1): защита от раздувания промта, когда
+    /// совпало всё (например, все 200 слов списка). Константа, а не настройка (ADR-035,
+    /// открытый вопрос 2). Усечение выполняется после упорядочивания (exclude первыми),
+    /// поэтому при переполнении отбрасываются только boost-подсказки.
+    /// </summary>
+    private const int MaxPromptHints = 50;
+
+    /// <summary>
+    /// Предельная длина слова в строке блока подсказок (ADR-035 п. 5, F1). Зеркалит
+    /// <see cref="CommodityCategoryKeywordRules.MaxWordLength"/> и CHECK
+    /// <c>char_length(word) BETWEEN 2 AND 64</c> миграции commodity_category_keywords: правило
+    /// «64» живёт в трёх местах (домен, схема БД, рендер промта) и меняется синхронно.
+    /// </summary>
+    private const int MaxHintWordLength = 64;
+
+    /// <summary>Заголовок блока подсказок; сам блок отсутствует целиком при отсутствии совпадений.</summary>
+    private const string HintsBlockHeader =
+        "Подсказки по ключевым словам (совпали в названии; это только подсказки, решение принимай сам):";
+
+    /// <summary>Инструкция формата ответа — всегда последняя строка user-сообщения (ADR-035 F1).</summary>
+    private const string ResponseFormatInstruction =
+        "Ответь строго в формате JSON: {\"category\": \"НазваниеКатегории\"} без пояснений.";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -57,9 +83,9 @@ internal sealed class OpenAiCompatibleAiClient : IAiClient
             throw new InvalidOperationException("AI categorization is not configured: 'AI:BaseUrl' is empty.");
         }
 
-        // Рендеринг блока подсказок в промт — T-06 (ADR-035 п. 5): здесь параметр принимается
-        // и валидируется, но тело запроса пока не меняет — промт байт-в-байт прежний.
-        var payload = BuildPayload(productName, categoryNames, _options.Model);
+        // Подсказки — данные запроса (ADR-035 решение D1): они попадают в user-сообщение
+        // блоком над инструкцией формата ответа, но решение по-прежнему принимает модель.
+        var payload = BuildPayload(productName, categoryNames, hints, _options.Model);
 
         Exception? lastError = null;
         for (var attempt = 0; attempt <= RetryCount; attempt++)
@@ -265,10 +291,12 @@ internal sealed class OpenAiCompatibleAiClient : IAiClient
         return $"{baseUrl}/chat/completions";
     }
 
-    private static string BuildPayload(string productName, IReadOnlyCollection<string> categoryNames, string modelName)
+    private static string BuildPayload(
+        string productName,
+        IReadOnlyCollection<string> categoryNames,
+        IReadOnlyCollection<CommodityCategoryKeywordHint> hints,
+        string modelName)
     {
-        var catalog = categoryNames.Count > 0 ? string.Join(", ", categoryNames) : string.Empty;
-
         var body = new
         {
             model = modelName,
@@ -283,45 +311,113 @@ internal sealed class OpenAiCompatibleAiClient : IAiClient
                 new
                 {
                     role = "user",
-                    content =
-                        $"Товар: \"{productName}\"\n" +
-                        $"Выбери ОДНУ наиболее подходящую категорию из реестра: {catalog}.\n" +
-                        "Ответь строго в формате JSON: {\"category\": \"НазваниеКатегории\"} без пояснений.\n" +
-                        "Разграничения схожих категорий:\n" +
-                        "- Сухофрукты (DriedFruits): изюм, курага, чернослив, финики — не Fruits (свежие фрукты/ягоды).\n" +
-                        "- Соусы (Sauces) и Приправы (Spices): кетчуп, майонез, соевый соус, специи — не Groceries " +
-                        "(бакалея — крупы, мука, макароны, сахар, соль, масло, чай/кофе).\n" +
-                        "- Колбасные изделия (Sausages): колбаса, сосиски, сардельки, ветчина — не Meat " +
-                        "(свежее/замороженное мясо).\n" +
-                        "- Конфеты (Sweets): конфеты, шоколад, мармелад, зефир — не Confectionery " +
-                        "(кондитерские изделия — печенье, вафли, пряники, галеты, крекеры, торты, " +
-                        "пирожные, выпечка, кексы).\n" +
-                        "- Консервы (CannedFood): рыбные, мясные, овощные консервы, паштеты, джемы и варенья " +
-                        "(в банках) — не Groceries (бакалея — крупы, мука, макароны, сахар, соль, масло, чай/кофе).\n" +
-                        "- Бытовая техника (HomeAppliances): холодильники, стиральные машины, чайники, " +
-                        "микроволновые печи, пылесосы — не Electronics (смартфоны, компьютеры, планшеты, " +
-                        "ТВ, гаджеты).\n" +
-                        "- Мебель (Furniture): стулья, столы, шкафы, диваны, кровати — не HomeGoods " +
-                        "(товары для дома — посуда, текстиль, хранение, интерьер).\n" +
-                        "- Бытовая химия (HouseholdChemicals): чистящие и моющие средства, стиральные " +
-                        "порошки, средства для мытья посуды и посудомоечных машин, освежители воздуха, " +
-                        "губки и перчатки для уборки, бумажные полотенца, мусорные пакеты, средства " +
-                        "от насекомых — не HomeGoods (посуда, текстиль, хранение, интерьер) и " +
-                        "не CosmeticsAndHygiene (личная гигиена: мыло, шампуни, зубная паста).\n" +
-                        "- Товары для рукоделия (CraftSupplies): пряжа, ткань, бисер, фурнитура, наборы " +
-                        "для творчества — не StationeryAndBooks (канцтовары — бумага, ручки, офисные " +
-                        "принадлежности).\n" +
-                        "- Снеки (Snacks): чипсы, сухарики, орешки, попкорн, снековые смеси — не Groceries " +
-                        "(бакалея — крупы, мука, макароны, сахар, соль, масло, чай/кофе) и не Sweets " +
-                        "(конфеты, шоколад).\n" +
-                        "- Фитнес и спорт (FitnessAndSports): абонементы в фитнес-клубы и бассейны, " +
-                        "спортивные секции — не SportingGoods (товары для спорта — инвентарь и экипировка) " +
-                        "и не Entertainment (развлечения — кино, концерты, парки)."
+                    content = BuildUserContent(productName, categoryNames, hints)
                 }
             }
         };
 
         return JsonSerializer.Serialize(body, JsonOptions);
+    }
+
+    /// <summary>
+    /// Собирает user-сообщение (ADR-035 п. 5, решение F1): товар, реестр категорий,
+    /// необязательный блок подсказок и — последней строкой — инструкцию формата ответа.
+    /// Статического блока разграничений схожих категорий (ADR 022) в коде больше нет: его
+    /// содержимое живёт в БД (сид миграции commodity_category_keywords) и приходит в промт
+    /// только совпавшими подсказками (FR-2).
+    /// </summary>
+    private static string BuildUserContent(
+        string productName,
+        IReadOnlyCollection<string> categoryNames,
+        IReadOnlyCollection<CommodityCategoryKeywordHint> hints)
+    {
+        var catalog = categoryNames.Count > 0 ? string.Join(", ", categoryNames) : string.Empty;
+
+        var content = new StringBuilder();
+        content
+            .Append("Товар: \"").Append(productName).Append("\"\n")
+            .Append("Выбери ОДНУ наиболее подходящую категорию из реестра: ").Append(catalog).Append(".\n");
+
+        if (hints.Count > 0)
+        {
+            AppendHintsBlock(content, hints);
+        }
+
+        // Формат ответа остаётся последней инструкцией: модели следуют последней инструкции лучше.
+        content.Append(ResponseFormatInstruction);
+
+        return content.ToString();
+    }
+
+    /// <summary>
+    /// Добавляет блок подсказок: заголовок и по строке на подсказку. Порядок приходит от
+    /// <see cref="CategoryKeywordMatcher"/> уже упорядоченным (exclude первыми, затем boost),
+    /// поэтому клиент его не меняет — только усекает до <see cref="MaxPromptHints"/>.
+    /// Формулировки: exclude — «скорее не …», boost — «вероятно …»; в скобках имя enum,
+    /// потому что ответ модели обязан быть именем enum (парсер принимает только его).
+    /// </summary>
+    private static void AppendHintsBlock(
+        StringBuilder content,
+        IReadOnlyCollection<CommodityCategoryKeywordHint> hints)
+    {
+        content.Append(HintsBlockHeader).Append('\n');
+
+        foreach (var hint in hints.Take(MaxPromptHints))
+        {
+            var verdict = hint.ListType == KeywordListType.Exclude ? "скорее не " : "вероятно ";
+            content
+                .Append("- в названии есть «").Append(EscapeHintWord(hint.Word)).Append("» → ")
+                .Append(verdict)
+                .Append(CommodityCategoryHelper.GetDisplayName(hint.Category))
+                // Имя enum в скобках: ответ модели обязан быть именно им (парсер принимает только его).
+                .Append(" (").Append(hint.Category.ToString()).Append(")\n");
+        }
+    }
+
+    /// <summary>
+    /// Нейтрализует слово как данные промта (ADR-035 F1): управляющие символы
+    /// (<c>\r</c>, <c>\n</c>, <c>\t</c> и прочие <see cref="char.IsControl(char)"/>) становятся
+    /// пробелом, пробелы схлопываются, результат обрезается до <see cref="MaxHintWordLength"/>.
+    /// Так слово не способно создать новую строку блока или «дописать» инструкцию. Кавычки
+    /// не нейтрализуются: JSON-тело защищает сериализатор, а строку блока кавычка не рвёт.
+    /// Слово, целиком состоящее из управляющих символов, даёт пустую строку — через API это
+    /// недостижимо (валидация <c>2…64</c> символов и trim в <c>CommodityCategoryKeywordRules</c>),
+    /// здесь это просто безопасный исход.
+    /// </summary>
+    private static string EscapeHintWord(string? word)
+    {
+        if (string.IsNullOrEmpty(word))
+        {
+            return string.Empty;
+        }
+
+        var escaped = new StringBuilder(word.Length);
+        var pendingSpace = false;
+
+        foreach (var symbol in word)
+        {
+            // Обрамляющие пробелы снимаются: слово в БД хранится уже trimmed, пробел здесь
+            // появляется только из управляющего символа на краю — он не нужен в строке блока.
+            var isSpace = char.IsWhiteSpace(symbol) || char.IsControl(symbol);
+
+            if (isSpace)
+            {
+                pendingSpace = escaped.Length > 0;
+                continue;
+            }
+
+            if (pendingSpace)
+            {
+                escaped.Append(' ');
+                pendingSpace = false;
+            }
+
+            escaped.Append(symbol);
+        }
+
+        return escaped.Length <= MaxHintWordLength
+            ? escaped.ToString()
+            : escaped.ToString(0, MaxHintWordLength).TrimEnd();
     }
 }
 

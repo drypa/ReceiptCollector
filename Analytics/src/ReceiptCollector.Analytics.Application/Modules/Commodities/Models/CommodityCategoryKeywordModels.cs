@@ -82,11 +82,10 @@ public enum DeleteKeywordOutcome
 
 /// <summary>
 /// Подсказка по совпавшему ключевому слову для промта ИИ (ADR-035, решения C1/D1, FR-6/FR-8):
-/// элемент результата <see cref="Contracts.ICommodityCategoryHintProvider.GetHints"/> — одно
-/// совпавшее слово одной категории. Подсказки — данные запроса, а не инструкция: решение о
-/// категории по-прежнему принимает модель (блок «Разграничения схожих категорий» остаётся до T-06).
-/// Порядок списка (exclude первыми, затем boost) задаёт
-/// <see cref="CategoryKeywordMatcher.GetHints"/> — получатели его не пересортировывают.
+/// одно совпавшее слово одной категории. Подсказки — данные запроса, а не инструкция: решение о
+/// категории по-прежнему принимает модель. Порядок списка (exclude первыми, затем boost) задаёт
+/// <see cref="CategoryKeywordMatcher.GetHints"/> — получатели его не пересортировывают;
+/// рендеринг блока в промте и усечение по <c>MaxPromptHints</c> — <c>OpenAiCompatibleAiClient</c>.
 /// </summary>
 /// <param name="Category">Категория слова (код <c>CommodityCategory</c>, не <c>Undefined</c> — запрещено схемой).</param>
 /// <param name="ListType">Тип списка: boost («вероятно») или exclude («скорее не»); при конфликте exclude сильнее.</param>
