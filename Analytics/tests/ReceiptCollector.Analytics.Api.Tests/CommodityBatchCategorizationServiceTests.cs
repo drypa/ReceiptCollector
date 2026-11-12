@@ -27,6 +27,7 @@ public class CommodityBatchCategorizationServiceTests
     private readonly IPrecategorizedCommodityRepository _precategorizedRepository =
         Substitute.For<IPrecategorizedCommodityRepository>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
+    private readonly ICommodityCategoryHintProvider _hintProvider = Substitute.For<ICommodityCategoryHintProvider>();
     private readonly ICategorizationDecisionRecorder _recorder = Substitute.For<ICategorizationDecisionRecorder>();
 
     public CommodityBatchCategorizationServiceTests()
@@ -34,6 +35,9 @@ public class CommodityBatchCategorizationServiceTests
         _precategorizedRepository
             .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
+        // ADR-035 (T-05): подсказок нет — конвейер только проходит обязательный параметр
+        // IAiClient пустой коллекцией, сценарии категоризации не меняются.
+        _hintProvider.GetHints(Arg.Any<string>()).Returns(Array.Empty<CommodityCategoryKeywordHint>());
     }
 
     private CommodityBatchCategorizationService CreateService(
@@ -47,6 +51,7 @@ public class CommodityBatchCategorizationServiceTests
                 _cache,
                 _precategorizedRepository,
                 _aiClient,
+                _hintProvider,
                 Options.Create(aiOptions ?? CreateAiOptions()),
                 NullLogger<CommodityCategoryResolver>.Instance),
             Options.Create(aiOptions ?? CreateAiOptions()),
@@ -100,14 +105,14 @@ public class CommodityBatchCategorizationServiceTests
     private void ArrangeAiSuccess(string name, CommodityCategory category)
     {
         _aiClient
-            .SuggestCategoryAsync(name, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync(name, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(category));
     }
 
     private void ArrangeAiHangs()
     {
         _aiClient
-            .SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, callInfo.Arg<CancellationToken>());
@@ -138,7 +143,7 @@ public class CommodityBatchCategorizationServiceTests
         _cache.DidNotReceiveWithAnyArgs().TryGet(default!, out _);
         await _precategorizedRepository.DidNotReceiveWithAnyArgs()
             .GetCategoriesByNormalizedNamesAsync(default!, default);
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -154,7 +159,7 @@ public class CommodityBatchCategorizationServiceTests
         Assert.Equal((int)CommodityCategory.Fuel, item.CategoryId);
         Assert.Equal(CommodityCategoryHelper.GetDisplayName(CommodityCategory.Fuel), item.CategoryName);
         Assert.Equal(CategorizationSourceNames.Cache, item.Source);
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -207,7 +212,7 @@ public class CommodityBatchCategorizationServiceTests
         });
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -231,7 +236,7 @@ public class CommodityBatchCategorizationServiceTests
         Assert.Equal(CategorizationSourceNames.Undefined, item.Source);
         Assert.Equal("ИИ не настроен.", item.Error);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -242,7 +247,7 @@ public class CommodityBatchCategorizationServiceTests
         ArrangeOwner(failing, ok);
 
         _aiClient
-            .SuggestCategoryAsync("сломанный товар", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync("сломанный товар", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new AiClientException("boom"));
         ArrangeAiSuccess("молоко", CommodityCategory.Dairy);
 
@@ -319,9 +324,9 @@ public class CommodityBatchCategorizationServiceTests
         Assert.Equal("Название товара не заполнено.", item.Error);
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
         await _aiClient.DidNotReceive()
-            .SuggestCategoryAsync("   ", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("   ", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -335,7 +340,7 @@ public class CommodityBatchCategorizationServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() =>
             CreateService().SuggestAsync(_userId, commodities.Select(c => c.Id).ToList(), CancellationToken.None));
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     // ---- T-07: ключи пакетного suggest страницы «Товары» (ADR-034 п. 4.2, FR-2/FR-3) ----
@@ -372,10 +377,12 @@ public class CommodityBatchCategorizationServiceTests
         await _aiClient.Received(1).SuggestCategoryAsync(
             "пирог с вишней по ре",
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
         await _aiClient.DidNotReceive().SuggestCategoryAsync(
             Arg.Is<string>(name => name.Contains("2417268000006", StringComparison.Ordinal)),
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
 
         // FR-3: кэш опрашивается по очищенному ключу для обоих вариантов.
@@ -398,7 +405,7 @@ public class CommodityBatchCategorizationServiceTests
 
         // Отказ именно лимита порции, а не любая ArgumentException.
         Assert.Equal("commodityIds", exception.ParamName);
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -427,6 +434,7 @@ public class CommodityBatchCategorizationServiceTests
         await _aiClient.Received(1).SuggestCategoryAsync(
             "пирог",
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
     }
 

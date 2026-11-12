@@ -46,15 +46,19 @@ internal sealed class OpenAiCompatibleAiClient : IAiClient
     public async Task<AiSuggestionResult> SuggestCategoryAsync(
         string productName,
         IReadOnlyCollection<string> categoryNames,
+        IReadOnlyCollection<CommodityCategoryKeywordHint> hints,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(productName);
+        ArgumentNullException.ThrowIfNull(hints);
 
         if (string.IsNullOrWhiteSpace(_options.BaseUrl))
         {
             throw new InvalidOperationException("AI categorization is not configured: 'AI:BaseUrl' is empty.");
         }
 
+        // Рендеринг блока подсказок в промт — T-06 (ADR-035 п. 5): здесь параметр принимается
+        // и валидируется, но тело запроса пока не меняет — промт байт-в-байт прежний.
         var payload = BuildPayload(productName, categoryNames, _options.Model);
 
         Exception? lastError = null;

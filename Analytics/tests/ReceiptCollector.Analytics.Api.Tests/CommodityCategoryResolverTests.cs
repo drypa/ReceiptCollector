@@ -25,6 +25,12 @@ public class CommodityCategoryResolverTests
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
     private readonly IMerchantDefaultCategoryProvider _merchantDefaultProvider = Substitute.For<IMerchantDefaultCategoryProvider>();
 
+    /// <summary>
+    /// Кэш слов (ADR-035, T-05): по умолчанию пустой снимок — подсказок нет. Тесты подсказок
+    /// подменяют снимок, провайдер остаётся реальным (матчинг проверяется сквозняком через resolver).
+    /// </summary>
+    private readonly ICommodityCategoryKeywordCache _keywordCache = Substitute.For<ICommodityCategoryKeywordCache>();
+
     public CommodityCategoryResolverTests()
     {
         // Фоновые шаги пусты по умолчанию — сценарии, сфокусированные на шаге merchant-default,
@@ -35,6 +41,7 @@ public class CommodityCategoryResolverTests
         _merchantDefaultProvider
             .GetDefaultsByReceiptIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, CommodityCategory?>());
+        _keywordCache.GetSnapshot().Returns(CommodityCategoryKeywordSnapshot.Empty);
     }
 
     private CommodityCategoryResolver CreateResolver(ILogger<CommodityCategoryResolver>? logger = null) =>
@@ -42,6 +49,7 @@ public class CommodityCategoryResolverTests
             _cache,
             _precategorizedRepository,
             _aiClient,
+            new CommodityCategoryHintProvider(_keywordCache),
             Options.Create(new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 }),
             logger ?? NullLogger<CommodityCategoryResolver>.Instance,
             _merchantDefaultProvider);
@@ -74,6 +82,13 @@ public class CommodityCategoryResolverTests
         _merchantDefaultProvider
             .GetDefaultsByReceiptIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(defaults);
+
+    /// <summary>
+    /// Подменяет снимок слов (ADR-035, T-05): провайдер в фабрике реальный, поэтому снимок —
+    /// единственная точка управления подсказками в этих тестах.
+    /// </summary>
+    private void ArrangeKeywordSnapshot(params CommodityCategoryKeyword[] keywords) =>
+        _keywordCache.GetSnapshot().Returns(new CommodityCategoryKeywordSnapshot(keywords));
 
     // ---------------- Приоритет шагов ----------------
 
@@ -144,7 +159,7 @@ public class CommodityCategoryResolverTests
         await _precategorizedRepository
             .DidNotReceiveWithAnyArgs()
             .GetCategoriesByNormalizedNamesAsync(default!, default);
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -249,7 +264,7 @@ public class CommodityCategoryResolverTests
         var aiItem = CreateCommodity(Guid.NewGuid(), "Пельмени");
         ArrangeCacheHit("кефир", CommodityCategory.Dairy);
         // ADR-034 FR-2: в ИИ уходит очищенное имя позиции.
-        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.ReadyMeals));
         _merchantDefaultProvider
             .GetDefaultsByReceiptIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -308,6 +323,7 @@ public class CommodityCategoryResolverTests
             _cache,
             _precategorizedRepository,
             _aiClient,
+            new CommodityCategoryHintProvider(_keywordCache),
             Options.Create(new AiOptions { BaseUrl = "http://localhost", Concurrency = 3 }),
             NullLogger<CommodityCategoryResolver>.Instance);
 
@@ -346,7 +362,7 @@ public class CommodityCategoryResolverTests
         await _precategorizedRepository.Received(1).GetCategoriesByNormalizedNamesAsync(
             Arg.Is<IReadOnlyCollection<string>>(keys => keys.Count == 1 && keys.Contains(cleanedKey)),
             Arg.Any<CancellationToken>());
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -355,7 +371,7 @@ public class CommodityCategoryResolverTests
         // FR-2 (ADR-034 п. 4.1): в IAiClient уходит очищенное имя группы, а не сырое наименование.
         var item = CreateCommodity(Guid.NewGuid(), "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
         _aiClient
-            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
 
         var results = await CreateResolver()
@@ -368,7 +384,7 @@ public class CommodityCategoryResolverTests
         Assert.Equal(item.Name, result.Name);
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -379,7 +395,7 @@ public class CommodityCategoryResolverTests
         var withCode = CreateCommodity(Guid.NewGuid(), "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
         var plain = CreateCommodity(Guid.NewGuid(), "ПИРОГ С ВИШНЕЙ ПО РЕ");
         _aiClient
-            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
 
         var results = await CreateResolver()
@@ -397,7 +413,80 @@ public class CommodityCategoryResolverTests
         Assert.Equal("ПИРОГ С ВИШНЕЙ ПО РЕ", items.Single(r => r.CommodityId == plain.Id).Name);
 
         await _aiClient.Received(1)
-            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+            .SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
+    }
+
+    // ---------------- Подсказки по ключевым словам (ADR-035, T-05) ----------------
+
+    [Fact]
+    public async Task Resolve_sends_hint_collected_by_normalized_name_to_ai()
+    {
+        // ADR-035 п. 4.3: подсказка из снимка (DriedFruits/boost/изюм) уходит в IAiClient,
+        // матчинг — по нормализованному имени («изюм 250 г»), а не по сырому наименованию.
+        ArrangeKeywordSnapshot(new CommodityCategoryKeyword(
+            Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "Изюм", "изюм"));
+        var item = CreateCommodity(Guid.NewGuid(), "Изюм 250 г");
+        _aiClient
+            .SuggestCategoryAsync("изюм 250 г", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.DriedFruits));
+
+        var results = await CreateResolver()
+            .ResolveAsync([item], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+
+        Assert.Equal(CategorizationSourceNames.Ai, Assert.Single(results).Source);
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "изюм 250 г",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryKeywordHint>>(hints =>
+                hints.SequenceEqual(new[] { new CommodityCategoryKeywordHint(CommodityCategory.DriedFruits, KeywordListType.Boost, "Изюм") })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Resolve_sends_empty_hints_collection_when_nothing_matches()
+    {
+        // ADR-035 D1: при отсутствии совпадений в IAiClient уходит пустая коллекция, а не null
+        // (пустая = «совпадений нет», промт не меняется).
+        var item = CreateCommodity(Guid.NewGuid(), "Молоко");
+        _aiClient
+            .SuggestCategoryAsync("молоко", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.Dairy));
+
+        await CreateResolver()
+            .ResolveAsync([item], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "молоко",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryKeywordHint>>(hints => hints != null && hints.Count == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Resolve_deduplicates_same_cleaned_name_into_one_ai_call_with_same_hints()
+    {
+        // ADR-034 FR-3 + ADR-035 T-05: две позиции с одним очищенным именем — один вызов ИИ
+        // с одним и тем же набором подсказок (один расчёт GetHints на ключ группы).
+        ArrangeKeywordSnapshot(new CommodityCategoryKeyword(
+            Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "изюм", "изюм"));
+        var withCode = CreateCommodity(Guid.NewGuid(), "2417268000006 ИЗЮМ 250 Г");
+        var plain = CreateCommodity(Guid.NewGuid(), "Изюм 250 г");
+        _aiClient
+            .SuggestCategoryAsync("изюм 250 г", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
+            .Returns(new AiSuggestionResult(CommodityCategory.DriedFruits));
+
+        var results = await CreateResolver()
+            .ResolveAsync([withCode, plain], aiEnabled: true, CancellationToken.None, CancellationToken.None);
+        var items = results.ToList();
+
+        Assert.Equal(2, items.Count);
+        Assert.All(items, r => Assert.Equal(CategorizationSourceNames.Ai, r.Source));
+        await _aiClient.Received(1).SuggestCategoryAsync(
+            "изюм 250 г",
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Is<IReadOnlyCollection<CommodityCategoryKeywordHint>>(hints =>
+                hints.Count == 1 && hints.Single().Word == "изюм"),
+            Arg.Any<CancellationToken>());
     }
 
     // ---------------- Wire-имена источников ----------------

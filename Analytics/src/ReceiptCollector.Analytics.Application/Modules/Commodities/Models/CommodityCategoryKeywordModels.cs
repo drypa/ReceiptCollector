@@ -1,3 +1,5 @@
+using ReceiptCollector.Analytics.Domain.Modules.Commodities;
+
 namespace ReceiptCollector.Analytics.Application.Modules.Commodities.Models;
 
 /// <summary>
@@ -77,3 +79,19 @@ public enum DeleteKeywordOutcome
     /// <summary>Строки с таким <c>id</c> нет → <c>404</c>.</summary>
     NotFound
 }
+
+/// <summary>
+/// Подсказка по совпавшему ключевому слову для промта ИИ (ADR-035, решения C1/D1, FR-6/FR-8):
+/// элемент результата <see cref="Contracts.ICommodityCategoryHintProvider.GetHints"/> — одно
+/// совпавшее слово одной категории. Подсказки — данные запроса, а не инструкция: решение о
+/// категории по-прежнему принимает модель (блок «Разграничения схожих категорий» остаётся до T-06).
+/// Порядок списка (exclude первыми, затем boost) задаёт
+/// <see cref="CategoryKeywordMatcher.GetHints"/> — получатели его не пересортировывают.
+/// </summary>
+/// <param name="Category">Категория слова (код <c>CommodityCategory</c>, не <c>Undefined</c> — запрещено схемой).</param>
+/// <param name="ListType">Тип списка: boost («вероятно») или exclude («скорее не»); при конфликте exclude сильнее.</param>
+/// <param name="Word">Слово как введено (FR-5): регистр и внутренние символы сохранены, обрамляющие пробелы сняты.</param>
+public sealed record CommodityCategoryKeywordHint(
+    CommodityCategory Category,
+    KeywordListType ListType,
+    string Word);

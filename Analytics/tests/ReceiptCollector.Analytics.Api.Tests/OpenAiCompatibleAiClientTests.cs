@@ -73,7 +73,7 @@ public class OpenAiCompatibleAiClientTests
             JsonResponse("""{"choices":[{"message":{"content":"{\"category\": \"Food\"}"}}]}"""));
 
         var client = CreateClient(handler);
-        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None);
+        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal(CommodityCategory.Food, result.Category);
     }
@@ -85,7 +85,7 @@ public class OpenAiCompatibleAiClientTests
             JsonResponse("""{"choices":[{"message":{"content":"{\"category\": \"dairy\"}"}}]}"""));
 
         var client = CreateClient(handler);
-        var result = await client.SuggestCategoryAsync("Молоко", CategoryCatalog, CancellationToken.None);
+        var result = await client.SuggestCategoryAsync("Молоко", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal(CommodityCategory.Dairy, result.Category);
     }
@@ -97,7 +97,7 @@ public class OpenAiCompatibleAiClientTests
             JsonResponse("""{"choices":[{"message":{"content":"```json\n{\"category\": \"Beverages\"}\n```"}}]}"""));
 
         var client = CreateClient(handler);
-        var result = await client.SuggestCategoryAsync("Кола", CategoryCatalog, CancellationToken.None);
+        var result = await client.SuggestCategoryAsync("Кола", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal(CommodityCategory.Beverages, result.Category);
     }
@@ -111,7 +111,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler);
 
         var exception = await Assert.ThrowsAsync<AiClientException>(() =>
-            client.SuggestCategoryAsync("Молоко", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Молоко", CategoryCatalog, [], CancellationToken.None));
 
         Assert.Contains("category", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -125,7 +125,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler);
 
         await Assert.ThrowsAsync<AiClientException>(() =>
-            client.SuggestCategoryAsync("Молоко", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Молоко", CategoryCatalog, [], CancellationToken.None));
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class OpenAiCompatibleAiClientTests
         });
 
         var client = CreateClient(handler);
-        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None);
+        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal(CommodityCategory.Food, result.Category);
         Assert.Equal(2, attempts);
@@ -163,7 +163,7 @@ public class OpenAiCompatibleAiClientTests
         });
 
         var client = CreateClient(handler);
-        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None);
+        var result = await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal(CommodityCategory.Food, result.Category);
         Assert.Equal(2, attempts);
@@ -177,7 +177,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler);
 
         var exception = await Assert.ThrowsAsync<AiClientException>(() =>
-            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None));
 
         Assert.Contains("2 attempts", exception.Message);
     }
@@ -191,7 +191,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler);
 
         await Assert.ThrowsAsync<AiClientException>(() =>
-            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None));
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler);
 
         await Assert.ThrowsAsync<AiClientException>(() =>
-            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None));
 
         Assert.Equal(1, attempts);
     }
@@ -228,7 +228,7 @@ public class OpenAiCompatibleAiClientTests
             ApiKey = "secret-key"
         });
 
-        await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None);
+        await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None);
 
         Assert.NotNull(capturedRequest);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "secret-key"), capturedRequest!.Headers.Authorization);
@@ -250,7 +250,7 @@ public class OpenAiCompatibleAiClientTests
 
         var client = CreateClient(handler, new AiOptions { BaseUrl = "http://ai.local/v1/", Model = "qwen2.5" });
 
-        await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None);
+        await client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Equal("http://ai.local/v1/chat/completions", capturedRequestUri);
         Assert.Contains("\"model\":\"qwen2.5\"", requestBody);
@@ -275,7 +275,7 @@ public class OpenAiCompatibleAiClientTests
 
         var client = CreateClient(handler);
 
-        await client.SuggestCategoryAsync("Курага", CategoryCatalog, CancellationToken.None);
+        await client.SuggestCategoryAsync("Курага", CategoryCatalog, [], CancellationToken.None);
 
         Assert.Contains("Разграничения схожих категорий", requestBody);
         Assert.Contains("Сухофрукты", requestBody);
@@ -323,7 +323,7 @@ public class OpenAiCompatibleAiClientTests
         var client = CreateClient(handler, new AiOptions());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, CancellationToken.None));
+            client.SuggestCategoryAsync("Хлеб", CategoryCatalog, [], CancellationToken.None));
     }
 
     private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond)

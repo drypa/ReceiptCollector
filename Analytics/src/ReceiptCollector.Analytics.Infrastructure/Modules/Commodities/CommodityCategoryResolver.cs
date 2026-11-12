@@ -52,6 +52,13 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
     private readonly ICommodityCategoryCache _cache;
     private readonly IPrecategorizedCommodityRepository _precategorizedRepository;
     private readonly IAiClient _aiClient;
+
+    /// <summary>
+    /// Единственный источник подсказок для шага ИИ (ADR-035, C1): resolver не содержит
+    /// собственного матчинга — один вызов <c>GetHints</c> на уникальное очищенное имя.
+    /// </summary>
+    private readonly ICommodityCategoryHintProvider _hintProvider;
+
     private readonly ILogger<CommodityCategoryResolver> _logger;
     private readonly SemaphoreSlim _aiSemaphore;
 
@@ -67,6 +74,7 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
         ICommodityCategoryCache cache,
         IPrecategorizedCommodityRepository precategorizedRepository,
         IAiClient aiClient,
+        ICommodityCategoryHintProvider hintProvider,
         IOptions<AiOptions> aiOptions,
         ILogger<CommodityCategoryResolver> logger,
         IMerchantDefaultCategoryProvider? merchantDefaultProvider = null)
@@ -74,6 +82,7 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _precategorizedRepository = precategorizedRepository ?? throw new ArgumentNullException(nameof(precategorizedRepository));
         _aiClient = aiClient ?? throw new ArgumentNullException(nameof(aiClient));
+        _hintProvider = hintProvider ?? throw new ArgumentNullException(nameof(hintProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _merchantDefaultProvider = merchantDefaultProvider;
 
@@ -338,8 +347,17 @@ internal sealed class CommodityCategoryResolver : ICommodityCategoryResolver
                 await _aiSemaphore.WaitAsync(aiCancellationToken).ConfigureAwait(false);
                 acquired = true;
 
+                // ADR-035 п. 4.3: подсказки считаются провайдером по ключу группы (уникальному
+                // очищенному имени) — один расчёт на вызов ИИ, собственного матчинга здесь нет.
+                var hints = _hintProvider.GetHints(item.Key);
+                // ADR-035 п. 9: в логах — только количество совпавших подсказок, без текстов слов.
+                _logger.LogDebug(
+                    "AI categorization for '{ProductName}': {HintCount} keyword hints matched.",
+                    item.Key,
+                    hints.Count);
+
                 var result = await _aiClient
-                    .SuggestCategoryAsync(item.Key, CategoryNames, aiCancellationToken)
+                    .SuggestCategoryAsync(item.Key, CategoryNames, hints, aiCancellationToken)
                     .ConfigureAwait(false);
 
                 return (item.Key, Outcome: new AiCategorizationOutcome(result, null));

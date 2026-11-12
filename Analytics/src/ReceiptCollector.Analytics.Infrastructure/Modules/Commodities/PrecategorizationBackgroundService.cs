@@ -171,6 +171,8 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
             var repository = scope.ServiceProvider.GetRequiredService<IPrecategorizedCommodityRepository>();
             var cache = scope.ServiceProvider.GetRequiredService<ICommodityCategoryCache>();
             var aiClient = scope.ServiceProvider.GetRequiredService<IAiClient>();
+            // ADR-035 п. 4.3: подсказки — из единственного провайдера (как в ручном пути).
+            var hintProvider = scope.ServiceProvider.GetRequiredService<ICommodityCategoryHintProvider>();
 
             IReadOnlyCollection<CandidateCursor> candidates;
             try
@@ -220,7 +222,7 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
 
                 try
                 {
-                    await ProcessCandidateAsync(candidate, repository, cache, aiClient, state, cancellationToken)
+                    await ProcessCandidateAsync(candidate, repository, cache, aiClient, hintProvider, state, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -314,6 +316,7 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         IPrecategorizedCommodityRepository repository,
         ICommodityCategoryCache cache,
         IAiClient aiClient,
+        ICommodityCategoryHintProvider hintProvider,
         SessionState state,
         CancellationToken cancellationToken)
     {
@@ -383,12 +386,20 @@ internal sealed class PrecategorizationBackgroundService : BackgroundService
         AiClientException? aiError = null;
         var callDuration = TimeSpan.Zero;
 
+        // ADR-035 п. 4.3: подсказки — по тому же очищенному имени, что и вызов ИИ (один
+        // расчёт нормализации на кандидата). В логах — только количество подсказок (п. 9).
+        var hints = hintProvider.GetHints(normalized);
+        _logger.LogDebug(
+            "Precategorization AI call for '{ProductName}': {HintCount} keyword hints matched.",
+            normalized,
+            hints.Count);
+
         try
         {
             var callStartedAt = _timeProvider.GetUtcNow();
             // FR-2 ADR-034: в ИИ уходит очищенное имя; сырое имя остаётся только в логах (FR-4).
             suggestion = await aiClient
-                .SuggestCategoryAsync(normalized, CategoryNames, cancellationToken)
+                .SuggestCategoryAsync(normalized, CategoryNames, hints, cancellationToken)
                 .ConfigureAwait(false);
             callDuration = _timeProvider.GetUtcNow() - callStartedAt;
         }

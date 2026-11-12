@@ -21,6 +21,7 @@ public class CommodityCategorizationServiceTests
     private readonly ICommodityCategoryCache _cache = Substitute.For<ICommodityCategoryCache>();
     private readonly IPrecategorizedCommodityRepository _precategorizedRepository = Substitute.For<IPrecategorizedCommodityRepository>();
     private readonly IAiClient _aiClient = Substitute.For<IAiClient>();
+    private readonly ICommodityCategoryHintProvider _hintProvider = Substitute.For<ICommodityCategoryHintProvider>();
     private readonly ICategorizationDecisionRecorder _recorder = Substitute.For<ICategorizationDecisionRecorder>();
 
     public CommodityCategorizationServiceTests()
@@ -29,6 +30,9 @@ public class CommodityCategorizationServiceTests
         _precategorizedRepository
             .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, CommodityCategory>(StringComparer.Ordinal));
+        // ADR-035 (T-05): подсказок нет — конвейер только проходит обязательный параметр
+        // IAiClient пустой коллекцией, сценарии категоризации не меняются.
+        _hintProvider.GetHints(Arg.Any<string>()).Returns(Array.Empty<CommodityCategoryKeywordHint>());
     }
 
     private CommodityCategorizationService CreateService(AiOptions? options = null)
@@ -40,6 +44,7 @@ public class CommodityCategorizationServiceTests
             _cache,
             _precategorizedRepository,
             _aiClient,
+            _hintProvider,
             aiOptions,
             NullLogger<CommodityCategoryResolver>.Instance);
 
@@ -85,7 +90,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal(CategorizationSourceNames.Existing, suggestion.Source);
         Assert.Null(suggestion.Error);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
         // Приоритет «existing → cache → ai» (FR-2.1): кэш не опрашивается, если категория уже есть.
         _cache.DidNotReceiveWithAnyArgs().TryGet(default!, out _);
     }
@@ -107,7 +112,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal("Топливо", suggestion.CategoryName); // дисплейное имя из CommodityCategoryHelper (ADR 019)
         Assert.Null(suggestion.Error);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default); // ИИ не вызван
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default); // ИИ не вызван
     }
 
     [Fact]
@@ -125,7 +130,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal("Молочные продукты", suggestion.CategoryName);
         Assert.Equal(CategorizationSourceNames.Cache, suggestion.Source);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -135,7 +140,7 @@ public class CommodityCategorizationServiceTests
         ArrangeReceipt(item);
 
         // ADR-034 FR-2: в ИИ уходит очищенное имя группы, а не сырое наименование позиции.
-        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.ReadyMeals));
 
         var service = CreateService();
@@ -145,7 +150,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal((int)CommodityCategory.ReadyMeals, suggestion.CategoryId);
         Assert.Equal(CategorizationSourceNames.Ai, suggestion.Source);
 
-        await _aiClient.Received(1).SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+        await _aiClient.Received(1).SuggestCategoryAsync("пельмени", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -154,7 +159,7 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Странный товар");
         ArrangeReceipt(item);
 
-        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns<Task<AiSuggestionResult>>(Task.FromException<AiSuggestionResult>(new AiClientException("AI is down.")));
 
         var service = CreateService();
@@ -174,7 +179,7 @@ public class CommodityCategorizationServiceTests
         var bread = CreateCommodity(_receiptId, "Хлеб");
         ArrangeReceipt(milkA, bread, milkB);
 
-        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Food));
 
         var service = CreateService();
@@ -188,7 +193,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal(itemResults[0].CategoryId, itemResults[2].CategoryId);
 
         // Одинаковые нормализованные названия (молоко) не вызывают AI дважды.
-        await _aiClient.Received(2).SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+        await _aiClient.Received(2).SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -197,7 +202,7 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Бананы");
         ArrangeReceipt(item);
 
-        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Fruits));
 
         var service = CreateService();
@@ -222,6 +227,7 @@ public class CommodityCategorizationServiceTests
                 names.Contains("Snacks") &&
                 names.Contains("FitnessAndSports") &&
                 names.Count == CommodityCategoryHelper.GetAll().Count(c => c.Id != CommodityCategory.Undefined)),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -242,7 +248,7 @@ public class CommodityCategorizationServiceTests
         var item = CreateCommodity(_receiptId, "Товар без категории");
         ArrangeReceipt(item);
 
-        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Other));
 
         var service = CreateService();
@@ -360,7 +366,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal("Молочные продукты", suggestion.CategoryName);
         Assert.Null(suggestion.Error);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     [Fact]
@@ -383,7 +389,7 @@ public class CommodityCategorizationServiceTests
                 // Наименования, уже обслуженные existing/cache, в очередь не попадают (FR-9.3).
                 ["из кэша"] = CommodityCategory.Meat
             });
-        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync(Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Other));
 
         var service = CreateService();
@@ -397,7 +403,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal((int)CommodityCategory.Bakery, items[2].CategoryId);
 
         // ADR-034 FR-2: в ИИ уходит очищенное имя позиции («только ии»), а не сырое.
-        await _aiClient.Received(1).SuggestCategoryAsync("только ии", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>());
+        await _aiClient.Received(1).SuggestCategoryAsync("только ии", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -453,7 +459,7 @@ public class CommodityCategorizationServiceTests
         _precategorizedRepository
             .GetCategoriesByNormalizedNamesAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
             .Returns<IReadOnlyDictionary<string, CommodityCategory>>(_ => throw new InvalidOperationException("queue is down"));
-        _aiClient.SuggestCategoryAsync("йогурт", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("йогурт", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Dairy));
 
         var service = CreateService();
@@ -469,7 +475,7 @@ public class CommodityCategorizationServiceTests
     {
         var item = CreateCommodity(_receiptId, "Сок");
         ArrangeReceipt(item);
-        _aiClient.SuggestCategoryAsync("сок", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("сок", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Beverages));
 
         var service = CreateService();
@@ -487,7 +493,7 @@ public class CommodityCategorizationServiceTests
         // FR-2: в промпт ИИ уходит очищенное имя; name в ответе остаётся сырым (FR-4/NFR-2).
         var item = CreateCommodity(_receiptId, "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
         ArrangeReceipt(item);
-        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
 
         var service = CreateService();
@@ -503,10 +509,12 @@ public class CommodityCategorizationServiceTests
         await _aiClient.Received(1).SuggestCategoryAsync(
             "пирог с вишней по ре",
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
         await _aiClient.DidNotReceive().SuggestCategoryAsync(
             Arg.Is<string>(name => name.Contains("2417268000006", StringComparison.Ordinal)),
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -518,7 +526,7 @@ public class CommodityCategorizationServiceTests
         var withCode = CreateCommodity(_receiptId, "2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ");
         var withoutCode = CreateCommodity(_receiptId, "ПИРОГ С ВИШНЕЙ ПО РЕ");
         ArrangeReceipt(withCode);
-        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+        _aiClient.SuggestCategoryAsync("пирог с вишней по ре", Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(), Arg.Any<CancellationToken>())
             .Returns(new AiSuggestionResult(CommodityCategory.Bakery));
 
         var service = CreateService();
@@ -542,6 +550,7 @@ public class CommodityCategorizationServiceTests
         await _aiClient.Received(1).SuggestCategoryAsync(
             Arg.Any<string>(),
             Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<IReadOnlyCollection<CommodityCategoryKeywordHint>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -564,7 +573,7 @@ public class CommodityCategorizationServiceTests
         Assert.Equal("ИИ не настроен.", suggestion.Error);
         Assert.Equal("2417268000006 ПИРОГ С ВИШНЕЙ ПО РЕ", suggestion.Name);
 
-        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default);
+        await _aiClient.DidNotReceiveWithAnyArgs().SuggestCategoryAsync(default!, default!, default!, default);
     }
 
     // ---- T-04: точка фиксации 1 — журнал «предложено → принято» (ADR-033 п. 3, FR-4/FR-5) ----

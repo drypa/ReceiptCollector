@@ -336,6 +336,39 @@ public sealed class PrecategorizationBackgroundServiceTests
     }
 
     [Fact]
+    public async Task Hints_are_computed_from_cleaned_name_and_passed_to_ai()
+    {
+        // ADR-035 п. 4.3 (T-05): подсказки считаются провайдером по очищенному имени кандидата
+        // («*3455614 Курага» → «курага») и уходят в IAiClient тем же вызовом.
+        await using var harness = new Harness(new PrecategorizationOptions
+        {
+            IdleTimeout = IdleTimeout,
+            IdleCheckInterval = CheckInterval,
+            BatchLimit = 10,
+            IntervalBetweenCalls = TimeSpan.Zero
+        });
+        harness.Monitor.Idle = true;
+        var merchantId = Guid.NewGuid();
+        harness.Repository.Candidates = new[] { new CandidateCursor("*3455614 Курага", merchantId) };
+        harness.Ai.Behavior = _ => new AiSuggestionResult(CommodityCategory.DriedFruits);
+        var hint = new CommodityCategoryKeywordHint(CommodityCategory.DriedFruits, KeywordListType.Boost, "курага");
+        harness.HintProvider.Behavior = normalizedName =>
+            normalizedName == "курага" ? [hint] : Array.Empty<CommodityCategoryKeywordHint>();
+
+        await harness.Service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => harness.Repository.Added.Count == 1);
+
+        // Провайдер спрошен ровно по очищенному имени (тот же ключ, что и вызов ИИ).
+        Assert.Equal(["курага"], harness.HintProvider.Requests);
+        Assert.Single(harness.Ai.Calls);
+        Assert.Equal("курага", harness.Ai.Calls[0]);
+        // Подсказка дошла до IAiClient.
+        Assert.Equal(new[] { hint }, Assert.Single(harness.Ai.CallHints));
+
+        await harness.Service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Precheck_false_lets_all_candidates_through_unchanged_flow()
     {
         await using var harness = new Harness(new PrecategorizationOptions
@@ -605,6 +638,8 @@ public sealed class PrecategorizationBackgroundServiceTests
             services.AddSingleton<IPrecategorizedCommodityRepository>(Repository);
             services.AddSingleton<ICommodityCategoryCache>(Cache);
             services.AddSingleton<IAiClient>(Ai);
+            // ADR-035 (T-05): фон берёт единственный провайдер подсказок из скоупа запроса.
+            services.AddSingleton<ICommodityCategoryHintProvider>(HintProvider);
             _provider = services.BuildServiceProvider();
 
             Service = new PrecategorizationBackgroundService(
@@ -631,6 +666,8 @@ public sealed class PrecategorizationBackgroundServiceTests
         public FakeCache Cache { get; } = new();
 
         public FakeAiClient Ai { get; } = new();
+
+        public FakeHintProvider HintProvider { get; } = new();
 
         public RecordingLogger<PrecategorizationBackgroundService> Logger { get; } = new();
 
@@ -793,6 +830,9 @@ public sealed class PrecategorizationBackgroundServiceTests
 
         public List<string> Calls { get; } = new();
 
+        /// <summary>Подсказки каждого вызова (ADR-035, T-05): проверка доставки по очищенному имени.</summary>
+        public List<IReadOnlyCollection<CommodityCategoryKeywordHint>> CallHints { get; } = new();
+
         /// <summary>Виртуальное время на момент каждого вызова (для проверки паузы D4/FR-2.4).</summary>
         public List<DateTimeOffset> CallTimestamps { get; } = new();
 
@@ -801,11 +841,31 @@ public sealed class PrecategorizationBackgroundServiceTests
         public Task<AiSuggestionResult> SuggestCategoryAsync(
             string productName,
             IReadOnlyCollection<string> categoryNames,
+            IReadOnlyCollection<CommodityCategoryKeywordHint> hints,
             CancellationToken cancellationToken = default)
         {
             Calls.Add(productName);
+            CallHints.Add(hints);
             CallTimestamps.Add(Time?.GetUtcNow() ?? DateTimeOffset.UtcNow);
             return Task.FromResult(Behavior(productName));
+        }
+    }
+
+    /// <summary>
+    /// Фейковый провайдер подсказок (ADR-035, T-05): записывает запросы (по ним проверяется
+    /// расчёт по очищенному имени) и отдаёт подсказки, заданные тестом.
+    /// </summary>
+    private sealed class FakeHintProvider : ICommodityCategoryHintProvider
+    {
+        public List<string> Requests { get; } = new();
+
+        public Func<string, IReadOnlyList<CommodityCategoryKeywordHint>> Behavior { get; set; }
+            = _ => Array.Empty<CommodityCategoryKeywordHint>();
+
+        public IReadOnlyList<CommodityCategoryKeywordHint> GetHints(string normalizedName)
+        {
+            Requests.Add(normalizedName);
+            return Behavior(normalizedName);
         }
     }
 

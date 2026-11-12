@@ -23,8 +23,8 @@
 | 01 | Схема: SQL-миграция с сидом, EF-модель, DbSet | `01-schema-migration-seed` | — | M (1.5) | committed |
 | 02 | Домен: тип списка, правила слова, матчер, контракт репозитория | `02-domain-keywords-matcher` | 01 (мягкая) | M (1.0) | committed |
 | 03 | Хранение: реализация репозитория, кэш снимка, hosted-прогрев | `03-storage-cache-warmup` | 01, 02 | M (1.5) | committed |
-| 04 | Сервис ключевых слов + админский API | `04-service-admin-api` | 03 | M (1.5) | approved |
-| 05 | Доставка подсказок: провайдер, смена сигнатуры `IAiClient`, resolver и фон | `05-hints-pipeline` | 02, 03 | M (1.0) | pending |
+| 04 | Сервис ключевых слов + админский API | `04-service-admin-api` | 03 | M (1.5) | committed |
+| 05 | Доставка подсказок: провайдер, смена сигнатуры `IAiClient`, resolver и фон | `05-hints-pipeline` | 02, 03 | M (1.0) | approved |
 | 06 | Промт: удаление хардкода, блок подсказок, замена теста хардкода | `06-prompt-hints-block` | 01, 05 | M (1.0) | pending |
 | 07 | Фронтенд: раздел «Категории товаров» | `07-frontend-page` | 04 | M (1.5) | pending |
 | 08 | Amend-заметки ADR 009/022/027/028 и сквозная ручная приёмка | `08-adr-notes-acceptance` | 01…07 | S (0.5) | pending |

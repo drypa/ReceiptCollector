@@ -42,6 +42,9 @@ public static class DependencyInjectionExtensions
         // пути; репозиторий — Scoped (scoped DbContext), прогрев — hosted service (ровно один раз).
         services.AddSingleton<ICommodityCategoryKeywordCache, InMemoryCommodityCategoryKeywordCache>();
         services.AddScoped<ICommodityCategoryKeywordRepository, CommodityCategoryKeywordRepository>();
+        // ADR-035 п. 4.2 (T-05): единственный провайдер подсказок поверх singleton-кэша —
+        // им пользуются оба входа в ИИ (resolver ручного suggest и фон прекатегоризации).
+        services.AddScoped<ICommodityCategoryHintProvider, CommodityCategoryHintProvider>();
         // ADR-035 п. 6–7 (T-04): админский сервис слов — scoped поверх scoped-репозитория
         // и singleton-кэша; инвалидация кэша — после commit мутации.
         services.AddScoped<ICommodityCategoryKeywordService, CommodityCategoryKeywordService>();
