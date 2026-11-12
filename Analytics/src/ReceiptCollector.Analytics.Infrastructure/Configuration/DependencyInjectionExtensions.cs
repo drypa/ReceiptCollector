@@ -38,6 +38,11 @@ public static class DependencyInjectionExtensions
         services.AddSingleton<ICommodityCategoryCache>(sp => new InMemoryCommodityCategoryCache(
             sp.GetRequiredService<IOptions<CommodityCategoryCacheOptions>>().Value.MaxSize));
 
+        // ADR-035 (E1, п. 6): singleton-кэш слов категоризации — снимок без блокировок на горячем
+        // пути; репозиторий — Scoped (scoped DbContext), прогрев — hosted service (ровно один раз).
+        services.AddSingleton<ICommodityCategoryKeywordCache, InMemoryCommodityCategoryKeywordCache>();
+        services.AddScoped<ICommodityCategoryKeywordRepository, CommodityCategoryKeywordRepository>();
+
         services.AddScoped<ICommodityCategorizationService, CommodityCategorizationService>();
         // ADR-028 п. 9: общий конвейер категоризации (Scoped — SemaphoreSlim на экземпляр, как раньше).
         services.AddScoped<ICommodityCategoryResolver, CommodityCategoryResolver>();
@@ -72,6 +77,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddHostedService<AdminUserHostedService>();
         services.AddHostedService<CommodityCategoryCacheInitializationHostedService>();
+        // ADR-035 п. 6: прогрев кэша слов (ошибка не валит процесс — кэш останется «грязным»).
+        services.AddHostedService<CommodityCategoryKeywordCacheInitializationHostedService>();
         services.AddHostedService<PrecategorizationBackgroundService>();
         return services;
     }
