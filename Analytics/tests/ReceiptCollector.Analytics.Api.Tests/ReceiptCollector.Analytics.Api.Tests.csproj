@@ -34,6 +34,11 @@
     <None Include="..\..\src\ReceiptCollector.Analytics.Migrations\Scripts\20261109120000_add_precategorized_normalized_name.sql"
           Link="Scripts/%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
+    <!-- CommodityCategoryKeywordSchemaTests применяет реальный файл миграции слов
+         категоризации (T-01 ADR-035): таблица, три CHECK, уникальный индекс и сид. -->
+    <None Include="..\..\src\ReceiptCollector.Analytics.Migrations\Scripts\20261112120000_add_commodity_category_keywords.sql"
+          Link="Scripts/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

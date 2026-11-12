@@ -28,6 +28,12 @@ internal sealed class ReceiptDbContext : DbContext
     /// </summary>
     public DbSet<CategorizationDecisionEntity> CategorizationDecisions => Set<CategorizationDecisionEntity>();
 
+    /// <summary>
+    /// Слова категоризации boost/exclude (ADR-035 п. 1) — глобальные данные, общие для всех
+    /// пользователей (админское управление); query-filter намеренно не ставится.
+    /// </summary>
+    public DbSet<CommodityCategoryKeywordEntity> CommodityCategoryKeywords => Set<CommodityCategoryKeywordEntity>();
+
     internal Guid? CurrentUserId { get; private set; }
 
     internal void SetCurrentUser(Guid userId)
@@ -49,6 +55,7 @@ internal sealed class ReceiptDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserAuthLinkConfiguration());
         modelBuilder.ApplyConfiguration(new PrecategorizedCommodityConfiguration());
         modelBuilder.ApplyConfiguration(new CategorizationDecisionConfiguration());
+        modelBuilder.ApplyConfiguration(new CommodityCategoryKeywordConfiguration());
         modelBuilder.Entity<ReceiptEntity>()
             .HasQueryFilter(r => CurrentUserId == null || r.UserId == CurrentUserId);
     }
