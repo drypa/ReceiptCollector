@@ -1,8 +1,17 @@
+import { useEffect } from 'react';
 import { usePageSize } from '../contexts/PageSizeContext';
 import { useAdmin } from '../hooks/useAdmin';
+import { usePrecategorizedBulkOperations } from '../hooks/usePrecategorizedBulkOperations';
 import { usePrecategorizedCommodities } from '../hooks/usePrecategorizedCommodities';
 import { Pagination } from './Pagination';
+import { PrecategorizedBulkActions } from './PrecategorizedBulkActions';
 import { PrecategorizedCommodityTable } from './PrecategorizedCommodityTable';
+
+/**
+ * Подсказка на всех контролах, заблокированных на время массовой операции
+ * (ADR-036 §5): сводка должна относиться к тому набору строк, который на экране.
+ */
+const BULK_LOCKED_TITLE = 'Дождитесь завершения массовой операции';
 
 /**
  * Админский раздел «Предкатегоризация» (FR-7, ADR-027 п.7).
@@ -51,6 +60,25 @@ function PrecategorizedCommoditiesView() {
     refresh,
   } = usePrecategorizedCommodities({ pageSize });
 
+  // Массовые операции страницы (ADR-036 §5): хук владеет снимком строк, одним
+  // запросом и автообновлением списка (onCompleted: refresh — дублирующих
+  // вызовов не добавляем). Компонент кнопок подключается к bulk.run напрямую:
+  // снимок id берётся в момент подтверждения диалога (сводка задачи 07).
+  const bulk = usePrecategorizedBulkOperations({ onCompleted: refresh });
+  const { reset: resetBulk } = bulk;
+
+  // Сводка относится к набору строк на экране: при смене страницы, поиска или
+  // размера страницы итог прошлой операции больше не актуален (ADR-036 §5).
+  // На первом рендере reset() — no-op (summary/error и так пусты).
+  useEffect(() => {
+    resetBulk();
+  }, [currentPage, search, pageSize, resetBulk]);
+
+  // На время массовой операции блокируются все контролы списка (ADR-036 §5,
+  // паттерн блокировок ADR-028 C5): админ не может увести со страницы строк,
+  // к которым относится итог операции.
+  const controlsLocked = bulk.isRunning;
+
   return (
     <div className="layout">
       <header>
@@ -67,7 +95,8 @@ function PrecategorizedCommoditiesView() {
               id="precategorized-page-size-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              disabled={isLoading}
+              disabled={isLoading || controlsLocked}
+              title={controlsLocked ? BULK_LOCKED_TITLE : undefined}
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -76,10 +105,26 @@ function PrecategorizedCommoditiesView() {
               ))}
             </select>
           </div>
-          <button type="button" onClick={refresh} disabled={isLoading}>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={isLoading || controlsLocked}
+            title={controlsLocked ? BULK_LOCKED_TITLE : undefined}
+          >
             Обновить
           </button>
         </div>
+        {/* Кнопки массовых операций — в шапке рядом с «Обновить», не в таблице
+            (ADR-036 §5); для не-админа не рендерятся — гейт выше. */}
+        <PrecategorizedBulkActions
+          items={data}
+          isRunning={bulk.isRunning}
+          summary={bulk.summary}
+          error={bulk.error}
+          isLoading={isLoading}
+          loadError={Boolean(error)}
+          onRun={bulk.run}
+        />
       </header>
 
       <div className="controls">
@@ -90,6 +135,8 @@ function PrecategorizedCommoditiesView() {
           value={search}
           placeholder="Наименование или магазин"
           onChange={(event) => setSearch(event.target.value)}
+          disabled={controlsLocked}
+          title={controlsLocked ? BULK_LOCKED_TITLE : undefined}
         />
       </div>
 
@@ -109,7 +156,7 @@ function PrecategorizedCommoditiesView() {
       )}
 
       {!isLoading && !error && (
-        <PrecategorizedCommodityTable items={data} onRefresh={refresh} />
+        <PrecategorizedCommodityTable items={data} onRefresh={refresh} disabled={controlsLocked} />
       )}
 
       {!isLoading && !error && (
@@ -119,6 +166,8 @@ function PrecategorizedCommoditiesView() {
           onPageChange={goToPage}
           onNext={nextPage}
           onPrevious={previousPage}
+          disabled={controlsLocked}
+          disabledTitle={BULK_LOCKED_TITLE}
         />
       )}
     </div>
