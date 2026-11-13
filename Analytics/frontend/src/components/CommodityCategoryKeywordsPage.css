@@ -1,0 +1,190 @@
+/* === Раздел «Категории товаров» (T-07, ADR-035 п. 8) === */
+
+/* Палитра и радиусы — как у существующих карточек/таблиц (App.css). */
+.keywords-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.keywords-section-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #312e81;
+}
+
+.keywords-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.keyword-card {
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.keyword-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Один список слов (boost или exclude) внутри карточки. */
+.keyword-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding-top: 0.75rem;
+}
+
+.keyword-list-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.keyword-list-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Счётчик N / 200 виден без раскрытия (UC-1); на лимите подсвечивается. */
+.keyword-list-counter {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.keyword-list-counter--limit {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+}
+
+.keyword-chips-empty {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Чип слова: boost — индиго, exclude — терракота («исключение сильнее boost»). */
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.keyword-chip--boost {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+}
+
+.keyword-chip--exclude {
+  background: rgba(234, 88, 12, 0.1);
+  color: #c2410c;
+}
+
+.keyword-chip-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  border-radius: 4px;
+}
+
+.keyword-chip-remove:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.keyword-chip-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Поле ввода + «Добавить»; Enter отправляет форму (submit в компоненте). */
+.keyword-add-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.keyword-add-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.keyword-add-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.keyword-add-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.keyword-add-button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.keyword-add-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.keyword-add-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Подсказка о лимите 200 (поле уже заблокировано — 409 не должен быть сюрпризом). */
+.keyword-list-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 640px) {
+  .keywords-cards {
+    grid-template-columns: 1fr;
+  }
+}

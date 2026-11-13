@@ -9,8 +9,16 @@ import { CommoditiesPage } from './components/CommoditiesPage';
 import { MerchantsPage } from './components/MerchantsPage';
 import { PrecategorizedCommoditiesPage } from './components/PrecategorizedCommoditiesPage';
 import { CategorizationDecisionsPage } from './components/CategorizationDecisionsPage';
+import { CommodityCategoryKeywordsPage } from './components/CommodityCategoryKeywordsPage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { categorizationDecisionsPath, isGuid, precategorizedPath, receiptPath, receiptsPath } from './routes';
+import {
+  categorizationDecisionsPath,
+  commodityCategoryKeywordsPath,
+  isGuid,
+  precategorizedPath,
+  receiptPath,
+  receiptsPath,
+} from './routes';
 import { adminService } from './services/adminService';
 import { useEffect } from 'react';
 import './App.css';
@@ -36,6 +44,7 @@ export function App() {
               <Route path="/merchants/:merchantId/receipts" element={<MerchantReceiptsPage />} />
               <Route path={precategorizedPath()} element={<PrecategorizedCommoditiesPage />} />
               <Route path={categorizationDecisionsPath()} element={<CategorizationDecisionsPage />} />
+              <Route path={commodityCategoryKeywordsPath()} element={<CommodityCategoryKeywordsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

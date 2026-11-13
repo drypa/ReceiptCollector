@@ -228,13 +228,17 @@ internal sealed class CommodityCategoryKeywordService : ICommodityCategoryKeywor
     /// по <c>word</c> OrdinalIgnoreCase, затем Ordinal как разрешение ничьих
     /// (например, «Яблоко» до «абрикос», «apple» и «Apple» рядом).
     /// </summary>
-    private static IReadOnlyList<string> SortedWords(
+    /// <summary>
+    /// Слова списка, отсортированные по <c>word</c> (OrdinalIgnoreCase, затем Ordinal —
+    /// ADR-035 п. 7); каждое слово несёт <c>Id</c> строки для адресного <c>DELETE</c> (G1).
+    /// </summary>
+    private static IReadOnlyList<CategoryKeywordItemDto> SortedWords(
         ILookup<(CommodityCategory Category, KeywordListType ListType), CommodityCategoryKeyword> byList,
         CommodityCategory category,
         KeywordListType listType)
         => byList[(category, listType)]
-            .Select(keyword => keyword.Word)
-            .OrderBy(word => word, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(word => word, StringComparer.Ordinal)
+            .OrderBy(keyword => keyword.Word, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(keyword => keyword.Word, StringComparer.Ordinal)
+            .Select(keyword => new CategoryKeywordItemDto(keyword.Id, keyword.Word))
             .ToList();
 }

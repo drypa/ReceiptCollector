@@ -35,6 +35,11 @@ export function categorizationDecisionsPath(): string {
   return '/categorization-decisions';
 }
 
+/** Админский раздел слов категоризации — boost/exclude-списки на категорию (ADR-035 п. 8, FR-9). */
+export function commodityCategoryKeywordsPath(): string {
+  return '/commodity-category-keywords';
+}
+
 export function merchantReceiptsPath(merchantId: string): string {
   return `/merchants/${encodeURIComponent(merchantId)}/receipts`;
 }

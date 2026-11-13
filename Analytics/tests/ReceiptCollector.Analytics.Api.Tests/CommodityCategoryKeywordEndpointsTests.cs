@@ -103,11 +103,14 @@ public class CommodityCategoryKeywordEndpointsTests
         // «все категории из GetAll() без Undefined, пустые списки, группа из GetGroup»
         // (ADR-035 п. 7, UC-1) — поведение сервиса, а не заглушки.
         var repository = Substitute.For<ICommodityCategoryKeywordRepository>();
+        var dateId = Guid.NewGuid();
+        var driedApricotId = Guid.NewGuid();
+        var raisinId = Guid.NewGuid();
         repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new[]
         {
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "финик", "финик"),
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "Курага", "курага"),
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "изюм", "изюм"),
+            new CommodityCategoryKeyword(dateId, CommodityCategory.DriedFruits, KeywordListType.Boost, "финик", "финик"),
+            new CommodityCategoryKeyword(driedApricotId, CommodityCategory.DriedFruits, KeywordListType.Boost, "Курага", "курага"),
+            new CommodityCategoryKeyword(raisinId, CommodityCategory.DriedFruits, KeywordListType.Boost, "изюм", "изюм"),
             new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.Fruits, KeywordListType.Exclude, "изюм", "изюм"),
         });
         var service = new CommodityCategoryKeywordService(
@@ -139,10 +142,12 @@ public class CommodityCategoryKeywordEndpointsTests
         var driedFruits = categories.Single(dto => dto.CategoryId == (int)CommodityCategory.DriedFruits);
         Assert.Equal("Сухофрукты", driedFruits.CategoryName);
         Assert.Equal("Продукты", driedFruits.Group);
-        Assert.Equal(new[] { "изюм", "Курага", "финик" }, driedFruits.Boost);
+        // Каждое слово несёт Id строки — DELETE адресен только по нему (ADR-035 G1).
+        Assert.Equal(new[] { "изюм", "Курага", "финик" }, driedFruits.Boost.Select(item => item.Word));
+        Assert.Equal(new[] { raisinId, driedApricotId, dateId }, driedFruits.Boost.Select(item => item.Id));
 
         var fruits = categories.Single(dto => dto.CategoryId == (int)CommodityCategory.Fruits);
-        Assert.Equal(new[] { "изюм" }, fruits.Exclude);
+        Assert.Equal(new[] { "изюм" }, fruits.Exclude.Select(item => item.Word));
 
         // Группа вне реестра групп — пустая строка (GetGroup).
         Assert.Equal(string.Empty, categories.Single(dto => dto.CategoryId == (int)CommodityCategory.Clothing).Group);
@@ -152,9 +157,25 @@ public class CommodityCategoryKeywordEndpointsTests
         {
             RequestServices = new ServiceCollection().AddLogging().AddRouting().BuildServiceProvider(),
         };
+        // Тело пишется в память: фронтенд T-07 читает элементы boost/exclude как
+        // camelCase-объекты { id, word } — контракт проверяется на уровне wire-формы.
+        using var responseBody = new MemoryStream();
+        httpContext.Response.Body = responseBody;
         await result.ExecuteAsync(httpContext);
         Assert.Equal(StatusCodes.Status200OK, httpContext.Response.StatusCode);
         Assert.False(httpContext.Response.Headers.ContainsKey("X-Total-Count"));
+
+        responseBody.Position = 0;
+        using var document = JsonDocument.Parse(responseBody);
+        var driedFruitsJson = document.RootElement.EnumerateArray()
+            .Single(category => category.GetProperty("categoryId").GetInt32() == (int)CommodityCategory.DriedFruits);
+        var boostJson = driedFruitsJson.GetProperty("boost").EnumerateArray().ToList();
+        Assert.Equal(
+            new[] { raisinId, driedApricotId, dateId },
+            boostJson.Select(item => item.GetProperty("id").GetGuid()));
+        Assert.Equal(
+            new[] { "изюм", "Курага", "финик" },
+            boostJson.Select(item => item.GetProperty("word").GetString()));
     }
 
     [Theory]

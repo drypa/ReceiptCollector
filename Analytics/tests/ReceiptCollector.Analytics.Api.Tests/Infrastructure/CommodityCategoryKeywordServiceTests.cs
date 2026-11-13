@@ -266,11 +266,14 @@ public sealed class CommodityCategoryKeywordServiceTests
     [Fact]
     public async Task GetAllAsync_returns_all_categories_without_undefined_in_declaration_order()
     {
+        var dateId = Guid.NewGuid();
+        var driedApricotId = Guid.NewGuid();
+        var raisinId = Guid.NewGuid();
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new[]
         {
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "финик", "финик"),
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "Курага", "курага"),
-            new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.DriedFruits, KeywordListType.Boost, "изюм", "изюм"),
+            new CommodityCategoryKeyword(dateId, CommodityCategory.DriedFruits, KeywordListType.Boost, "финик", "финик"),
+            new CommodityCategoryKeyword(driedApricotId, CommodityCategory.DriedFruits, KeywordListType.Boost, "Курага", "курага"),
+            new CommodityCategoryKeyword(raisinId, CommodityCategory.DriedFruits, KeywordListType.Boost, "изюм", "изюм"),
             new CommodityCategoryKeyword(Guid.NewGuid(), CommodityCategory.Fruits, KeywordListType.Exclude, "изюм", "изюм"),
         });
 
@@ -292,12 +295,14 @@ public sealed class CommodityCategoryKeywordServiceTests
         Assert.Equal("DriedFruits", driedFruits.CategoryKey);
         Assert.Equal("Сухофрукты", driedFruits.CategoryName);
         Assert.Equal("Продукты", driedFruits.Group);
-        // Слова — по word OrdinalIgnoreCase (и < к < ф), регистр сохранён.
-        Assert.Equal(new[] { "изюм", "Курага", "финик" }, driedFruits.Boost);
+        // Слова — по word OrdinalIgnoreCase (и < к < ф), регистр сохранён; каждое слово
+        // несёт Id строки для адресного DELETE (ADR-035 G1: «id уже есть в выдаче GET»).
+        Assert.Equal(new[] { "изюм", "Курага", "финик" }, driedFruits.Boost.Select(item => item.Word));
+        Assert.Equal(new[] { raisinId, driedApricotId, dateId }, driedFruits.Boost.Select(item => item.Id));
         Assert.Empty(driedFruits.Exclude);
 
         var fruits = categories.Single(dto => dto.CategoryId == (int)CommodityCategory.Fruits);
-        Assert.Equal(new[] { "изюм" }, fruits.Exclude);
+        Assert.Equal(new[] { "изюм" }, fruits.Exclude.Select(item => item.Word));
         Assert.Empty(fruits.Boost);
 
         // Категория вне групп (legacy-диапазон) — пустая строка группы (GetGroup).
@@ -319,7 +324,7 @@ public sealed class CommodityCategoryKeywordServiceTests
         var categories = (await CreateService().GetAllAsync(CancellationToken.None)).ToList();
 
         var driedFruits = categories.Single(dto => dto.CategoryId == (int)CommodityCategory.DriedFruits);
-        Assert.Equal(new[] { "Apple", "apple" }, driedFruits.Boost);
+        Assert.Equal(new[] { "Apple", "apple" }, driedFruits.Boost.Select(item => item.Word));
     }
 
     private void ArrangeAddSucceeds(Action<CommodityCategoryKeyword>? captured = null)

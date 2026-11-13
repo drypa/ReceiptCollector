@@ -18,8 +18,19 @@ public sealed record CategoryKeywordsDto(
     string CategoryKey,
     string CategoryName,
     string Group,
-    IReadOnlyList<string> Boost,
-    IReadOnlyList<string> Exclude);
+    IReadOnlyList<CategoryKeywordItemDto> Boost,
+    IReadOnlyList<CategoryKeywordItemDto> Exclude);
+
+/// <summary>
+/// Слово списка в снимке <c>GET</c>: помимо текста несёт <see cref="Id"/> строки.
+/// Отклонение от примера в ADR-035 п. 7, выявлено в задаче 07: без <c>id</c> удаление
+/// чипа (UC-3) нереализуемо, так как <c>DELETE</c> адресен только по нему (ADR-035
+/// G1/G3: «<c>id</c> уже есть в выдаче <c>GET</c> и однозначен»). Форма ответа
+/// зафиксирована сводкой задачи 07 и amend-заметкой к ADR-035 п. 7 (задача 08).
+/// </summary>
+/// <param name="Id">Идентификатор строки для адресного <c>DELETE /{id}</c>.</param>
+/// <param name="Word">Слово как введено (FR-5): после trim, регистр и внутренние символы сохранены.</param>
+public sealed record CategoryKeywordItemDto(Guid Id, string Word);
 
 /// <summary>
 /// Исход добавления слова (ADR-035 п. 7). Невалидные категория/<c>listType</c>/слово в enum

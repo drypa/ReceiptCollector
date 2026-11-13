@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAdmin } from '../hooks/useAdmin';
-import { categorizationDecisionsPath, precategorizedPath } from '../routes';
+import { categorizationDecisionsPath, commodityCategoryKeywordsPath, precategorizedPath } from '../routes';
 import './Sidebar.css';
 
 export function Sidebar() {
@@ -38,6 +38,13 @@ export function Sidebar() {
             <li>
               <NavLink to={categorizationDecisionsPath()} className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
                 Журнал категоризации
+              </NavLink>
+            </li>
+          )}
+          {isAdmin && (
+            <li>
+              <NavLink to={commodityCategoryKeywordsPath()} className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+                Категории товаров
               </NavLink>
             </li>
           )}
