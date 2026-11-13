@@ -860,3 +860,41 @@ tbody td:last-child {
   line-height: 1.4;
   white-space: nowrap;
 }
+
+/* Массовые операции страницы «Предкатегоризация» (ADR-036 §5): колонка в шапке —
+   кнопки, busy-строка без прогресса, итоговая сводка. Кнопки наследуют стиль
+   `.layout header button`, спиннер — существующий `.spinner`. */
+.bulk-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* Busy-строка массовой операции: спиннер + текст без чисел (решение заказчика 5). */
+.bulk-busy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--primary);
+}
+
+/* Итоговая сводка завершённой массовой операции (ADR-036 §5): inline-панель,
+   не исчезает сама; причины пропусков — приглушённой строкой под итогом. */
+.bulk-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 0.75rem;
+  background: rgba(34, 197, 94, 0.08);
+  color: #15803d;
+  font-size: 0.95rem;
+}
+
+.bulk-summary-reasons {
+  color: #475569;
+  font-size: 0.85rem;
+}
