@@ -37,6 +37,12 @@ suggest/apply, алгоритм приоритетов, `AI:*`), [ADR 019](019-i
 > `MaxUniqueNames` остаётся по сырым именам (защитный размер порции, контракт клиента не меняется);
 > assign-only, `updated`, `SuggestTimeout`, `aiAvailable` и коды ответов — без изменений. См.
 > [ADR 034](034-commodity-name-normalization.md).
+>
+> **Дополнено (2026-11-13):** пакетный suggest страницы «Товары» получает подсказки по ключевым
+> словам из таблицы `commodity_category_keywords` автоматически — через общий resolver
+> (`ICommodityCategoryHintProvider`, тот же, что в suggest чека и в фоне), без изменений контракта
+> эндпоинта. `SuggestTimeout`, `aiAvailable` и assign-only семантика — без изменений. См.
+> [ADR 035](035-commodity-category-keywords.md).
 
 ## Контекст
 
