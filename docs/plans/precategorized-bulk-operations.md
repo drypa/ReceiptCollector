@@ -36,8 +36,8 @@
 
 | NN | Задача | Зависимости | Статус |
 | -- | ------ | ----------- | ------ |
-| 01 | Application: модели массовых результатов и wire-константы исходов/причин | — | approved |
-| 02 | Domain-контракт и batch-репозиторий: одна транзакция, `SELECT … FOR UPDATE`, set-based запись | 01 | pending |
+| 01 | Application: модели массовых результатов и wire-константы исходов/причин | — | committed |
+| 02 | Domain-контракт и batch-репозиторий: одна транзакция, `SELECT … FOR UPDATE`, set-based запись | 01 | approved |
 | 03 | Сервис: контракт `ConfirmManyAsync`/`DeclineManyAsync`, кэш и журнал после commit, наблюдаемость | 02 | pending |
 | 04 | API: `POST /batch/confirm`, `POST /batch/decline`, валидация, дедлайн, `500`, тесты эндпоинтов | 03 | pending |
 | 05 | Frontend: типы результатов и API-клиент массовых операций | 04 | pending |

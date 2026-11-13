@@ -789,6 +789,15 @@ public sealed class PrecategorizationBackgroundServiceTests
             Guid id, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        // Массовые операции (ADR-036) фоном не используются: контракт реализован явно.
+        public Task<IReadOnlyCollection<BulkConfirmRepositoryItem>> ConfirmManyAsync(
+            IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyCollection<BulkDeclineRepositoryItem>> DeclineManyAsync(
+            IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<IReadOnlyDictionary<string, CommodityCategory>> GetCategoriesByNormalizedNamesAsync(
             IReadOnlyCollection<string> normalizedNames, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
