@@ -413,6 +413,7 @@ public sealed class PrecategorizedCommodityWorkflowTests : IAsyncLifetime
             CreateRepository(context),
             cache,
             CreateRecorder(context),
+            TimeProvider.System,
             NullLogger<PrecategorizedCommodityService>.Instance);
 
     private async Task ClearDatabaseAsync()
