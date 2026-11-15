@@ -88,6 +88,42 @@ internal sealed class MerchantRepository : IMerchantRepository
         return entities.Select(entity => entity.MapToDomain()).ToList();
     }
 
+    public async Task<(IReadOnlyList<Merchant> Items, int TotalCount)> GetPageAsync(
+        int limit,
+        int offset,
+        string? searchTerm,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Merchants.AsNoTracking().AsQueryable();
+
+        var normalizedTerm = searchTerm?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedTerm))
+        {
+            var pattern = $"%{normalizedTerm}%";
+
+            // Частичное, регистронезависимое совпадение по Name ИЛИ Inn (ADR-037):
+            // Inn может быть null — условие по нему даёт «нет совпадения» без исключения
+            // и не скрывает магазин, совпавший по имени. ILike транслируется Npgsql в
+            // PostgreSQL ILIKE (параметризованный), сравнение — substring, case-insensitive.
+            query = query.Where(m =>
+                EF.Functions.ILike(m.Name, pattern)
+                || (m.Inn != null && EF.Functions.ILike(m.Inn, pattern)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var entities = await query
+            .OrderBy(m => m.Name)
+            .ThenBy(m => m.Id)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = entities.Select(entity => entity.MapToDomain()).ToList();
+        return (items, totalCount);
+    }
+
     public async Task UpdateCategoryAsync(Guid merchantId, MerchantCategory category, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.Merchants
