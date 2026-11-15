@@ -94,6 +94,46 @@ public interface IPrecategorizedCommodityRepository
     Task<PrecategorizedOperationOutcome> DeleteProposedAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Массовое подтверждение списка строк очереди <b>одной транзакцией</b> на весь список
+    /// (ADR-036 §2.1, решения B2/C1/C3): снимок строк под <c>SELECT … FOR UPDATE</c>
+    /// в порядке <c>(normalized_name, merchant_id, id)</c> → классификация
+    /// <c>proposed</c>/<c>applied</c>/<c>not-found</c> → применение категории к товарам всех
+    /// пользователей по точному имени (только строки без категории) → один set-based перевод
+    /// очереди в <c>applied</c> → ровно один commit, последний.
+    /// <para>
+    /// Логический конфликт — результат строки, а не ошибка: <c>applied</c>
+    /// (<see cref="PrecategorizedOperationOutcome.Conflict"/>) и отсутствующая строка
+    /// (<see cref="PrecategorizedOperationOutcome.NotFound"/>) не прерывают операцию и не
+    /// откатывают остальные строки. Любое исключение/таймаут/отмена до commit откатывают
+    /// <b>весь</b> список: ни одна строка не остаётся применённой.
+    /// </para>
+    /// <para>
+    /// Возвращается по одной записи на каждый переданный id (в порядке переданной коллекции);
+    /// кэш и журнал решений здесь не затрагиваются — их обновляет сервис после возврата
+    /// (ADR-036 §3). Поштучные <see cref="ConfirmAsync"/> и <see cref="DeleteProposedAsync"/>
+    /// внутри не вызываются: они открывают собственную транзакцию (B2).
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyCollection<BulkConfirmRepositoryItem>> ConfirmManyAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Массовое отклонение списка строк очереди <b>одной транзакцией</b> на весь список
+    /// (ADR-036 §2.1): тот же снимок под <c>SELECT … FOR UPDATE</c> и та же классификация, что
+    /// у <see cref="ConfirmManyAsync"/>, затем одно set-based удаление классифицированных
+    /// <c>proposed</c>-строк и ровно один commit, последний.
+    /// <para>
+    /// <c>commodities</c> не изменяются, <c>applied</c>-строки не удаляются; логические
+    /// конфликты — результат строки (<c>already-applied</c>/<c>not-found</c>), технический
+    /// сбой откатывает весь список.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyCollection<BulkDeclineRepositoryItem>> DeclineManyAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Batch-поиск по очереди для ручного suggest (FR-9.2/9.3, ADR-034 п. 3/п. 4.1): словарь
     /// <c>очищенное наименование (<c>normalized_name</c>) → категория</c> по строкам в любом
     /// статусе; при дублях берётся самая свежая строка (<c>applied_at ?? created_at</c>);

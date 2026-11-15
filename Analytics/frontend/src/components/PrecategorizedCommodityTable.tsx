@@ -14,14 +14,28 @@ import { useToast } from './Toasts';
 interface PrecategorizedCommodityTableProps {
   items: PrecategorizedCommodityItem[];
   onRefresh: () => void;
+  /**
+   * Внешняя блокировка поштучных действий (на странице идёт массовая операция,
+   * ADR-036 §5): селект категории и кнопки «Подтвердить»/«Отклонить» строк
+   * недоступны, чтобы итог массовой операции относился к видимому набору строк.
+   * Аддитивный проп: без него (по умолчанию `false`) поведение таблицы прежнее.
+   */
+  disabled?: boolean;
 }
+
+/** Подсказка на поштучных контролах, заблокированных массовой операцией (ADR-036 §5). */
+const BULK_LOCKED_TITLE = 'Дождитесь завершения массовой операции';
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   dateStyle: 'short',
   timeStyle: 'short',
 });
 
-export function PrecategorizedCommodityTable({ items, onRefresh }: PrecategorizedCommodityTableProps) {
+export function PrecategorizedCommodityTable({
+  items,
+  onRefresh,
+  disabled = false,
+}: PrecategorizedCommodityTableProps) {
   const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -121,7 +135,8 @@ export function PrecategorizedCommodityTable({ items, onRefresh }: Precategorize
                     <select
                       value={String(item.proposedCategoryId)}
                       onChange={(event) => handleCategoryChange(item, event.target.value)}
-                      disabled={isSaving}
+                      disabled={isSaving || disabled}
+                      title={disabled ? BULK_LOCKED_TITLE : undefined}
                       aria-label={`Категория для «${item.name}»`}
                     >
                       {renderCategorySelectOptions(categories)}
@@ -133,7 +148,8 @@ export function PrecategorizedCommodityTable({ items, onRefresh }: Precategorize
                       <button
                         type="button"
                         onClick={() => handleConfirm(item)}
-                        disabled={isSaving}
+                        disabled={isSaving || disabled}
+                        title={disabled ? BULK_LOCKED_TITLE : undefined}
                         aria-label={`Подтвердить категорию для «${item.name}»`}
                       >
                         Подтвердить
@@ -142,7 +158,8 @@ export function PrecategorizedCommodityTable({ items, onRefresh }: Precategorize
                         type="button"
                         className="secondary"
                         onClick={() => setDeclineTarget(item)}
-                        disabled={isSaving}
+                        disabled={isSaving || disabled}
+                        title={disabled ? BULK_LOCKED_TITLE : undefined}
                         aria-label={`Отклонить предложение для «${item.name}»`}
                       >
                         Отклонить
