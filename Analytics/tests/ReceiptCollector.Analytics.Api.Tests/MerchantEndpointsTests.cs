@@ -315,13 +315,13 @@ public class MerchantEndpointsTests
 
         var merchants = new List<Merchant>
         {
-            new(Guid.NewGuid(), "Пятёрочка", MerchantCategory.GroceryStores, "ул. Ленина, 1", "7712345678"),
             new(Guid.NewGuid(), "Магнит", MerchantCategory.Undefined, null, null),
+            new(Guid.NewGuid(), "Пятёрочка", MerchantCategory.GroceryStores, "ул. Ленина, 1", "7712345678"),
         };
         var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
 
-        merchantRepository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(merchants);
+        merchantRepository.GetPageAsync(50, 0, null, Arg.Any<CancellationToken>())
+            .Returns((merchants, 2));
         userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
 
@@ -346,6 +346,8 @@ public class MerchantEndpointsTests
         Assert.Equal("Магнит", okResult.Value[0].Name);
         Assert.Equal((int)MerchantCategory.GroceryStores, okResult.Value[1].Category);
         Assert.Equal("2", httpContext.Response.Headers["X-Total-Count"]);
+        await merchantRepository.Received(1).GetPageAsync(50, 0, null, Arg.Any<CancellationToken>());
+        await merchantRepository.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -358,14 +360,12 @@ public class MerchantEndpointsTests
 
         var merchants = new List<Merchant>
         {
-            new(Guid.NewGuid(), "Пятёрочка", MerchantCategory.GroceryStores),
             new(Guid.NewGuid(), "Магнит", MerchantCategory.GroceryStores),
-            new(Guid.NewGuid(), "Лента", MerchantCategory.Undefined),
         };
         var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
 
-        merchantRepository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(merchants);
+        merchantRepository.GetPageAsync(1, 0, "маг", Arg.Any<CancellationToken>())
+            .Returns((merchants, 1));
         userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
 
@@ -389,6 +389,8 @@ public class MerchantEndpointsTests
         var merchant = Assert.Single(okResult.Value!);
         Assert.Equal("Магнит", merchant.Name);
         Assert.Equal("1", httpContext.Response.Headers["X-Total-Count"]);
+        await merchantRepository.Received(1).GetPageAsync(1, 0, "маг", Arg.Any<CancellationToken>());
+        await merchantRepository.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -421,7 +423,286 @@ public class MerchantEndpointsTests
 
         // Assert
         await merchantRepository.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
+        await merchantRepository.DidNotReceive().GetPageAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
         Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult>(result);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithoutUser_ReturnsUnauthorized()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var httpContext = new DefaultHttpContext();
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: null,
+            CancellationToken.None);
+
+        // Assert
+        await merchantRepository.DidNotReceive().GetPageAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.UnauthorizedHttpResult>(result);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithSearchMatchingName_PassesTrimmedTerm_PartialCaseInsensitive()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var merchants = new List<Merchant> { new(Guid.NewGuid(), "Пятёрочка", MerchantCategory.GroceryStores) };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns((merchants, 1));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "  ПяТ  ",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        Assert.Equal("Пятёрочка", Assert.Single(okResult.Value!).Name);
+        Assert.Equal("1", httpContext.Response.Headers["X-Total-Count"]);
+        await merchantRepository.Received(1).GetPageAsync(50, 0, "ПяТ", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithSearchMatchingInn_ReturnsResult()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var merchants = new List<Merchant> { new(Guid.NewGuid(), "Магнит", MerchantCategory.GroceryStores, null, "7702000002") };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, "7702", Arg.Any<CancellationToken>())
+            .Returns((merchants, 1));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "7702",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        var merchant = Assert.Single(okResult.Value!);
+        Assert.Equal("Магнит", merchant.Name);
+        Assert.Equal("7702000002", merchant.Inn);
+        Assert.Equal("1", httpContext.Response.Headers["X-Total-Count"]);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithSearchMatchingNameOfOneAndInnOfAnother_ReturnsBoth()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var merchants = new List<Merchant>
+        {
+            new(Guid.NewGuid(), "Shop 123", MerchantCategory.Undefined, null, "9900000001"),
+            new(Guid.NewGuid(), "Другой", MerchantCategory.Undefined, null, "7700123999"),
+        };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, "123", Arg.Any<CancellationToken>())
+            .Returns((merchants, 2));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "123",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        Assert.Equal(2, okResult.Value!.Count);
+        Assert.Contains(okResult.Value, m => m.Name == "Shop 123");
+        Assert.Contains(okResult.Value, m => m.Name == "Другой");
+        Assert.Equal("2", httpContext.Response.Headers["X-Total-Count"]);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithNullInnMerchant_FoundByName()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var merchants = new List<Merchant> { new(Guid.NewGuid(), "БезИНН Магазин", MerchantCategory.Undefined, null, null) };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, "безинн", Arg.Any<CancellationToken>())
+            .Returns((merchants, 1));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "безинн",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        var merchant = Assert.Single(okResult.Value!);
+        Assert.Equal("БезИНН Магазин", merchant.Name);
+        Assert.Null(merchant.Inn);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithWhitespaceSearch_TreatsAsNoFilter()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var merchants = new List<Merchant> { new(Guid.NewGuid(), "Пятёрочка", MerchantCategory.GroceryStores) };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, null, Arg.Any<CancellationToken>())
+            .Returns((merchants, 1));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "   ",
+            CancellationToken.None);
+
+        // Assert
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        await merchantRepository.Received(1).GetPageAsync(50, 0, null, Arg.Any<CancellationToken>());
+        Assert.Equal("1", httpContext.Response.Headers["X-Total-Count"]);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithEmptyResult_ReturnsOkEmptyArrayAndZeroTotal()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(50, 0, "нет", Arg.Any<CancellationToken>())
+            .Returns((new List<Merchant>(), 0));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 50,
+            offset: 0,
+            search: "нет",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        Assert.Empty(okResult.Value!);
+        Assert.Equal("0", httpContext.Response.Headers["X-Total-Count"]);
+    }
+
+    [Fact]
+    public async Task GetAllMerchants_WithLimitAndOffset_ReturnsPageAndTotalFromFilteredSet()
+    {
+        // Arrange
+        var merchantRepository = Substitute.For<IMerchantRepository>();
+        var userRepository = Substitute.For<IUserRepository>();
+        var userId = Guid.NewGuid();
+
+        var page = new List<Merchant> { new(Guid.NewGuid(), "Бета", MerchantCategory.Undefined, null, "1000000002") };
+        var user = new User(userId, "userName", "12345", 111222, isAdmin: true);
+
+        merchantRepository.GetPageAsync(1, 1, "1000", Arg.Any<CancellationToken>())
+            .Returns((page, 3));
+        userRepository.GetByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(user);
+
+        var httpContext = new DefaultHttpContext();
+        using var context = UserContext.SetUserId(userId);
+
+        // Act
+        var result = await MerchantEndpoints.GetAll(
+            httpContext,
+            merchantRepository,
+            userRepository,
+            limit: 1,
+            offset: 1,
+            search: "1000",
+            CancellationToken.None);
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<List<MerchantDto>>>(result);
+        Assert.Equal("Бета", Assert.Single(okResult.Value!).Name);
+        Assert.Equal("3", httpContext.Response.Headers["X-Total-Count"]);
+        await merchantRepository.Received(1).GetPageAsync(1, 1, "1000", Arg.Any<CancellationToken>());
     }
 
     [Fact]
