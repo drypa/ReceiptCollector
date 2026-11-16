@@ -300,13 +300,14 @@ public class MerchantDefaultCategoryEndpointsTests
     {
         using var context = SetUser(isAdmin: true);
         var httpContext = new DefaultHttpContext();
-        _merchantRepository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Merchant>
-            {
-                new(Guid.NewGuid(), "Автотека", MerchantCategory.GroceryStores,
-                    defaultCommodityCategory: CommodityCategory.AutomotiveGoods),
-                new(Guid.NewGuid(), "Ромашка", MerchantCategory.GroceryStores),
-            });
+        var merchants = new List<Merchant>
+        {
+            new(Guid.NewGuid(), "Автотека", MerchantCategory.GroceryStores,
+                defaultCommodityCategory: CommodityCategory.AutomotiveGoods),
+            new(Guid.NewGuid(), "Ромашка", MerchantCategory.GroceryStores),
+        };
+        _merchantRepository.GetPageAsync(50, 0, null, Arg.Any<CancellationToken>())
+            .Returns((merchants, merchants.Count));
 
         var result = await MerchantEndpoints.GetAll(
             httpContext, _merchantRepository, _userRepository, 50, 0, null, CancellationToken.None);
@@ -347,6 +348,7 @@ public class MerchantDefaultCategoryEndpointsTests
 
         Assert.IsType<UnauthorizedHttpResult>(result);
         await _merchantRepository.DidNotReceiveWithAnyArgs().GetAllAsync(default);
+        await _merchantRepository.DidNotReceiveWithAnyArgs().GetPageAsync(default, default, default, default);
     }
 
     // ------------------------------------------------------------ Routing
