@@ -60,21 +60,10 @@ public static class MerchantEndpoints
             return Results.BadRequest("offset cannot be negative.");
         }
 
-        var merchants = await merchantRepository.GetAllAsync(cancellationToken);
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
 
-        IEnumerable<Merchant> filtered = merchants;
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            filtered = filtered.Where(m => m.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
-        }
-
-        var totalCount = filtered.Count();
-        var page = filtered
-            .OrderBy(m => m.Name)
-            .Skip(offset)
-            .Take(limit)
-            .Select(ToDto)
-            .ToList();
+        var (merchants, totalCount) = await merchantRepository.GetPageAsync(limit, offset, normalizedSearch, cancellationToken);
+        var page = merchants.Select(ToDto).ToList();
 
         httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString(CultureInfo.InvariantCulture);
         return Results.Ok(page);
