@@ -44,6 +44,8 @@ function MerchantsView({ isAdmin }: MerchantsViewProps) {
     currentPage,
     totalPages,
     totalItems,
+    search,
+    setSearch,
     goToPage,
     nextPage,
     previousPage,
@@ -80,6 +82,17 @@ function MerchantsView({ isAdmin }: MerchantsViewProps) {
           </button>
         </div>
       </header>
+
+      <div className="controls">
+        <label htmlFor="merchants-search">Поиск: </label>
+        <input
+          id="merchants-search"
+          type="search"
+          value={search}
+          placeholder="Название или ИНН"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
 
       {isLoading && (
         <div className="state state-loading">

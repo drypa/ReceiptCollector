@@ -6,16 +6,36 @@ interface UseMerchantsOptions {
   pageSize?: number;
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
   const [merchants, setMerchants] = useState<MerchantDto[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Поиск с debounce: сброс на первую страницу при изменении запроса (как в precategorization).
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setCurrentPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
+
+  // При смене размера страницы — первая страница; загрузка выполнится эффектом ниже.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
+
   const loadPage = useCallback(
-    (page: number) => {
+    (page: number, term: string) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -26,8 +46,12 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
       setIsLoading(true);
       setError(null);
 
-      fetchMerchants({ limit: pageSize, offset, signal: controller.signal })
+      fetchMerchants({ limit: pageSize, offset, search: term || undefined, signal: controller.signal })
         .then(({ merchants: pageMerchants, totalItems: total, currentPage: responsePage, pageSize: responsePageSize }) => {
+          if (abortRef.current !== controller) {
+            return;
+          }
+
           const effectivePageSize = responsePageSize > 0 ? responsePageSize : pageSize;
           const effectivePage = responsePage > 0 ? responsePage : normalizedPage;
           const effectiveTotalItems = total >= 0 ? total : offset + pageMerchants.length;
@@ -42,6 +66,9 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
           if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
             return;
           }
+          if (abortRef.current !== controller) {
+            return;
+          }
           setError(fetchError instanceof Error ? fetchError.message : 'Неизвестная ошибка');
         })
         .finally(() => {
@@ -53,19 +80,20 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
     [pageSize],
   );
 
-  // When pageSize changes, reset to first page
   useEffect(() => {
-    setCurrentPage(1);
-    loadPage(1);
-  }, [pageSize, loadPage]);
-
-  useEffect(() => {
-    loadPage(1);
+    loadPage(currentPage, search);
 
     return () => {
       abortRef.current?.abort();
     };
-  }, [loadPage]);
+  }, [currentPage, search, reloadToken, loadPage]);
+
+  // Отмена активного запроса при размонтировании.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
@@ -76,9 +104,9 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
         return;
       }
 
-      loadPage(targetPage);
+      setCurrentPage(targetPage);
     },
-    [currentPage, isLoading, loadPage, totalPages],
+    [currentPage, isLoading, totalPages],
   );
 
   const nextPage = useCallback(() => {
@@ -90,8 +118,8 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
   }, [currentPage, goToPage]);
 
   const refresh = useCallback(() => {
-    loadPage(currentPage);
-  }, [currentPage, loadPage]);
+    setReloadToken((token) => token + 1);
+  }, []);
 
   return {
     data: merchants,
@@ -101,6 +129,8 @@ export function useMerchants({ pageSize = 10 }: UseMerchantsOptions = {}) {
     totalPages,
     totalItems,
     pageSize,
+    search: searchInput,
+    setSearch: setSearchInput,
     goToPage,
     nextPage,
     previousPage,
